@@ -42,7 +42,7 @@ export type Vehicle = {
   date: string; km: number; kw: number; cc: number; co2: number; fuel: Fuel;
   gear: typeof gears[number]; drive: string; vin: string; city: string; seller: string;
   dealer: boolean; verified: boolean; phone: string; email?: string; flags: Flag[];
-  photos: Photo[]; equipment: Equipment; range?: [number, number]; demo?: boolean;
+  photos: Photo[]; equipment: Equipment; range?: [number, number]; demo?: boolean; sellerNote?: string;
 };
 
 const photos = photoData as Record<string, Photo[]>;
@@ -55,10 +55,27 @@ export const registered = (date: string) => date.slice(5, 7) + "/" + date.slice(
 export const power = (kw: number) => kw + " kW (" + Math.round(kw * 1.35962) + " KS)";
 export function rating(vehicle: Vehicle) {
   if (!vehicle.range) return null;
-  if (vehicle.price <= vehicle.range[0]) return { label: "Odlična cijena", type: "good", rank: 0 };
-  if (vehicle.price <= vehicle.range[1]) return { label: "Fer cijena", type: "fair", rank: 1 };
-  return { label: "Viša cijena", type: "high", rank: 2 };
+  if (vehicle.price <= vehicle.range[0]) return { label: "Odlična cijena", type: "good", rank: 0 } as const;
+  if (vehicle.price <= vehicle.range[1]) return { label: "Fer cijena", type: "fair", rank: 1 } as const;
+  return { label: "Viša cijena", type: "high", rank: 2 } as const;
 }
+
+const sellerNotes: Record<string, string> = {
+  g20: "Vozilo je u sustavu PDV-a i redovno je održavano u ovlaštenom servisu. Moguća provjera po broju šasije.",
+  a4: "Iz uvoza, na ime kupca. Servisnu povijest možemo poslati prije dolaska, a pregled vozila je moguć u Rijeci.",
+  golf: "Vozilo je u dolasku. Kilometraža je potvrđena i možemo vam javiti čim bude spremno za pregled u Osijeku.",
+  c220: "Vozilo se može pogledati u Splitu uz prethodnu najavu. Račun s iskazanim PDV-om izdajemo pri kupnji.",
+  macan: "Macan S s panoramskim krovom i dva ključa. Za pregled servisnih računa i probnu vožnju javite se unaprijed.",
+  octavia: "Octavia RS na ime kupca, s evidentiranom kilometražom. Vozilo možete pregledati kod nas u Varaždinu.",
+  a6: "Audi A6 s quattro pogonom i računom s iskazanim PDV-om. Za pregled i probnu vožnju dogovorite termin.",
+  passat: "Prodajem svoj Passat jer mi više ne treba drugi auto. Kilometraža je potvrđena, a pregled je moguć u Slavonskom Brodu.",
+  tiguan: "Tiguan je u dolasku u Varaždin. Možemo poslati dodatne fotografije i dogovoriti pregled kad stigne.",
+  f30: "BMW je još u svakodnevnoj vožnji pa se kilometraža može malo promijeniti. Pregled u Slavonskom Brodu po dogovoru.",
+  "118": "Auto je kod mene nekoliko godina i vozim ga uglavnom po gradu. Može se pogledati u Osijeku nakon posla.",
+  e220: "Vozilo je na ime kupca, s mogućnošću izdavanja računa s iskazanim PDV-om. Dostupno je za pregled u Rijeci.",
+  touring: "Karavan je u dolasku i prodaje se na ime kupca. Nazovite za termin pregleda u Splitu.",
+  passatgte: "Kućni kabel za punjenje dolazi uz auto. Možemo se dogovoriti za pregled i probnu vožnju u Zagrebu.",
+};
 
 type Seed = [id: string, key: string, make: keyof typeof makes, model: string, title: string, trim: string, price: number,
   date: string, km: number, kw: number, cc: number, co2: number, city: number, seller: string,
@@ -83,7 +100,7 @@ export const vehicles: Vehicle[] = seed.map(([
   id, key, make, model, title, trim, price, date, km, kw, cc, co2, city, seller, flags, range,
   drive = "Prednji", gear = "Automatski", fuel = "Dizel",
 ], index) => ({
-  id, make, model, title, trim, price, date, km, kw, cc, co2, city: cities[city], drive, gear, fuel,
+  id, make, model, title, trim, price, date, km, kw, cc, co2, city: cities[city], drive, gear, fuel, sellerNote: sellerNotes[id],
   vin: "EXAMPLE0000" + String(100001 + index), seller, dealer: Boolean(seller), verified: Boolean(seller),
   phone: "+385 00 000 000", flags, range, demo: true, photos: modelPhotos(key),
   equipment: {

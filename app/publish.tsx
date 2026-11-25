@@ -1,10 +1,10 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, ImagePlus, Plus, WandSparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ImagePlus, Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { cities, emptyEquipment, equipmentOptions, euro, flags, fuels, gears, groups, makes, modelPhotos, quick, vehicles, type Flag, type Photo, type Vehicle } from "./catalog";
+import { cities, emptyEquipment, equipmentOptions, euro, fuels, gears, groups, makes, modelPhotos, vehicles, type Photo, type Vehicle } from "./catalog";
 import { modelsFor } from "./search";
-import { Dialog, Select, VehiclePhoto } from "./ui";
+import { Dialog, ListingOptions, Select, VehiclePhoto } from "./ui";
 
 type Publish = Omit<Vehicle, "id">;
 const initial: Publish = {
@@ -16,7 +16,8 @@ const steps = ["Vozilo", "Oprema i fotografije", "Cijena i kontakt"];
 const example: Publish = {
   ...vehicles[1], title: "Audi A4 35 TDI S-Line", trim: "S-Line · LED · Virtual Cockpit", price: 18800,
   date: "2019-10", km: 142300, kw: 110, co2: 109, vin: "EXAMPLE0000112345", city: "Zagreb",
-  seller: "Primjer Auto", phone: "+385 00 000 000", email: "", range: [18400, 19200], demo: true, verified: false,
+  seller: "Primjer Auto", sellerNote: "Audi A4 s urednom servisnom poviješću. Vozilo se može pogledati u Zagrebu uz najavu.",
+  phone: "+385 00 000 000", email: "", range: [18400, 19200], demo: true, verified: false,
   photos: modelPhotos("audi-a4"),
   equipment: { Sigurnost: ["ABS / ESP", "ISOFIX", "Adaptivni tempomat"], Udobnost: ["Sportska sjedala", "Automatska klima"], Multimedija: ["Digitalni kokpit", "Apple CarPlay"], Eksterijer: ["LED svjetla", "Sportski paket"] },
 };
@@ -72,13 +73,10 @@ export default function PublishForm({ onClose, onPublish }: { onClose: () => voi
   const options = modelsFor(values.make);
   const now = new Date();
   const maxMonth = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
-  return <Dialog title="Predaj oglas" eyebrow="OGLAŠAVANJE · 0 €" onClose={onClose} variant="form-dialog">
+  return <Dialog title="Predaj oglas" onClose={onClose} variant="form-dialog">
     <div className="dialog-content">
       <ol className="steps">{steps.map((label, index) => <li className={index === step ? "current" : index < step ? "complete" : ""} key={label} aria-current={index === step ? "step" : undefined}><span className="mono">{index < step ? <Check size={13}/> : index + 1}</span>{label}</li>)}</ol>
-      <div className="demo-banner">
-        <div><strong>Isprobajte cijeli postupak</strong><p>Ogledni podaci, oprema i preporučena cijena.</p></div>
-        <button type="button" className="btn secondary" disabled={busy} onClick={() => { setValues(example); setStep(0); setError(""); }}><WandSparkles size={16}/> Popuni primjerom (AI + VIN Demo)</button>
-      </div>
+      {step === 0 && <button type="button" className="text-link demo-fill" disabled={busy} onClick={() => { setValues(example); setError(""); }}>Popuni primjerom</button>}
       <form className="form-stack" onSubmit={submit}>
         {step === 0 && <div className="form-grid">
           <Select label="Marka" required value={values.make} onChange={event => setValues(old => ({ ...old, make: event.target.value, model: "" }))}><option value="">Odaberite marku</option>{Object.keys(makes).map(make => <option key={make}>{make}</option>)}</Select>
@@ -92,17 +90,18 @@ export default function PublishForm({ onClose, onPublish }: { onClose: () => voi
           <label className="field span-all"><span>VIN (neobavezno)</span><input className="mono" value={values.vin} maxLength={17} pattern={values.demo ? undefined : "[A-HJ-NPR-Z0-9]{17}"} title="17 znakova bez slova I, O ili Q" onChange={event => set("vin", event.target.value.toUpperCase())} /></label>
         </div>}
         {step === 1 && <>
+          <label className="field"><span>Napomena prodavača (neobavezno)</span><textarea rows={3} value={values.sellerNote ?? ""} maxLength={400} onChange={event => set("sellerNote", event.target.value)} placeholder="Navedite stanje vozila, servisnu povijest ili kada je moguć pregled." /></label>
           <label className="field"><span>Istaknuta oprema</span><input value={values.trim} maxLength={100} onChange={event => set("trim", event.target.value)} placeholder="npr. Digitalni kokpit · Matrix LED" /></label>
           <div className="equipment edit-equipment">{groups.map(group => <fieldset key={group}><legend>{group}</legend>{equipmentOptions[group].map(item => <label key={item}><input type="checkbox" checked={values.equipment[group].includes(item)} onChange={event => {
             const items = values.equipment[group];
             set("equipment", { ...values.equipment, [group]: event.target.checked ? [...items, item] : items.filter(value => value !== item) });
           }}/>{item}</label>)}</fieldset>)}</div>
-          <div className="pills">{flags.map(flag => <button key={flag} type="button" className="pill" aria-pressed={values.flags.includes(flag)} onClick={() => set("flags", values.flags.includes(flag) ? values.flags.filter(value => value !== flag) : [...values.flags, flag as Flag])}>{quick[flag]}</button>)}</div>
+          <ListingOptions selected={values.flags} onChange={selected => set("flags", selected)} />
           <div className="upload-row">{values.photos.map((photo, index) => <div className="upload-item" key={index}><VehiclePhoto photo={photo} alt={"Fotografija " + (index + 1)}/><button type="button" className="icon-btn" aria-label={"Ukloni fotografiju " + (index + 1)} onClick={() => set("photos", values.photos.filter((_, n) => n !== index))}>×</button></div>)}</div>
           <label className="file-field"><ImagePlus size={19}/> Fotografije vozila ({values.photos.length}/6)<input type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif" disabled={busy || values.photos.length >= 6} onChange={event => { void addPhotos(event.target.files); event.target.value = ""; }} /></label>
         </>}
         {step === 2 && <>
-          {detected && <div className="calculation"><span>Preporučena AI cijena (demo)</span><strong className="mono">{euro(detected[0])} – {euro(detected[1])}</strong></div>}
+          {detected && <div className="calculation"><span>Ogledni raspon cijene</span><strong className="mono">{euro(detected[0])} – {euro(detected[1])}</strong></div>}
           <div className="form-grid">
             {numeric("Tražena cijena (€)", "price", 1, 100000000)}
             <Select label="Grad" required value={values.city} onChange={event => set("city", event.target.value)}><option value="">Odaberite grad</option>{cities.map(city => <option key={city}>{city}</option>)}</Select>

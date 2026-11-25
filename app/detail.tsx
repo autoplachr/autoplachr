@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, Check, ChevronLeft, ChevronRight, Heart, MapPin, MessageSquare, Phone, Store, TrendingUp } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Heart, MessageSquare, Phone } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { euro, groups, number, power, quick, registered, taxStatus, type Vehicle } from "./catalog";
 import { Dialog, PhotoCount, Rating, VehiclePhoto } from "./ui";
@@ -36,7 +36,7 @@ export default function Detail({ vehicle, saved, onSave, onClose }: {
     window.location.href = "mailto:" + vehicle.email + "?" + query;
     setConfirmation("Upit je otvoren u vašoj aplikaciji za e-poštu.");
   }
-  return <Dialog title={vehicle.title} eyebrow={vehicle.demo ? "OGLEDNI OGLAS" : "DETALJI OGLASA"} onClose={onClose} variant="detail-dialog">
+  return <Dialog title={vehicle.title} eyebrow={vehicle.demo ? "Ogledni oglas" : undefined} onClose={onClose} variant="detail-dialog">
     <div className="dialog-content">
       <div className="detail-gallery" aria-label="Fotografije vozila" onKeyDown={event => {
         if (count < 2) return;
@@ -55,20 +55,22 @@ export default function Detail({ vehicle, saved, onSave, onClose }: {
         {active?.link && <p className="photo-credit">Ilustrativna fotografija · <a target="_blank" rel="noreferrer" href={active.link}>{active.credit} / Unsplash</a></p>}
       </div>
       <div className="detail-summary">
-        <div><p>{vehicle.trim}</p><div className="price-line"><strong className="mono">{euro(vehicle.price)}</strong><Rating vehicle={vehicle}/></div></div>
+        <div className="price-line"><strong className="mono">{euro(vehicle.price)}</strong><Rating vehicle={vehicle}/></div>
         <button type="button" className={"icon-btn " + (saved ? "saved" : "")} aria-label={saved ? "Ukloni iz spremljenih" : "Spremi vozilo"} aria-pressed={saved} onClick={onSave}><Heart size={20} fill={saved ? "currentColor" : "none"}/></button>
       </div>
-      {vehicle.flags.length > 0 && <div className="pills">{vehicle.flags.map(flag => <span className="pill" key={flag}>{quick[flag]}</span>)}</div>}
+      {vehicle.sellerNote && <p className="detail-seller-note">{vehicle.sellerNote}</p>}
+      {vehicle.flags.length > 0 && <p className="listing-conditions">{vehicle.flags.map(flag => quick[flag]).join(" · ")}</p>}
       <section className="detail-section">
         <h3>Tehnički podaci</h3>
         <dl className="spec-table">{specs.map(([label, value, mono]) => <div key={label}><dt>{label}</dt><dd className={mono ? "mono" : ""}>{value}</dd></div>)}</dl>
       </section>
       {groups.some(group => vehicle.equipment[group].length) && <section className="detail-section">
         <h3>Oprema vozila</h3>
+        {vehicle.trim && <p className="equipment-summary">{vehicle.trim}</p>}
         <div className="equipment">{groups.filter(group => vehicle.equipment[group].length).map(group => <section key={group}><h4>{group}</h4><ul>{vehicle.equipment[group].map(item => <li key={item}><Check size={14}/>{item}</li>)}</ul></section>)}</div>
       </section>}
       {vehicle.range && <section className="detail-section price-evaluation">
-        <h3><TrendingUp size={18}/> AI ocjena cijene <Rating vehicle={vehicle}/></h3>
+        <h3>Usporedba cijene</h3>
         <p>Tržišni raspon <strong className="mono">{euro(vehicle.range[0])} – {euro(vehicle.range[1])}</strong></p>
         <div className="price-scale" role="img" aria-label={"Tražena cijena " + euro(vehicle.price) + " u odnosu na ogledni tržišni raspon"}>
           <div/><div/><div/><span style={{ left: Math.max(4, Math.min(96, 33.33 + 33.33 * (vehicle.price - vehicle.range[0]) / (vehicle.range[1] - vehicle.range[0]))) + "%" }}/>
@@ -78,7 +80,7 @@ export default function Detail({ vehicle, saved, onSave, onClose }: {
       </section>}
       <BuyerTools vehicle={vehicle} />
       <section className="detail-section seller-card">
-        <div className="seller-title"><div className="section-icon"><Store size={20}/></div><div><h3>{vehicle.seller || "Privatni prodavač"} {vehicle.verified && <BadgeCheck size={17} aria-label="Provjerena autokuća"/>}</h3><p><MapPin size={14}/>{vehicle.city}</p></div></div>
+        <div className="seller-title"><h3>{vehicle.seller || "Privatni prodavač"}</h3><p>{vehicle.city}{vehicle.verified && " · Verificirana autokuća"}</p></div>
         <div className="flex flex-wrap gap-2">
           {phone && !vehicle.demo ? <a className="btn secondary mono" href={"tel:" + vehicle.phone.replace(/[^+\d]/g, "")}><Phone size={15}/>{vehicle.phone}</a> : <button className="btn secondary" type="button" onClick={() => setPhone(true)}><Phone size={15}/>{phone ? vehicle.phone + " (demo)" : "Prikaži broj telefona (+385 …)"}</button>}
           <button type="button" className="btn quiet" aria-expanded={inquiry} onClick={() => setInquiry(!inquiry)}><MessageSquare size={15}/> Brzi upit</button>

@@ -8,7 +8,7 @@ export const sorts = {
   lowest: "Cijena: niža prema višoj",
   highest: "Cijena: viša prema nižoj",
   mileage: "Kilometraža: najmanja",
-  rating: "Najbolja AI ocjena cijene",
+  rating: "Najbolja ocjena cijene",
 } as const;
 export type Search = {
   marka: string; model: string; cijena: string; godiste: string; km: string; gorivo: string;
@@ -16,7 +16,7 @@ export type Search = {
 };
 export const initialSearch: Search = {
   marka: "", model: "", cijena: "", godiste: "", km: "", gorivo: "", mjenjac: "", grad: "",
-  opcije: [], sortiranje: "newest", prikaz: "grid",
+  opcije: [], sortiranje: "newest", prikaz: "lista",
 };
 export function modelsFor(make: string): readonly string[] {
   return Object.hasOwn(makes, make) ? makes[make as keyof typeof makes] : [];
@@ -34,7 +34,7 @@ export function readSearch(query: string): Search {
     gorivo: accept("gorivo", fuels), mjenjac: accept("mjenjac", gears), grad: accept("grad", cities),
     opcije: flags.filter(flag => params.getAll("opcije").includes(flag)),
     sortiranje: accept("sortiranje", Object.keys(sorts), "newest") as Search["sortiranje"],
-    prikaz: accept("prikaz", ["grid", "lista"], "grid") as Search["prikaz"],
+    prikaz: accept("prikaz", ["grid", "lista"], initialSearch.prikaz) as Search["prikaz"],
   };
 }
 export function writeSearch(search: Search) {

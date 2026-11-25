@@ -1,8 +1,20 @@
 "use client";
 
-import { Camera, CarFront, ChevronDown, X } from "lucide-react";
+import { CarFront, ChevronDown, X } from "lucide-react";
 import { useEffect, useRef, type ReactNode, type SelectHTMLAttributes } from "react";
-import { rating, type Photo, type Vehicle } from "./catalog";
+import { flags, quick, rating, type Flag, type Photo, type Vehicle } from "./catalog";
+
+export function ListingOptions({ selected, onChange }: { selected: Flag[]; onChange: (value: Flag[]) => void }) {
+  return <fieldset className="filter-options">
+    <legend>Dodatni uvjeti</legend>
+    {flags.map(flag => <label key={flag}>
+      <input type="checkbox" checked={selected.includes(flag)} onChange={event => {
+        onChange(event.target.checked ? [...selected, flag] : selected.filter(value => value !== flag));
+      }} />
+      {quick[flag]}
+    </label>)}
+  </fieldset>;
+}
 
 export function Select({ label, className = "", children, ...props }: SelectHTMLAttributes<HTMLSelectElement> & { label: string }) {
   return <label className={"field " + className}>
@@ -51,11 +63,18 @@ export function VehiclePhoto({ photo, alt, eager = false }: { photo?: Photo; alt
 
 export function PhotoCount({ index, total }: { index: number; total: number }) {
   if (!total) return null;
-  return <span className="photo-count mono"><Camera size={13} aria-hidden="true" />{index + 1}/{total}</span>;
+  return <span className="photo-count mono" aria-label={`Fotografija ${index + 1} od ${total}`}>{index + 1}/{total}</span>;
 }
 
 export function Rating({ vehicle }: { vehicle: Vehicle }) {
   const result = rating(vehicle);
-  return result && <span className={"rating " + result.type}><i aria-hidden="true" />{result.label}</span>;
+  if (!result) return null;
+  const filled = { good: 5, fair: 3, high: 1 }[result.type];
+  return <span className={"rating " + result.type}>
+    <span className="rating-bars" aria-hidden="true">{Array.from({ length: 5 }, (_, index) =>
+      <span className={index < filled ? "filled" : undefined} key={index}/>
+    )}</span>
+    <span>{result.label}</span>
+  </span>;
 }
 
