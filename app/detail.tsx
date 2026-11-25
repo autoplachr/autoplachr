@@ -1,22 +1,36 @@
 "use client";
 
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Heart, Maximize, MessageSquare, Phone, Printer, Share2, Star } from "lucide-react";
-import { useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
+import { useEffect, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { euro, groups, number, power, registered, taxStatus, type Vehicle } from "./catalog";
 import { vehicleMakeOptions } from "./make-equipment";
 import { Dialog, Rating, VehiclePhoto } from "./ui";
+import { equipmentFor } from "../src/data/equipment-catalog";
+import { api } from "./account-api";
 import { BuyerTools, monthlyPayment } from "./buyer-tools";
 
 const equipmentHeadings = ["Sigurnost i asistencije", "Udobnost i interijer", "Multimedija i navigacija", "Eksterijer i ovjes"];
 const questions = ["Je li vozilo još dostupno?", "Je li moguća zamjena?", "Možete li poslati broj šasije?"];
 
-export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOpen, onNotice }: {
+export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOpen, onNotice, onReport }: {
   vehicle: Vehicle; inventory: Vehicle[]; saved: boolean; onSave: () => void; onBack: () => void;
-  onOpen: (event: MouseEvent<HTMLAnchorElement>, id: string) => void; onNotice: (message: string) => void;
+  onOpen: (event: MouseEvent<HTMLAnchorElement>, id: string) => void; onNotice: (message: string) => void; onReport: () => void;
 }) {
   const [photo, setPhoto] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
-  const [phone, setPhone] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [revealing,setRevealing] = useState(false);
+  useEffect(() => {
+    if (!vehicle.contactAvailable || sessionStorage.getItem("sasija.view."+vehicle.id)) return;
+    void api("view",{id:vehicle.id}).then(() => sessionStorage.setItem("sasija.view."+vehicle.id,"1")).catch(() => undefined);
+  },[vehicle.id,vehicle.contactAvailable]);
+  async function reveal() {
+    if (!vehicle.contactAvailable) {setPhone(vehicle.phone);return;}
+    setRevealing(true);
+    try {setPhone((await api<{phone:string}>("phone",{id:vehicle.id})).phone);}
+    catch (error) {onNotice(error instanceof Error ? error.message : "Broj nije dostupan.");}
+    finally {setRevealing(false);}
+  }
   const [inquiry, setInquiry] = useState(false);
   const [message, setMessage] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -45,6 +59,11 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
     const index = /view/i.test(option.id) ? 0 : /seats/i.test(option.id) ? 1 :
       /cockpit|harman|olufsen|mbux|burmester|canton|widescreen/.test(option.id) ? 2 : 3;
     equipment[index].push(option.label);
+  }
+  for (const option of equipmentFor(vehicle)) {
+    if (!vehicle.catalogEquipment?.includes(option.id)) continue;
+    const index = [3,3,1,2][option.category];
+    if (!equipment[index].includes(option.label)) equipment[index].push(option.label);
   }
   const score = (item: Vehicle) => Number(item.make === vehicle.make) * 2 + Number(item.model === vehicle.model) * 4 + Number(item.fuel === vehicle.fuel);
   const similar = inventory.filter(item => item.id !== vehicle.id).sort((a, b) =>
@@ -104,6 +123,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
       <div className="detail-actions">
         <button type="button" className="btn secondary" aria-pressed={saved} onClick={onSave}><Heart size={16} fill={saved ? "currentColor" : "none"}/> {saved ? "Spremljen oglas" : "Spremi oglas"}</button>
         <button type="button" className="btn secondary" onClick={share}><Share2 size={16}/> Podijeli</button>
+        <button type="button" className="btn secondary" onClick={onReport}>Prijavi oglas</button>
         <button type="button" className="btn secondary" onClick={() => window.print()}><Printer size={16}/> Ispiši</button>
       </div>
     </div>
@@ -158,8 +178,8 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
           <p>{vehicle.sellerAddress || vehicle.city}</p>
           {vehicle.sellerHours && <p>Otvoreno danas: <span className="tabular">{vehicle.sellerHours}</span></p>}
           <div className="contact-actions">
-            {phone && !vehicle.demo ? <a className="btn primary tabular" href={"tel:" + vehicle.phone.replace(/[^+\d]/g, "")}><Phone size={16}/>{vehicle.phone}</a> :
-              <button className="btn primary" type="button" disabled={phone} onClick={() => setPhone(true)}><Phone size={16}/>{phone ? vehicle.phone + " (demo)" : "Prikaži broj telefona"}</button>}
+            {phone && !vehicle.demo ? <a className="btn primary tabular" href={"tel:" + phone.replace(/[^+\d]/g, "")}><Phone size={16}/>{phone}</a> :
+              <button className="btn primary" type="button" disabled={Boolean(phone) || revealing} onClick={reveal}><Phone size={16}/>{phone ? phone + " (demo)" : "Prikaži broj telefona"}</button>}
             <button type="button" className="btn secondary" aria-expanded={inquiry} onClick={() => setInquiry(!inquiry)}><MessageSquare size={16}/> Pošalji upit prodavaču</button>
           </div>
           {inquiry && <form className="inquiry form-stack" onSubmit={send}>

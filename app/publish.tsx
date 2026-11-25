@@ -2,9 +2,11 @@
 
 import { ArrowLeft, ArrowRight, Check, ImagePlus, Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { cities, emptyEquipment, equipmentOptions, euro, fuels, gears, groups, modelPhotos, vehicles, type Photo, type Vehicle } from "./catalog";
+import { emptyEquipment, equipmentOptions, euro, fuels, gears, groups, modelPhotos, vehicles, type Photo, type Vehicle } from "./catalog";
 import { CatalogFields, customVariant, VariantField } from "./catalog-fields";
 import { titleContainsChassis } from "../src/data/car-catalog";
+import { EquipmentSelector } from "./equipment-selector";
+import { equipmentFor } from "../src/data/equipment-catalog";
 import { Dialog, ListingOptions, MakeEquipmentOptions, Select, VehiclePhoto } from "./ui";
 import { selectedMakeOptions } from "./make-equipment";
 
@@ -38,9 +40,9 @@ async function preparePhoto(file: File): Promise<Photo> {
   return { src: canvas.toDataURL("image/webp", .78) };
 }
 
-export default function PublishForm({ onClose, onPublish }: { onClose: () => void; onPublish: (v: Vehicle) => void; }) {
+export default function PublishForm({ onClose, onPublish, existing, contact }: { onClose: () => void; onPublish: (v: Vehicle, status: "active" | "draft" | "sold") => Promise<void>; existing?: Vehicle & { status?: "active" | "draft" | "sold" }; contact: { phone: string; email: string; city: string; name: string; type: string }; }) {
   const [step, setStep] = useState(0);
-  const [values, setValues] = useState(initial);
+  const [values, setValues] = useState<Publish>({ ...initial, ...existing, generation: existing?.generation ?? "", variant: existing?.variant ?? "", seller: contact.name, city: contact.city, phone: contact.phone, email: contact.email, dealer: contact.type === "dealer" });
   const [customVersion, setCustomVersion] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -58,7 +60,7 @@ export default function PublishForm({ onClose, onPublish }: { onClose: () => voi
     } catch { setError("Odaberite JPG, PNG, AVIF ili WebP fotografije do 15 MB."); }
     finally { setBusy(false); }
   }
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     if (step < 2) { setStep(step + 1); return; }
@@ -66,25 +68,30 @@ export default function PublishForm({ onClose, onPublish }: { onClose: () => voi
       setError("Unesite ispravan telefonski broj."); return;
     }
     if (!values.demo && values.dealer && !values.seller.trim()) { setError("Unesite naziv autokuće."); return; }
+    setBusy(true);
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const action = submitter?.value === "draft" ? "draft" : existing?.status === "sold" ? "sold" : "active";
     try {
       const title = values.title.trim();
-      onPublish({
+      await onPublish({
         ...values, title: titleContainsChassis(title, values.generation) ? title : title + " (" + values.generation + ")",
         variant: values.variant === customVariant ? customVersion.trim() : values.variant,
-        seller: values.seller.trim(), email: values.email?.trim(), phone: values.phone.trim(), id: crypto.randomUUID(),
-      });
-    } catch { setError("Oglas nije spremljen. Smanjite broj fotografija ili oslobodite prostor u pregledniku."); }
+        seller: values.seller.trim(), email: values.email?.trim(), phone: values.phone.trim(), id: existing?.id ?? crypto.randomUUID(), demo: false,
+        catalogEquipment: equipmentFor(values).filter(item => values.catalogEquipment?.includes(item.id)).map(item => item.id),
+      }, action);
+    } catch (problem) { setError(problem instanceof Error ? problem.message : "Oglas nije spremljen."); }
+    finally { setBusy(false); }
   }
   function numeric(label: string, key: "price" | "km" | "kw" | "cc" | "co2", min = 0, max = 1000000) {
     return <label className="field"><span>{label}</span><input required className="tabular" type="number" min={min} max={max} value={min ? values[key] || "" : values[key]} onChange={event => set(key, Number(event.target.value))} placeholder={min ? undefined : "0"} /></label>;
   }
-  const detected = values.range;
+  const detected = values.demo && values.range;
   const now = new Date();
   const maxMonth = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
   return <Dialog title="Predaj oglas" onClose={onClose} variant="form-dialog">
     <div className="dialog-content">
       <ol className="steps">{steps.map((label, index) => <li className={index === step ? "current" : index < step ? "complete" : ""} key={label} aria-current={index === step ? "step" : undefined}><span className="tabular">{index < step ? <Check size={13}/> : index + 1}</span>{label}</li>)}</ol>
-      {step === 0 && <button type="button" className="text-link demo-fill" disabled={busy} onClick={() => { setValues(example); setError(""); }}>Popuni primjerom</button>}
+      {step === 0 && <button type="button" className="text-link demo-fill" disabled={busy} onClick={() => { setValues({ ...example, city: contact.city, seller: contact.name, phone: contact.phone, email: contact.email, dealer: contact.type === "dealer", vin: "" }); setError(""); }}>Popuni primjerom</button>}
       <form className="form-stack" onSubmit={submit}>
         {step === 0 && <div className="form-grid">
           <CatalogFields listing value={values} onChange={selection => {
@@ -107,6 +114,7 @@ export default function PublishForm({ onClose, onPublish }: { onClose: () => voi
         {step === 1 && <>
           <label className="field"><span>Napomena prodavača (neobavezno)</span><textarea rows={3} value={values.sellerNote ?? ""} maxLength={400} onChange={event => set("sellerNote", event.target.value)} placeholder="Navedite stanje vozila, servisnu povijest ili kada je moguć pregled." /></label>
           <label className="field"><span>Istaknuta oprema</span><input value={values.trim} maxLength={100} onChange={event => set("trim", event.target.value)} placeholder="npr. Digitalni kokpit · Matrix LED" /></label>
+          <EquipmentSelector vehicle={values} onChange={selection => set("catalogEquipment",selection)}/>
           <MakeEquipmentOptions make={values.make} model={values.model} selected={values.makeEquipment ?? []} onChange={selection => set("makeEquipment", selection)} />
           <div className="equipment edit-equipment">{groups.map(group => <fieldset key={group}><legend>{group}</legend>{equipmentOptions[group].map(item => <label key={item}><input type="checkbox" checked={values.equipment[group].includes(item)} onChange={event => {
             const items = values.equipment[group];
@@ -120,16 +128,12 @@ export default function PublishForm({ onClose, onPublish }: { onClose: () => voi
           {detected && <div className="calculation"><span>Ogledni raspon cijene</span><strong className="tabular">{euro(detected[0])} – {euro(detected[1])}</strong></div>}
           <div className="form-grid">
             {numeric("Tražena cijena (€)", "price", 1, 100000000)}
-            <Select label="Grad" required value={values.city} onChange={event => set("city", event.target.value)}><option value="">Odaberite grad</option>{cities.map(city => <option key={city}>{city}</option>)}</Select>
-            <Select label="Prodavač" value={values.dealer ? "dealer" : "private"} onChange={event => set("dealer", event.target.value === "dealer")}><option value="private">Privatni prodavač</option><option value="dealer">Autokuća</option></Select>
-            <label className="field"><span>{values.dealer ? "Naziv autokuće" : "Ime prodavača"}</span><input required={values.dealer} value={values.seller} maxLength={65} onChange={event => set("seller", event.target.value)} /></label>
-            <label className="field"><span>Telefon</span><input className="tabular" type="tel" required value={values.phone} onChange={event => set("phone", event.target.value)} /></label>
-            <label className="field"><span>E-pošta {values.demo ? "(neobavezno)" : ""}</span><input type="email" required={!values.demo} value={values.email} onChange={event => set("email", event.target.value)} /></label>
+            <p className="fine-print">{contact.name} · {contact.city} · {contact.phone}</p>
           </div>
-          <p className="fine-print">Oglas se objavljuje u ponudi na ovom pregledniku.</p>
+          <p className="fine-print">Objavom potvrđujete da su podaci o vozilu točni. Nacrt je vidljiv samo na vašem računu.</p>
         </>}
         {error && <p className="form-error" role="alert">{error}</p>}
-        <div className="form-actions"><button type="button" className="btn quiet" onClick={() => { setError(""); if (step) setStep(step - 1); else onClose(); }}><ArrowLeft size={16}/>{step ? "Natrag" : "Odustani"}</button><button type="submit" className="btn primary" disabled={busy}>{step === 2 ? <><Plus size={16}/> Objavi oglas (0 €)</> : <>Nastavi <ArrowRight size={16}/></>}</button></div>
+        <div className="form-actions"><button type="button" className="btn quiet" onClick={() => { setError(""); if (step) setStep(step - 1); else onClose(); }}><ArrowLeft size={16}/>{step ? "Natrag" : "Odustani"}</button>{step === 2 && <button type="submit" className="btn secondary" value="draft" disabled={busy}>Spremi nacrt</button>}<button type="submit" className="btn primary" value="active" disabled={busy}>{step === 2 ? <><Plus size={16}/> {existing?.status === "sold" ? "Spremi izmjene" : "Objavi oglas (0 €)"}</> : <>Nastavi <ArrowRight size={16}/></>}</button></div>
       </form>
     </div>
   </Dialog>;

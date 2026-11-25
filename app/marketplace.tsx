@@ -1,19 +1,23 @@
 "use client";
 
-import { ArrowRight, CarFront, Check, Grid2X2, Heart, List, Moon, Sun, Plus, SlidersHorizontal, Store, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from "react";
+import { ArrowRight, CarFront, Check, Grid2X2, Heart, List, Moon, Sun, Plus, SlidersHorizontal, UserRound, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { restoreListingPhotos, cities, countyByCity, euro, fuels, gears, number, power, quick, registered, vehicles, type Vehicle } from "./catalog";
-import { distances, initialSearch, matchVehicles, prices, readSearch, sorts, writeSearch, years, type Search } from "./search";
+import { distances, initialSearch, matchVehicles, prices, readSearch, sorts, validEquipmentFilters, writeSearch, years, type Search } from "./search";
 import { CatalogFields } from "./catalog-fields";
 import { Dialog, ListingOptions, MakeEquipmentOptions, PhotoCount, Rating, Select, VehiclePhoto } from "./ui";
-import { selectedMakeOptions, vehicleMakeOptions } from "./make-equipment";
+import { vehicleMakeOptions } from "./make-equipment";
 import { TaxCalculator } from "./buyer-tools";
 import Detail from "./detail";
 import PublishForm from "./publish";
 
-type Dealer = { name: string; city: string; email: string };
-type Panel = "filters" | "publish" | "tax" | "register" | null;
-const storageKeys = { saved: "sasija.saved", inventory: "sasija.inventory", dealers: "sasija.dealers" };
+import { AccountPage, AuthPage } from "./account";
+import { api, type Account, type ListingStatus, type OwnedListing } from "./account-api";
+import { CookieConsent, LegalPage, ReportDialog, legalLinks, type LegalPath } from "./legal";
+import { EquipmentSelector } from "./equipment-selector";
+
+type Panel = "filters" | "publish" | "tax" | null;
+const storageKeys = { saved: "sasija.saved", inventory: "sasija.inventory" };
 function readStored<T>(key: string): T[] {
   try {
     const data: unknown = JSON.parse(localStorage.getItem(key) ?? "[]");
@@ -27,7 +31,7 @@ type FilterField = { key: FilterKey; title: string; all: string; values: readonl
 function FilterControls({ search, count, update, apply }: {
   search: Search; count: number; update: (next: Search) => void; apply: () => void;
 }) {
-  const active = Boolean(search.marka || search.model || search.cijena || search.godiste || search.km || search.gorivo || search.mjenjac || search.grad || search.opcije.length);
+  const active = Boolean(search.marka || search.model || search.cijena || search.godiste || search.km || search.gorivo || search.mjenjac || search.grad || search.opcije.length || search.oprema.length || search.generacija);
   const fields: FilterField[] = [
     { key: "cijena", title: "Cijena do (€)", all: "Bez limita", values: prices, format: value => euro(Number(value)) + (value === 50000 ? "+" : ""), numeric: true },
     { key: "godiste", title: "Godište od", all: "Sva godišta", values: years, numeric: true },
@@ -46,10 +50,13 @@ function FilterControls({ search, count, update, apply }: {
     <div className="filter-body">
       <div className="search-fields vehicle-identity">
         <CatalogFields value={{ make: search.marka, model: search.model, generation: search.generacija }} onChange={({make, model, generation}) => update({
-          ...search, marka: make, model, generacija: generation, oprema: selectedMakeOptions(make, model, search.oprema),
+          ...search, marka: make, model, generacija: generation, oprema: validEquipmentFilters(make, model, generation, search.oprema),
         })} />
       </div>
-      <MakeEquipmentOptions make={search.marka} model={search.model} selected={search.oprema} onChange={oprema => update({ ...search, oprema })}/>
+      <MakeEquipmentOptions make={search.marka} model={search.model} selected={search.oprema.filter(id => !id.startsWith("eq:"))} onChange={oprema => update({ ...search, oprema: [...search.oprema.filter(id => id.startsWith("eq:")), ...oprema] })}/>
+      {search.marka && <EquipmentSelector filter key={search.marka + search.model} vehicle={{
+        make:search.marka, model:search.model, generation:search.generacija, catalogEquipment:search.oprema,
+      }} onChange={oprema => update({...search,oprema:[...search.oprema.filter(id => !id.startsWith("eq:")), ...oprema.filter(id => id.startsWith("eq:"))]})}/>}
       <div className="search-fields">{fields.map(renderField)}</div>
       <ListingOptions selected={search.opcije} onChange={opcije => update({ ...search, opcije })} />
     </div>
@@ -109,26 +116,7 @@ function Listing({ vehicle, saved, onOpen, onSave, eager }: {
   </article>;
 }
 
-function DealerForm({ onClose, onRegister }: { onClose: () => void; onRegister: (dealer: Dealer) => string | undefined }) {
-  const [error, setError] = useState("");
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    setError(onRegister({ name: String(data.get("name")).trim(), city: String(data.get("city")), email: String(data.get("email")).trim() }) ?? "");
-  }
-  return <Dialog title="Registriraj autokuću" onClose={onClose} variant="form-dialog">
-    <form className="dialog-content form-stack" onSubmit={submit}>
-      <label className="field"><span>Naziv autokuće</span><input name="name" required maxLength={70} pattern=".*\S.*"/></label>
-      <Select label="Grad" name="city" required defaultValue=""><option value="">Odaberite grad</option>{cities.map(city => <option key={city}>{city}</option>)}</Select>
-      <label className="field"><span>Poslovna e-pošta</span><input name="email" type="email" required/></label>
-      <p className="fine-print">Ogledni profil autokuće sprema se u ovaj preglednik.</p>
-      {error && <p className="form-error" role="alert">{error}</p>}
-      <button className="btn primary justify-self-start" type="submit">Registriraj autokuću <ArrowRight size={16}/></button>
-    </form>
-  </Dialog>;
-}
-
-export default function Marketplace() {
+export default function Marketplace({ initialPath = "/" }: {initialPath?:string}) {
   const [dark, setDark] = useState(false);
   function changeTheme() {
     const next = document.documentElement.dataset.theme !== "dark";
@@ -139,7 +127,36 @@ export default function Marketplace() {
   const [search, setSearch] = useState(initialSearch);
   const [saved, setSaved] = useState<string[]>([]);
   const [published, setPublished] = useState<Vehicle[]>([]);
-  const [dealers, setDealers] = useState<Dealer[]>([]);
+  const [account,setAccount] = useState<Account | null>();
+  const [remote,setRemote] = useState<Vehicle[]>([]);
+  const [path,setPath] = useState(initialPath);
+  const [editing,setEditing] = useState<OwnedListing>();
+  const [cookieSettings,setCookieSettings] = useState(false);
+  const [report,setReport] = useState<{id?:string}>();
+  const [accountError,setAccountError] = useState("");
+  const [loadedInventory,setLoadedInventory] = useState(false);
+  const [publishAfterLogin,setPublishAfterLogin] = useState(false);
+  const [dealerRegistration,setDealerRegistration] = useState(false);
+  async function refresh() {
+    const [current, inventory] = await Promise.all([api<Account | null>("account"),api<Vehicle[]>("inventory")]);
+    setAccount(current);setRemote(inventory);setLoadedInventory(true);setAccountError("");
+  }
+  function navigate(target: string, replace = false) {
+    if (location.pathname + location.search !== target) history[replace ? "replaceState" : "pushState"](null,"",target);
+    setPath(location.pathname.replace(/\/$/,"") || "/");
+    const id = new URLSearchParams(location.search).get("oglas");
+    setDetailId(id);activeDetail.current=id;
+    setSearch(readSearch(location.search));
+    requestAnimationFrame(scrollToTop);
+  }
+  async function signedIn() {
+    await refresh();
+    navigate("/racun",true);
+  }
+  async function signOut() {
+    try { await api("auth/logout",{});await refresh();navigate("/",true); }
+    catch (error) {setNotice(error instanceof Error ? error.message : "Odjava nije uspjela.");}
+  }
   const [savedOnly, setSavedOnly] = useState(false);
   const [dealerOnly, setDealerOnly] = useState(false);
   const [panel, setPanel] = useState<Panel>(null);
@@ -157,6 +174,7 @@ export default function Marketplace() {
     };
     window.addEventListener("storage", themeChanged);
     const locationChanged = (event?: PopStateEvent) => {
+      setPath(location.pathname.replace(/\/$/,"") || "/");
       const id = new URLSearchParams(window.location.search).get("oglas");
       setSearch(readSearch(window.location.search));
       const wasDetail = activeDetail.current !== null;
@@ -167,8 +185,9 @@ export default function Marketplace() {
     const sync = () => {
       setSaved(readStored<string>(storageKeys.saved));
       setPublished(readStored<Vehicle>(storageKeys.inventory).map(restoreListingPhotos));
-      setDealers(readStored<Dealer>(storageKeys.dealers));
+
     };
+    void refresh().catch(error => {setAccountError(error.message);setLoadedInventory(true);});
     locationChanged();
     sync();
     window.addEventListener("popstate", locationChanged);
@@ -181,17 +200,20 @@ export default function Marketplace() {
     return () => window.clearTimeout(timeout);
   }, [notice]);
 
-  const allVehicles = useMemo(() => [...published, ...vehicles], [published]);
+  const allVehicles = useMemo(() => [...remote, ...published, ...vehicles], [remote,published]);
+  const savedIds = account ? account.favorites.map(item => item.id) : saved;
   const detail = allVehicles.find(vehicle => vehicle.id === detailId);
   function openListing(event: MouseEvent<HTMLAnchorElement>, id: string) {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     if (!detailId) resultsScroll.current = window.scrollY;
     const url = new URL(window.location.href);
+    url.pathname = "/";
     url.searchParams.set("oglas", id);
     const depth = detailId ? Number(history.state?.sasijaDetailDepth ?? 0) : 0;
     history.pushState({ sasijaDetailDepth: depth + (detailId && !depth ? 0 : 1) }, "", url);
     activeDetail.current = id;
+    setPath("/");
     setDetailId(id);
     requestAnimationFrame(() => {
       scrollToTop();
@@ -212,55 +234,53 @@ export default function Marketplace() {
     requestAnimationFrame(scrollToTop);
   }
   const goToResults = () => { if (detailId) backToResults(); };
-  const inventory = useMemo(() => allVehicles.filter(v => (!savedOnly || saved.includes(v.id)) && (!dealerOnly || v.dealer)), [allVehicles, saved, savedOnly, dealerOnly]);
+  const inventory = useMemo(() => allVehicles.filter(v => (!savedOnly || savedIds.includes(v.id)) && (!dealerOnly || v.dealer)), [allVehicles, savedIds, savedOnly, dealerOnly]);
   const results = useMemo(() => matchVehicles(inventory, search), [inventory, search]);
-  const savedCount = allVehicles.filter(v => saved.includes(v.id)).length;
+  const savedCount = allVehicles.filter(v => savedIds.includes(v.id)).length;
   const activeCount = [search.marka, search.model, search.generacija, search.cijena, search.godiste, search.km, search.gorivo, search.mjenjac, search.grad].filter(Boolean).length + search.opcije.length + search.oprema.length;
   const update = (next: Search) => { setSearch(next); writeSearch(next); };
   const scrollResults = () => requestAnimationFrame(() => document.getElementById("vozila")?.scrollIntoView());
   const apply = () => { setPanel(null); scrollResults(); };
-  function toggleSaved(id: string) {
+  async function toggleSaved(id: string) {
+    if (account) {
+      try {
+        await api("favorite",{id,saved:!savedIds.includes(id),price:allVehicles.find(item => item.id === id)?.price ?? 0});
+        await refresh();
+      } catch (error) {setNotice(error instanceof Error ? error.message : "Promjena nije spremljena.");}
+      return;
+    }
     const next = saved.includes(id) ? saved.filter(item => item !== id) : [...saved, id];
     try { localStorage.setItem(storageKeys.saved, JSON.stringify(next)); }
     catch { setNotice("Spremljeno do zatvaranja stranice."); }
     setSaved(next);
   }
   function showMarket() {
-    goToResults();
+    if (path !== "/") navigate("/"); else goToResults();
     setDealerOnly(false);
     setSavedOnly(false);
     window.scrollTo({ top: 0 });
   }
-  function publish(vehicle: Vehicle) {
-    if (detailId) {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("oglas");
-      history.replaceState(null, "", url);
-      activeDetail.current = null;
-      setDetailId(null);
+  function startPublish(listing?: OwnedListing) {
+    if (!account) {
+      setPublishAfterLogin(true);
+      navigate("/prijava");
+      return;
     }
-    const next = [vehicle, ...readStored<Vehicle>(storageKeys.inventory).map(restoreListingPhotos)];
-    localStorage.setItem(storageKeys.inventory, JSON.stringify(next));
-    setPublished(next);
-    setPanel(null);
-    setSavedOnly(false);
-    setDealerOnly(false);
-    update({ ...initialSearch, prikaz: search.prikaz });
-    setNotice("Oglas je objavljen u vašoj ponudi.");
-    scrollResults();
+    setEditing(listing);setPanel("publish");
   }
-  function register(dealer: Dealer) {
-    if (dealers.some(item => item.email.toLowerCase() === dealer.email.toLowerCase())) return "Profil s ovom adresom već postoji.";
-    const next = [...readStored<Dealer>(storageKeys.dealers), dealer];
-    try { localStorage.setItem(storageKeys.dealers, JSON.stringify(next)); }
-    catch { return "Profil nije spremljen. Provjerite postavke pohrane preglednika."; }
-    setDealers(next);
-    setPanel(null);
-    setDealerOnly(true);
-    setSavedOnly(false);
-    setNotice("Ogledni profil autokuće je spremljen.");
-    scrollResults();
+  async function publish(vehicle: Vehicle, status: ListingStatus) {
+    await api("listing/save",{vehicle,status});
+    await refresh();
+    setPanel(null);setEditing(undefined);setPublishAfterLogin(false);
+    setNotice(status === "active" ? "Oglas je objavljen." : "Oglas je spremljen.");
+    if (path !== "/racun") navigate(status === "active" ? "/" : "/racun");
   }
+  useEffect(() => {
+    if (publishAfterLogin && account && path === "/racun" && (account.verified || account.profile.type === "dealer")) {
+      setPublishAfterLogin(false);setEditing(undefined);setPanel("publish");
+    }
+  },[publishAfterLogin,account,path]);
+  const legalPath = Object.hasOwn(legalLinks,path) ? path as LegalPath : undefined;
   const filters = <FilterControls search={search} count={results.length} update={update} apply={apply}/>;
   return <>
     <header className="topbar">
@@ -268,20 +288,25 @@ export default function Marketplace() {
         <button className="brand" type="button" aria-label="Šasija HR, početna" onClick={showMarket}><span className="brand-icon"><CarFront size={20} strokeWidth={2.2}/></span><span>ŠASIJA</span><span className="brand-domain tabular">.hr</span></button>
         <nav className="main-nav" aria-label="Glavna navigacija">
           <button type="button" aria-current={!dealerOnly && !savedOnly ? "page" : undefined} onClick={showMarket}>Rabljena vozila</button>
-          <button type="button" aria-current={dealerOnly ? "page" : undefined} onClick={() => { goToResults(); setDealerOnly(true); setSavedOnly(false); scrollResults(); }}>Autokuće</button>
+          <button type="button" aria-current={dealerOnly ? "page" : undefined} onClick={() => { if (path !== "/") navigate("/"); else goToResults(); setDealerOnly(true); setSavedOnly(false); scrollResults(); }}>Autokuće</button>
           <button type="button" onClick={() => setPanel("tax")}>PPMV Kalkulator</button>
         </nav>
         <div className="header-actions">
           <button type="button" className="icon-btn theme-toggle" aria-label="Tamna tema" aria-pressed={dark} title={dark ? "Uključi svijetlu temu" : "Uključi tamnu temu"} onClick={changeTheme}>{dark ? <Sun size={17}/> : <Moon size={17}/>}</button>
-          <button type="button" className="btn quiet save-nav" aria-label={"Spremljeno " + savedCount} aria-pressed={savedOnly} onClick={() => { goToResults(); setSavedOnly(!savedOnly); setDealerOnly(false); scrollResults(); }}><Heart size={16}/><span className="saved-text">Spremljeno</span><span className="saved-count tabular">{savedCount}</span></button>
-          <button type="button" className="btn primary publish-nav" onClick={() => setPanel("publish")}><Plus size={17}/><span>Predaj oglas</span><span className="free tabular">0 €</span></button>
+          <button type="button" className="btn quiet save-nav" aria-label={"Spremljeno " + savedCount} aria-pressed={savedOnly} onClick={() => { if (path !== "/") navigate("/"); else goToResults(); setSavedOnly(!savedOnly); setDealerOnly(false); scrollResults(); }}><Heart size={16}/><span className="saved-text">Spremljeno</span><span className="saved-count tabular">{savedCount}</span></button>
+          <button type="button" className="btn quiet account-nav" onClick={() => navigate(account ? "/racun" : "/prijava")}><UserRound size={16}/><span>{account ? "Račun" : "Prijava"}</span></button>
+          <button type="button" className="btn primary publish-nav" aria-label="Predaj oglas" title="Predaj oglas" onClick={() => startPublish()}><Plus size={17}/><span className="publish-text">Predaj oglas</span><span className="free tabular">0 €</span></button>
         </div>
       </div>
     </header>
-    {detailId ? detail ? <Detail key={detail.id} vehicle={detail} inventory={allVehicles}
-      saved={saved.includes(detail.id)} onSave={() => toggleSaved(detail.id)} onBack={backToResults}
-      onOpen={openListing} onNotice={setNotice} /> : <main className="shell market detail-missing">
-        <div className="empty-state"><h1>Oglas nije dostupan</h1><button type="button" className="btn secondary" onClick={backToResults}>Natrag na rezultate</button></div>
+    {legalPath ? <LegalPage key={path} path={legalPath} cookieSettings={() => setCookieSettings(true)} report={() => setReport({})}/> :
+      path === "/racun" ? account ? <AccountPage key={account.id} account={account} inventory={allVehicles} refresh={refresh} onPublish={startPublish} signOut={() => void signOut()} openPrivacySettings={() => setCookieSettings(true)}/> :
+        <main className="shell account-shell"><div className="empty-state"><h1>{account === undefined && !accountError ? "Učitavanje računa…" : accountError || "Prijavite se za pristup računu"}</h1><a className="btn primary" href="/prijava">Prijava</a></div></main> :
+      path === "/prijava" || path === "/registracija" ? <AuthPage key={path} registration={path === "/registracija"} defaultType={dealerRegistration ? "dealer" : "private"} onDone={signedIn}/> :
+      detailId ? detail ? <Detail key={detail.id} vehicle={detail} inventory={allVehicles}
+      saved={savedIds.includes(detail.id)} onSave={() => toggleSaved(detail.id)} onBack={backToResults}
+      onOpen={openListing} onNotice={setNotice} onReport={() => setReport({id:detail.id})} /> : <main className="shell market detail-missing">
+        <div className="empty-state"><h1>{loadedInventory ? "Oglas nije dostupan" : "Učitavanje oglasa…"}</h1><button type="button" className="btn secondary" onClick={backToResults}>Natrag na rezultate</button></div>
       </main> : <main className="shell market">
       <aside className="filter-sidebar" aria-labelledby="filter-title">
         <h2 id="filter-title">Filteri</h2>
@@ -303,21 +328,21 @@ export default function Marketplace() {
             </div>
           </div>
         </div>
-        {dealerOnly && dealers.length > 0 && <div className="dealer-profiles">{dealers.map(dealer => <div key={dealer.email}><Store size={17}/><strong>{dealer.name}</strong><span>{dealer.city}</span></div>)}</div>}
         {results.length ? <div className={"listings " + (search.prikaz === "lista" ? "list-view" : "grid-view")}>{results.map((vehicle, index) =>
-          <Listing key={vehicle.id} vehicle={vehicle} saved={saved.includes(vehicle.id)} eager={index < 3} onOpen={event => openListing(event, vehicle.id)} onSave={() => toggleSaved(vehicle.id)}/>
+          <Listing key={vehicle.id} vehicle={vehicle} saved={savedIds.includes(vehicle.id)} eager={index < 3} onOpen={event => openListing(event, vehicle.id)} onSave={() => toggleSaved(vehicle.id)}/>
         )}</div> : <div className="empty-state"><h2>{savedOnly && !savedCount ? "Nemate spremljenih vozila" : "Nema vozila za odabrane filtre"}</h2><button type="button" className="btn secondary" onClick={() => { if (savedOnly && !savedCount) setSavedOnly(false); update({ ...initialSearch, prikaz: search.prikaz }); }}>{savedOnly && !savedCount ? "Pogledaj ponudu" : "Poništi filtere"}</button></div>}
         <section id="autokuce" className="dealership">
           <h2>Za autokuće i uvoznike</h2>
-          <button className="btn secondary" type="button" onClick={() => setPanel("register")}>Registriraj autokuću</button>
+          <button className="btn secondary" type="button" onClick={() => {setDealerRegistration(true);navigate(account ? "/racun" : "/registracija");}}>Registriraj autokuću</button>
         </section>
       </section>
     </main>}
-    <footer className="site-footer"><div className="shell"><span>ŠASIJA<span className="tabular">.hr</span></span><p>Ogledni oglasi i tržišne procjene.</p><button className="text-link" type="button" onClick={() => setPanel("tax")}>PPMV kalkulator <ArrowRight size={14}/></button></div></footer>
+    <footer className="site-footer"><div className="shell"><span>ŠASIJA<span className="tabular">.hr</span></span><nav className="footer-legal" aria-label="Pravni dokumenti">{Object.entries(legalLinks).map(([url,label]) => <a key={url} href={url}>{label}</a>)}<button type="button" onClick={() => setCookieSettings(true)}>Postavke kolačića</button></nav></div></footer>
     {panel === "filters" && <Dialog title="Filteri vozila" variant="filter-drawer" onClose={() => setPanel(null)}>{filters}</Dialog>}
     {panel === "tax" && <Dialog title="PPMV kalkulator uvoza" onClose={() => setPanel(null)} variant="form-dialog"><div className="dialog-content"><TaxCalculator/></div></Dialog>}
-    {panel === "publish" && <PublishForm onClose={() => setPanel(null)} onPublish={publish}/>}
-    {panel === "register" && <DealerForm onClose={() => setPanel(null)} onRegister={register}/>}
+    {panel === "publish" && account && <PublishForm onClose={() => setPanel(null)} onPublish={publish} existing={editing} contact={{...account.profile,email:account.email}}/>}
+    {report && <ReportDialog listing={report.id} onClose={() => setReport(undefined)}/>}
+    <CookieConsent settings={cookieSettings} close={() => setCookieSettings(false)}/>
     {notice && <div className="toast" role="status"><Check size={17}/>{notice}<button type="button" className="icon-btn" aria-label="Zatvori obavijest" onClick={() => setNotice("")}><X size={15}/></button></div>}
   </>;
 }

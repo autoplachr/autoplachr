@@ -45,7 +45,7 @@ export type Vehicle = {
   dealer: boolean; verified: boolean; phone: string; email?: string; flags: Flag[];
   doors?: number; seats?: number; color?: string; registrationUntil?: string;
   sellerAddress?: string; sellerHours?: string; sellerRating?: { score: number; reviews: number };
-  photos: Photo[]; equipment: Equipment; makeEquipment?: string[]; range?: [number, number]; demo?: boolean; history?: string[]; sellerNote?: string;
+  photos: Photo[]; equipment: Equipment; makeEquipment?: string[]; catalogEquipment?: string[]; contactAvailable?: boolean; boostedUntil?: number | null; range?: [number, number]; demo?: boolean; history?: string[]; sellerNote?: string;
 };
 
 const photos = photoData as Record<string, Photo[]>;

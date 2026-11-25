@@ -436,3 +436,58 @@ input[type="checkbox"] { appearance: auto; width: 16px; height: 16px; flex: 0 0 
   .detail-panel, .detail-panel * { color: #111 !important; background-color: #fff !important; }
   .detail-panel { break-inside: avoid; }
 }
+
+.account-shell { width: min(100%, 1050px); padding-block: 20px 36px; min-height: 65vh; }
+.account-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.account-heading h1, .auth-card h1 { font-size: clamp(24px, 4vw, 32px); line-height: 1.15; font-weight: 760; margin-bottom: 8px; }
+.account-heading p, .auth-card p { color: var(--muted); }
+.auth-card { max-width: 625px; margin-inline: auto; padding: clamp(14px, 3vw, 28px); }
+.auth-card > p { margin-top: 15px; }
+.account-tabs { margin-block: 14px; }
+.account-checks { display: grid; gap: 9px; color: var(--spec); }
+.account-checks legend { font-weight: 700; margin-bottom: 8px; }
+.account-checks label { display: flex; gap: 8px; align-items: start; }
+.account-checks input { margin-top: 2px; }
+.account-checks a, .legal-link, .legal-document a, .cookie-banner a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.account-actions { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+.account-listing { display: grid; grid-template-columns: minmax(70px,115px) minmax(0,1fr); gap: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
+.account-listing .vehicle-photo { min-height: 75px; border-radius: 4px; }
+.account-listing h3, .saved-account-row a { font-weight: 700; }
+.account-listing p { color: var(--muted); margin-block: 5px; }
+.saved-account-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid var(--border); padding-top: 10px; }
+.price-drop { color: var(--good); }
+.danger { color: var(--error); }
+.verification { padding: 11px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--hover); }
+.verification button { justify-self: start; }
+.legal-document { padding: clamp(14px, 4vw, 34px); }
+.legal-document section { margin-top: 19px; border-top: 1px solid var(--border); padding-top: 15px; }
+.legal-document p { line-height: 1.65; max-width: 78ch; }
+.legal-document section > * + * { margin-top: 8px; }
+.legal-document form { max-width: 520px; }
+.footer-legal { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.footer-legal a:hover, .footer-legal button:hover { text-decoration: underline; }
+.site-footer .footer-legal button { margin: 0; }
+.cookie-banner { position: fixed; z-index: 24; bottom: 12px; inset-inline: max(12px,calc((100vw - 1200px)/2)); padding: clamp(10px,2vw,17px); border: 1px solid var(--border-hover); border-radius: var(--radius); background: var(--surface); display: flex; align-items: center; justify-content: space-between; gap: 10px 18px; flex-wrap: wrap; box-shadow: 0 4px 20px #0002; }
+.cookie-banner h2, .equipment-picker h3 { font-weight: 700; }
+.cookie-banner p { color: var(--muted); margin-block: 3px; }
+.cookie-banner .account-checks { display: flex; flex-wrap: wrap; margin-top: 8px; }
+.equipment-picker { min-width: 0; padding-block: 6px 12px; }
+.equipment-tools { margin-block: 7px; display: flex; flex-wrap: wrap; align-items: end; gap: 7px; }
+.equipment-tools .field { flex: 1 1 150px; }
+.equipment-picker .edit-equipment label { align-items: start; }
+.equipment-picker .edit-equipment label input { margin-top: 2px; }
+.filter-sidebar .equipment-picker .equipment, .filter-drawer .equipment-picker .equipment { grid-template-columns: minmax(0,1fr); }
+.vehicle-detail-grid > *, .detail-sidebar > * { min-width: 0; overflow-wrap: anywhere; }
+@media (min-width: 960px) { .vehicle-detail-grid { grid-template-columns: minmax(0,1fr) clamp(315px,34vw,360px); } }
+@media (max-width: 510px) {
+  .header-actions { gap: 3px; }
+  .topbar .account-nav, .topbar .save-nav { padding-inline: 5px; }
+  .account-nav svg, .publish-nav .free { display: none; }
+}
+@media (max-width: 350px) {
+  .topbar .header-actions .theme-toggle { width: 30px; }
+  .topbar .header-actions .save-nav span { display: none; }
+  .topbar-inner { gap: 4px; }
+  .publish-nav .publish-text { display: none; }
+}
+@media print { .cookie-banner, .legal-print { display: none !important; } .legal-document { border: 0; } }

@@ -1,3 +1,4 @@
+import { equipmentFor, equipmentId } from "../src/data/equipment-catalog";
 import { cities, flags, fuels, gears, rating, type Flag, type Vehicle } from "./catalog";
 import { legacySportOption, selectedMakeOptions, vehicleMakeOptions } from "./make-equipment";
 import { CAR_MAKES, chassisFromTitle, matchesGeneration, modelsFor, validGeneration } from "../src/data/car-catalog";
@@ -20,6 +21,10 @@ export const initialSearch: Search = {
   marka: "", model: "", generacija: "", cijena: "", godiste: "", km: "", gorivo: "", mjenjac: "", grad: "",
   opcije: [], oprema: [], sortiranje: "newest", prikaz: "lista",
 };
+export function validEquipmentFilters(make: string, model: string, generation: string, ids: string[]) {
+  const allowed = new Set(equipmentFor({make, model, generation},true).map(item => item.id));
+  return [...new Set([...selectedMakeOptions(make,model,ids), ...ids.filter(id => allowed.has(id))])];
+}
 export function readSearch(query: string): Search {
   const params = new URLSearchParams(query);
   function accept(key: string, values: readonly string[], fallback = "") {
@@ -38,7 +43,7 @@ export function readSearch(query: string): Search {
     godiste: accept("godiste", years.map(String)), km: accept("km", distances.map(String)),
     gorivo: accept("gorivo", fuels), mjenjac: accept("mjenjac", gears), grad: accept("grad", cities),
     opcije: flags.filter(flag => generalOptions.includes(flag)),
-    oprema: selectedMakeOptions(marka, model, [...new Set(equipment)]),
+    oprema: validEquipmentFilters(marka, model, generation, equipment),
     sortiranje: accept("sortiranje", Object.keys(sorts), "newest") as Search["sortiranje"],
     prikaz: accept("prikaz", ["grid", "lista"], initialSearch.prikaz) as Search["prikaz"],
   };
@@ -66,7 +71,9 @@ export function matchVehicles(vehicles: Vehicle[], s: Search) {
     s.opcije.every(flag => v.flags.includes(flag))
   );
   const matching = s.oprema.length ? result.filter(vehicle => {
-    const equipment = new Set(vehicleMakeOptions(vehicle).map(option => option.id));
+    const makeOptions = vehicleMakeOptions(vehicle);
+    const declared = Object.values(vehicle.equipment).flat().map(equipmentId);
+    const equipment = new Set([...makeOptions.map(option => option.id), ...declared, ...(vehicle.catalogEquipment ?? [])]);
     return s.oprema.every(id => equipment.has(id));
   }) : result;
   switch (s.sortiranje) {
