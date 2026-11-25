@@ -198,7 +198,7 @@ input[type="checkbox"] { appearance: auto; width: 16px; height: 16px; flex: 0 0 
 .equipment legend { padding-inline: 5px; }
 .equipment ul { margin-top: 5px; display: grid; gap: 5px; }
 .equipment li, .equipment label { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
-.equipment li svg { color: var(--subtle); }
+.equipment li svg { color: var(--muted); }
 .equipment label { min-height: 22px; }
 
 .price-evaluation p { color: var(--muted); font-size: 13px; }

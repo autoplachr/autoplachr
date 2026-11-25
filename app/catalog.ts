@@ -10,6 +10,14 @@ export const makes = {
 } as const;
 
 export const cities = ["Zagreb", "Osijek", "Slavonski Brod", "Split", "Rijeka", "Varaždin"];
+export const countyByCity: Readonly<Record<string, string>> = {
+  Zagreb: "Grad Zagreb",
+  Osijek: "Osječko-baranjska",
+  "Slavonski Brod": "Brodsko-posavska",
+  Split: "Splitsko-dalmatinska",
+  Rijeka: "Primorsko-goranska",
+  Varaždin: "Varaždinska",
+};
 export const fuels = ["Dizel", "Benzin", "Hibrid", "Struja"] as const;
 export type Fuel = typeof fuels[number];
 export const gears = ["Automatski", "Ručni"] as const;

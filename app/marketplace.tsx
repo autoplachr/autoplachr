@@ -2,7 +2,7 @@
 
 import { ArrowRight, CarFront, Check, Grid2X2, Heart, List, Plus, SlidersHorizontal, Store, X } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { cities, euro, fuels, gears, makes, number, power, quick, registered, vehicles, type Vehicle } from "./catalog";
+import { cities, countyByCity, euro, fuels, gears, makes, number, power, quick, registered, vehicles, type Vehicle } from "./catalog";
 import { distances, initialSearch, matchVehicles, modelsFor, prices, readSearch, sorts, writeSearch, years, type Search } from "./search";
 import { Dialog, ListingOptions, PhotoCount, Rating, Select, VehiclePhoto } from "./ui";
 import { TaxCalculator } from "./buyer-tools";
@@ -32,7 +32,7 @@ function FilterControls({ search, count, update, apply }: {
     { key: "km", title: "Kilometraža do", all: "Bez ograničenja", values: distances, format: value => number(Number(value)) + " km", mono: true },
     { key: "gorivo", title: "Gorivo", all: "Sva goriva", values: fuels },
     { key: "mjenjac", title: "Mjenjač", all: "Svi mjenjači", values: gears },
-    { key: "grad", title: "Županija / grad", all: "Sva Hrvatska", values: cities },
+    { key: "grad", title: "Županija", all: "Sva Hrvatska", values: cities, format: value => countyByCity[value] ?? String(value) },
   ];
   return <form className="filter-form" onSubmit={event => { event.preventDefault(); apply(); }}>
     <div className="filter-body">
@@ -45,7 +45,7 @@ function FilterControls({ search, count, update, apply }: {
       <ListingOptions selected={search.opcije} onChange={opcije => update({ ...search, opcije })} />
     </div>
     <div className="search-actions">
-      <button className="btn primary search-submit" type="submit">Prikaži <span className="mono">{count}</span> vozila</button>
+      <button className="btn primary search-submit" type="submit">Prikaži <span className="mono">{count}</span> {count === 1 ? "vozilo" : "vozila"}</button>
       <button className="reset-btn" type="button" disabled={!active} onClick={() => update({ ...initialSearch, sortiranje: search.sortiranje, prikaz: search.prikaz })}>Poništi filtere</button>
     </div>
   </form>;
@@ -202,7 +202,7 @@ export default function Marketplace() {
           <button type="button" className="btn quiet mobile-nav-action" aria-pressed={dealerOnly} onClick={() => { setDealerOnly(!dealerOnly); setSavedOnly(false); }}>Autokuće</button>
         </div>
         <div className="results-toolbar">
-          <h1 id="results-title" className="result-count" aria-live="polite">{savedOnly ? "Spremljeno" : "Pronađeno"} <strong className="mono">{results.length}</strong> vozila{dealerOnly && " iz autokuća"}</h1>
+          <h1 id="results-title" className="result-count" aria-live="polite">{savedOnly ? "Spremljeno" : "Pronađeno"} <strong className="mono">{results.length}</strong> {results.length === 1 ? "vozilo" : "vozila"}{dealerOnly && " iz autokuća"}</h1>
           <div className="results-controls">
             <Select className="sort-field" label="Sortiraj vozila" value={search.sortiranje} onChange={event => update({ ...search, sortiranje: event.target.value as Search["sortiranje"] })}>{Object.entries(sorts).map(([key, title]) => <option key={key} value={key}>{title}</option>)}</Select>
             <div className="view-switch" role="group" aria-label="Prikaz rezultata">

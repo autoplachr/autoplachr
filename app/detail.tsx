@@ -64,7 +64,7 @@ export default function Detail({ vehicle, saved, onSave, onClose }: {
         <h3>Tehnički podaci</h3>
         <dl className="spec-table">{specs.map(([label, value, mono]) => <div key={label}><dt>{label}</dt><dd className={mono ? "mono" : ""}>{value}</dd></div>)}</dl>
       </section>
-      {groups.some(group => vehicle.equipment[group].length) && <section className="detail-section">
+      {(vehicle.trim || groups.some(group => vehicle.equipment[group].length)) && <section className="detail-section">
         <h3>Oprema vozila</h3>
         {vehicle.trim && <p className="equipment-summary">{vehicle.trim}</p>}
         <div className="equipment">{groups.filter(group => vehicle.equipment[group].length).map(group => <section key={group}><h4>{group}</h4><ul>{vehicle.equipment[group].map(item => <li key={item}><Check size={14}/>{item}</li>)}</ul></section>)}</div>
