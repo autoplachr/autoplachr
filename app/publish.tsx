@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { emptyEquipment, equipmentOptions, euro, fuels, gears, groups, modelPhotos, vehicles, type Photo, type Vehicle } from "./catalog";
 import { CatalogFields, customVariant, VariantField } from "./catalog-fields";
 import { titleContainsChassis } from "../src/data/car-catalog";
+import { LocationFields } from "./dealership-fields";
 import { EquipmentSelector } from "./equipment-selector";
 import { equipmentFor } from "../src/data/equipment-catalog";
 import { Dialog, ListingOptions, MakeEquipmentOptions, Select, VehiclePhoto } from "./ui";
@@ -40,9 +41,9 @@ async function preparePhoto(file: File): Promise<Photo> {
   return { src: canvas.toDataURL("image/webp", .78) };
 }
 
-export default function PublishForm({ onClose, onPublish, existing, contact }: { onClose: () => void; onPublish: (v: Vehicle, status: "active" | "draft" | "sold") => Promise<void>; existing?: Vehicle & { status?: "active" | "draft" | "sold" }; contact: { phone: string; email: string; city: string; name: string; type: string }; }) {
+export default function PublishForm({ onClose, onPublish, existing, contact }: { onClose: () => void; onPublish: (v: Vehicle, status: "active" | "draft" | "sold") => Promise<void>; existing?: Vehicle & { status?: "active" | "draft" | "sold" }; contact: { phone: string; email: string; city: string; postalCode?: string; county: string; name: string; type: string }; }) {
   const [step, setStep] = useState(0);
-  const [values, setValues] = useState<Publish>({ ...initial, ...existing, generation: existing?.generation ?? "", variant: existing?.variant ?? "", seller: contact.name, city: contact.city, phone: contact.phone, email: contact.email, dealer: contact.type === "dealer" });
+  const [values, setValues] = useState<Publish>({ ...initial, ...existing, generation: existing?.generation ?? "", variant: existing?.variant ?? "", seller: contact.name, city: existing?.city || contact.city, postalCode: existing?.postalCode || contact.postalCode, county: existing?.county || contact.county, phone: contact.phone, email: contact.email, dealer: contact.type === "dealer" });
   const [customVersion, setCustomVersion] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -73,8 +74,9 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
     const action = submitter?.value === "draft" ? "draft" : existing?.status === "sold" ? "sold" : "active";
     try {
       const title = values.title.trim();
+      const location = Object.fromEntries(new FormData(event.currentTarget));
       await onPublish({
-        ...values, title: titleContainsChassis(title, values.generation) ? title : title + " (" + values.generation + ")",
+        ...values, city: String(location.city), postalCode: String(location.postalCode), county: String(location.county), title: titleContainsChassis(title, values.generation) ? title : title + " (" + values.generation + ")",
         variant: values.variant === customVariant ? customVersion.trim() : values.variant,
         seller: values.seller.trim(), email: values.email?.trim(), phone: values.phone.trim(), id: existing?.id ?? crypto.randomUUID(), demo: false,
         catalogEquipment: equipmentFor(values).filter(item => values.catalogEquipment?.includes(item.id)).map(item => item.id),
@@ -128,7 +130,8 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
           {detected && <div className="calculation"><span>Ogledni raspon cijene</span><strong className="tabular">{euro(detected[0])} – {euro(detected[1])}</strong></div>}
           <div className="form-grid">
             {numeric("Tražena cijena (€)", "price", 1, 100000000)}
-            <p className="fine-print">{contact.name} · {contact.city} · {contact.phone}</p>
+            <p className="fine-print">{contact.name} · {contact.phone}</p>
+            <LocationFields initial={values} onChange={location => setValues(old => ({...old,...location}))}/>
           </div>
           <p className="fine-print">Objavom potvrđujete da su podaci o vozilu točni. Nacrt je vidljiv samo na vašem računu.</p>
         </>}

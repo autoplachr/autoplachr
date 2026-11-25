@@ -1,3 +1,4 @@
+import type { WorkingHours } from "../src/data/working-hours";
 import photoData from "./photos.json";
 
 import type { CAR_CATALOG } from "../src/data/car-catalog";
@@ -44,7 +45,7 @@ export type Vehicle = {
   gear: typeof gears[number]; drive: string; vin: string; city: string; seller: string;
   dealer: boolean; verified: boolean; phone: string; email?: string; flags: Flag[];
   doors?: number; seats?: number; color?: string; registrationUntil?: string;
-  sellerAddress?: string; sellerHours?: string; sellerRating?: { score: number; reviews: number };
+  postalCode?: string; county?: string; sellerWorkingHours?: WorkingHours; dealershipId?: string; sellerAddress?: string; sellerHours?: string; sellerRating?: { score: number; reviews: number };
   photos: Photo[]; equipment: Equipment; makeEquipment?: string[]; catalogEquipment?: string[]; contactAvailable?: boolean; boostedUntil?: number | null; range?: [number, number]; demo?: boolean; history?: string[]; sellerNote?: string;
 };
 

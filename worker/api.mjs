@@ -1,3 +1,5 @@
+import { croatianCounties, croatianLocations, normalizeLocation } from "../src/data/croatia-locations.ts";
+import { formatHours, validHours } from "../src/data/working-hours.ts";
 export const LEGAL_VERSION = "2026-11-25";
 const day = 86400;
 const encoder = new TextEncoder();
@@ -62,14 +64,40 @@ function oibValid(oib) {
   return (11 - remainder) % 10 === Number(oib[10]);
 }
 
+function locationFrom(body) {
+  const city = value(body,"city",100);
+  const known = croatianLocations.find(place => normalizeLocation(place.city) === normalizeLocation(city));
+  const supplied = value(body,"postalCode",20);
+  requireValue(!supplied || /^\d{5}$/.test(supplied), "Poštanski broj mora imati pet znamenki.");
+  const postalCode = supplied || known?.postalCode || "";
+  const county = known?.county || value(body,"county",100);
+  requireValue(city && croatianCounties.includes(county), "Unesite grad i županiju.");
+  const postalPlaces = croatianLocations.filter(place => place.postalCode === postalCode);
+  requireValue(!known || !postalPlaces.length || postalPlaces.includes(known), "Grad i poštanski broj se ne podudaraju.");
+  return {city:known?.city || city,postalCode,county};
+}
+
+function readHours(input) {
+  let hours = input;
+  if (typeof input === "string") {
+    try { hours = JSON.parse(input); } catch { hours = null; }
+  }
+  requireValue(validHours(hours), "Provjerite radno vrijeme.");
+  return { appointmentOnly:hours.appointmentOnly, afterHours:hours.afterHours, days:hours.days.map(({open,from,to}) => ({open,from,to})) };
+}
+
 function profileFrom(body, type) {
   const profile = {
-    type, name: value(body, "name", 100), city: value(body, "city", 100), county: value(body, "county", 100),
+    type, name: value(body, "name", 100), ...locationFrom(body),
     phone: normalizePhone(value(body, "phone", 40)), alerts: body.alerts === true, analytics: body.analytics === true,
   };
   requireValue(profile.name && profile.city && profile.county && /^\+385[1-9]\d{6,8}$/.test(profile.phone), "Unesite ime, grad, županiju i hrvatski broj +385.");
   if (type === "dealer") {
-    Object.assign(profile, { oib: value(body, "oib", 11), address: value(body, "address", 200), hours: value(body, "hours", 120), importUrl: value(body, "importUrl", 500) });
+    Object.assign(profile, { oib: value(body, "oib", 11), address: value(body, "address", 200), hours: value(body, "hours", 260), importUrl: value(body, "importUrl", 500) });
+    if (body.workingHours) {
+      profile.workingHours = readHours(body.workingHours);
+      profile.hours = formatHours(profile.workingHours);
+    }
     requireValue(oibValid(profile.oib) && profile.address && profile.hours, "Unesite valjan OIB, adresu i radno vrijeme.");
     if (profile.importUrl) {
       let url;
@@ -86,7 +114,7 @@ function readListing(row) {
 
 function publicListing(row) {
   const { status, views, reveals, ...listing } = readListing(row);
-  return { ...listing, phone: "", contactAvailable: true };
+  return { ...listing, phone: "", contactAvailable: true, dealershipId: listing.dealer ? row.account_id : undefined };
 }
 
 function safePhoto(source) {
@@ -121,6 +149,8 @@ async function saveListing(env, account, body) {
     safePhoto(photo.src)), "Fotografije nisu valjane.");
   requireValue(Array.isArray(vehicle.flags) && vehicle.flags.every(flag => ["kupac","pdv","dolazak","cvh"].includes(flag)) &&
     vehicle.equipment && ["Sigurnost","Udobnost","Multimedija","Eksterijer"].every(key => Array.isArray(vehicle.equipment[key]) && vehicle.equipment[key].every(item => typeof item === "string")), "Oprema ili status oglasa nisu valjani.");
+  const location = locationFrom({ ...profile, ...Object.fromEntries(["city","postalCode","county"].filter(key => vehicle[key] !== undefined).map(key => [key,vehicle[key]])) });
+  const dealerAddress = profile.address && [profile.address, [profile.postalCode, profile.city].filter(Boolean).join(" ")].join(", ");
   const clean = {
     id: vehicle.id, title: value(vehicle,"title",100), make: value(vehicle,"make",80), model: value(vehicle,"model",80),
     generation: value(vehicle,"generation",100), variant: value(vehicle,"variant",100), trim: value(vehicle,"trim",100),
@@ -131,8 +161,8 @@ async function saveListing(env, account, body) {
     equipment:Object.fromEntries(["Sigurnost","Udobnost","Multimedija","Eksterijer"].map(key => [key,vehicle.equipment[key].slice(0,40).map(item=>item.slice(0,150))])),
     makeEquipment:Array.isArray(vehicle.makeEquipment) ? vehicle.makeEquipment.filter(item=>typeof item==="string").slice(0,60) : [],
     catalogEquipment:Array.isArray(vehicle.catalogEquipment) ? vehicle.catalogEquipment.filter(item=>typeof item==="string" && item.startsWith("eq:")).slice(0,160) : [],
-    phone: profile.phone, email: account.email, city: profile.city, seller: profile.name,
-    dealer: profile.type === "dealer", verified: false, sellerAddress: profile.address, sellerHours: profile.hours,
+    phone: profile.phone, email: account.email, ...location, seller: profile.name,
+    dealer: profile.type === "dealer", verified: false, sellerAddress: dealerAddress, sellerHours: profile.hours, sellerWorkingHours: profile.workingHours,
     demo: false };
   requireValue(["Dizel","Benzin","Hibrid","Struja"].includes(clean.fuel) && ["Automatski","Ručni"].includes(clean.gear), "Odaberite gorivo i mjenjač.");
   const id = vehicle.id;
@@ -266,7 +296,8 @@ export async function api(request, env) {
           changes.push(stmt(env, "DELETE FROM otp WHERE account_id=?", account.id));
           if (profile.type === "private") changes.push(stmt(env, "UPDATE listing SET status='draft' WHERE account_id=? AND status='active'", account.id));
         }
-        changes.push(stmt(env, "UPDATE listing SET vehicle=json_set(vehicle,'$.seller',?,'$.city',?,'$.phone',?,'$.sellerAddress',?,'$.sellerHours',?) WHERE account_id=?", next.name, next.city, next.phone, next.address ?? null, next.hours ?? null, account.id));
+        const address = next.address ? [next.address,[next.postalCode,next.city].filter(Boolean).join(" ")].join(", ") : null;
+        changes.push(stmt(env, "UPDATE listing SET vehicle=json_set(vehicle,'$.seller',?,'$.phone',?,'$.sellerAddress',?,'$.sellerHours',?,'$.sellerWorkingHours',json(?)) WHERE account_id=?", next.name, next.phone, address, next.hours ?? null, JSON.stringify(next.workingHours ?? null), account.id));
         await env.DB.batch(changes);
         break;
       }

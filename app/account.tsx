@@ -1,12 +1,11 @@
 "use client";
 import { useState, type FormEvent } from "react";
 import { api, type Account, type ListingStatus, type OwnedListing, type Profile, type Report } from "./account-api";
-import { countyByCity, euro, type Vehicle } from "./catalog";
+import { euro, type Vehicle } from "./catalog";
+import { LocationFields, HoursFields } from "./dealership-fields";
 import { Select, Dialog, VehiclePhoto } from "./ui";
 
 const accountTabs = ["Moji oglasi", "Spremljena vozila", "Postavke profila i sigurnost", "Privatnost i GDPR prava"];
-const counties = [...new Set([...Object.values(countyByCity), "Bjelovarsko-bilogorska", "Dubrovačko-neretvanska", "Istarska", "Karlovačka", "Koprivničko-križevačka", "Krapinsko-zagorska", "Ličko-senjska", "Međimurska", "Požeško-slavonska", "Sisačko-moslavačka", "Šibensko-kninska", "Virovitičko-podravska", "Vukovarsko-srijemska", "Zadarska", "Zagrebačka"])]
-  .sort((a,b) => a.localeCompare(b,"hr"));
 const formData = (event: FormEvent<HTMLFormElement>) => Object.fromEntries(new FormData(event.currentTarget));
 function errorText(error: unknown) { return error instanceof Error ? error.message : "Zahtjev nije dovršen."; }
 
@@ -15,13 +14,12 @@ function ProfileFields({ type, profile, registration = false }: { type: Profile[
   const subdomain = name.normalize("NFD").replace(/\p{M}/gu,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,55);
   return <div className="form-grid">
     <label className="field span-all"><span>{type === "dealer" ? "Naziv tvrtke" : "Ime i prezime"}</span><input name="name" value={name} onChange={event => setName(event.target.value)} required maxLength={100} autoComplete={type === "dealer" ? "organization" : "name"}/></label>
-    <label className="field"><span>Grad</span><input name="city" defaultValue={profile?.city} required maxLength={100} autoComplete="address-level2"/></label>
-    <Select label="Županija" name="county" defaultValue={profile?.county ?? ""} required><option value="">Odaberite županiju</option>{counties.map(county => <option key={county}>{county}</option>)}</Select>
+    <LocationFields initial={profile}/>
     <label className="field"><span>Telefon (+385)</span><input type="tel" name="phone" defaultValue={profile?.phone ?? "+385 "} required maxLength={24} autoComplete="tel"/></label>
     {type === "dealer" && <>
       <label className="field"><span>OIB</span><input name="oib" inputMode="numeric" pattern="[0-9]{11}" maxLength={11} required defaultValue={profile?.oib}/></label>
       <label className="field"><span>Adresa sjedišta / salona</span><input name="address" defaultValue={profile?.address} maxLength={200} required autoComplete="street-address"/></label>
-      <label className="field"><span>Radno vrijeme</span><input name="hours" defaultValue={profile?.hours} maxLength={120} required placeholder="Pon–pet 08:00–18:00"/></label>
+      <HoursFields initial={profile?.workingHours} legacy={profile?.hours}/>
       <p className="fine-print span-all">Pregled poddomene <strong>{subdomain || "vasasalon"}.sasija.hr</strong></p>
       {!registration && <label className="field span-all"><span>HTTPS adresa XML izvora</span><input type="url" name="importUrl" maxLength={500} defaultValue={profile?.importUrl}/><small>Postavka izvora za dogovoreni uvoz.</small></label>}
     </>}

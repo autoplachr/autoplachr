@@ -2,7 +2,7 @@
 
 import { ArrowRight, CarFront, Check, Grid2X2, Heart, List, Moon, Sun, Plus, SlidersHorizontal, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import { restoreListingPhotos, cities, countyByCity, euro, fuels, gears, number, power, quick, registered, vehicles, type Vehicle } from "./catalog";
+import { restoreListingPhotos, countyByCity, euro, fuels, gears, number, power, quick, registered, vehicles, type Vehicle } from "./catalog";
 import { distances, initialSearch, matchVehicles, prices, readSearch, sorts, validEquipmentFilters, writeSearch, years, type Search } from "./search";
 import { CatalogFields } from "./catalog-fields";
 import { Dialog, ListingOptions, MakeEquipmentOptions, PhotoCount, Rating, Select, VehiclePhoto } from "./ui";
@@ -14,6 +14,8 @@ import PublishForm from "./publish";
 import { AccountPage, AuthPage } from "./account";
 import { api, type Account, type ListingStatus, type OwnedListing } from "./account-api";
 import { CookieConsent, LegalPage, ReportDialog, legalLinks, type LegalPath } from "./legal";
+import { dealershipHoursToday } from "../src/data/working-hours";
+import { croatianCounties } from "../src/data/croatia-locations";
 import { EquipmentSelector } from "./equipment-selector";
 
 type Panel = "filters" | "publish" | "tax" | null;
@@ -38,10 +40,10 @@ function FilterControls({ search, count, update, apply }: {
     { key: "km", title: "Kilometraža do", all: "Bez limita", values: distances, format: value => number(Number(value)) + " km", numeric: true },
     { key: "gorivo", title: "Gorivo", all: "Sva goriva", values: fuels },
     { key: "mjenjac", title: "Mjenjač", all: "Svi mjenjači", values: gears },
-    { key: "grad", title: "Županija", all: "Sva Hrvatska", values: cities, format: value => countyByCity[value] ?? String(value) },
+    { key: "grad", title: "Županija", all: "Sva Hrvatska", values: croatianCounties },
   ];
   function renderField({ key, title, all, values, format, numeric }: FilterField) {
-    return <Select key={key} label={title} className={numeric ? "numeric-select" : ""} value={search[key]} onChange={event => update({ ...search, [key]: event.target.value })}>
+    return <Select key={key} label={title} className={numeric ? "numeric-select" : ""} value={key === "grad" ? countyByCity[search.grad] ?? search.grad : search[key]} onChange={event => update({ ...search, [key]: event.target.value })}>
       <option value="">{all}</option>
       {values.map(value => <option key={value} value={value}>{format ? format(value) : value}</option>)}
     </Select>;
@@ -144,7 +146,9 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
   function navigate(target: string, replace = false) {
     if (location.pathname + location.search !== target) history[replace ? "replaceState" : "pushState"](null,"",target);
     setPath(location.pathname.replace(/\/$/,"") || "/");
-    const id = new URLSearchParams(location.search).get("oglas");
+    const params = new URLSearchParams(location.search);
+    const id = params.get("oglas");
+    setDealerId(params.get("salon"));
     setDetailId(id);activeDetail.current=id;
     setSearch(readSearch(location.search));
     requestAnimationFrame(scrollToTop);
@@ -160,6 +164,7 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
   const [savedOnly, setSavedOnly] = useState(false);
   const [dealerOnly, setDealerOnly] = useState(false);
   const [panel, setPanel] = useState<Panel>(null);
+  const [dealerId,setDealerId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const resultsScroll = useRef(0);
   const activeDetail = useRef<string | null>(null);
@@ -175,7 +180,9 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
     window.addEventListener("storage", themeChanged);
     const locationChanged = (event?: PopStateEvent) => {
       setPath(location.pathname.replace(/\/$/,"") || "/");
-      const id = new URLSearchParams(window.location.search).get("oglas");
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get("oglas");
+      setDealerId(params.get("salon"));
       setSearch(readSearch(window.location.search));
       const wasDetail = activeDetail.current !== null;
       activeDetail.current = id;
@@ -202,6 +209,7 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
 
   const allVehicles = useMemo(() => [...remote, ...published, ...vehicles], [remote,published]);
   const savedIds = account ? account.favorites.map(item => item.id) : saved;
+  const dealerProfile = dealerId && remote.find(vehicle => vehicle.dealershipId === dealerId);
   const detail = allVehicles.find(vehicle => vehicle.id === detailId);
   function openListing(event: MouseEvent<HTMLAnchorElement>, id: string) {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -234,7 +242,7 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
     requestAnimationFrame(scrollToTop);
   }
   const goToResults = () => { if (detailId) backToResults(); };
-  const inventory = useMemo(() => allVehicles.filter(v => (!savedOnly || savedIds.includes(v.id)) && (!dealerOnly || v.dealer)), [allVehicles, savedIds, savedOnly, dealerOnly]);
+  const inventory = useMemo(() => allVehicles.filter(v => (!savedOnly || savedIds.includes(v.id)) && (!dealerOnly || v.dealer) && (!dealerId || v.dealershipId === dealerId)), [allVehicles, savedIds, savedOnly, dealerOnly, dealerId]);
   const results = useMemo(() => matchVehicles(inventory, search), [inventory, search]);
   const savedCount = allVehicles.filter(v => savedIds.includes(v.id)).length;
   const activeCount = [search.marka, search.model, search.generacija, search.cijena, search.godiste, search.km, search.gorivo, search.mjenjac, search.grad].filter(Boolean).length + search.opcije.length + search.oprema.length;
@@ -255,7 +263,7 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
     setSaved(next);
   }
   function showMarket() {
-    if (path !== "/") navigate("/"); else goToResults();
+    if (path !== "/" || dealerId) navigate("/"); else goToResults();
     setDealerOnly(false);
     setSavedOnly(false);
     window.scrollTo({ top: 0 });
@@ -288,12 +296,12 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
         <button className="brand" type="button" aria-label="Šasija HR, početna" onClick={showMarket}><span className="brand-icon"><CarFront size={20} strokeWidth={2.2}/></span><span>ŠASIJA</span><span className="brand-domain tabular">.hr</span></button>
         <nav className="main-nav" aria-label="Glavna navigacija">
           <button type="button" aria-current={!dealerOnly && !savedOnly ? "page" : undefined} onClick={showMarket}>Rabljena vozila</button>
-          <button type="button" aria-current={dealerOnly ? "page" : undefined} onClick={() => { if (path !== "/") navigate("/"); else goToResults(); setDealerOnly(true); setSavedOnly(false); scrollResults(); }}>Autokuće</button>
+          <button type="button" aria-current={dealerOnly ? "page" : undefined} onClick={() => { if (path !== "/" || dealerId) navigate("/"); else goToResults(); setDealerOnly(true); setSavedOnly(false); scrollResults(); }}>Autokuće</button>
           <button type="button" onClick={() => setPanel("tax")}>PPMV Kalkulator</button>
         </nav>
         <div className="header-actions">
           <button type="button" className="icon-btn theme-toggle" aria-label="Tamna tema" aria-pressed={dark} title={dark ? "Uključi svijetlu temu" : "Uključi tamnu temu"} onClick={changeTheme}>{dark ? <Sun size={17}/> : <Moon size={17}/>}</button>
-          <button type="button" className="btn quiet save-nav" aria-label={"Spremljeno " + savedCount} aria-pressed={savedOnly} onClick={() => { if (path !== "/") navigate("/"); else goToResults(); setSavedOnly(!savedOnly); setDealerOnly(false); scrollResults(); }}><Heart size={16}/><span className="saved-text">Spremljeno</span><span className="saved-count tabular">{savedCount}</span></button>
+          <button type="button" className="btn quiet save-nav" aria-label={"Spremljeno " + savedCount} aria-pressed={savedOnly} onClick={() => { if (path !== "/" || dealerId) navigate("/"); else goToResults(); setSavedOnly(!savedOnly); setDealerOnly(false); scrollResults(); }}><Heart size={16}/><span className="saved-text">Spremljeno</span><span className="saved-count tabular">{savedCount}</span></button>
           <button type="button" className="btn quiet account-nav" onClick={() => navigate(account ? "/racun" : "/prijava")}><UserRound size={16}/><span>{account ? "Račun" : "Prijava"}</span></button>
           <button type="button" className="btn primary publish-nav" aria-label="Predaj oglas" title="Predaj oglas" onClick={() => startPublish()}><Plus size={17}/><span className="publish-text">Predaj oglas</span><span className="free tabular">0 €</span></button>
         </div>
@@ -313,6 +321,12 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
         {filters}
       </aside>
       <section className="results" id="vozila" aria-labelledby="results-title">
+        {dealerProfile && <section className="detail-panel seller-card dealership-profile" aria-label="Profil autokuće">
+          <h1>{dealerProfile.seller}</h1>
+          <p>{dealerProfile.sellerAddress || dealerProfile.city}</p>
+          {dealerProfile.sellerWorkingHours && <p className="tabular">{dealershipHoursToday(dealerProfile.sellerWorkingHours)}</p>}
+          {dealerProfile.sellerHours && <p>{dealerProfile.sellerHours}</p>}
+        </section>}
         <div className="mobile-tools">
           <button type="button" className="btn secondary" aria-haspopup="dialog" onClick={() => setPanel("filters")}><SlidersHorizontal size={16}/> Filteri {activeCount > 0 && <span className="tabular">({activeCount})</span>}</button>
           <button type="button" className="btn quiet mobile-nav-action" onClick={() => setPanel("tax")}>PPMV</button>

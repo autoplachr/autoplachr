@@ -1,8 +1,9 @@
+import type { WorkingHours } from "../src/data/working-hours";
 import type { Vehicle } from "./catalog";
 
 export type Profile = {
   type: "private" | "dealer"; name: string; city: string; county: string; phone: string;
-  oib?: string; address?: string; hours?: string; importUrl?: string; alerts: boolean; analytics: boolean;
+  postalCode?: string; workingHours?: WorkingHours; oib?: string; address?: string; hours?: string; importUrl?: string; alerts: boolean; analytics: boolean;
 };
 export type ListingStatus = "active" | "draft" | "sold";
 export type OwnedListing = Vehicle & { status: ListingStatus; views: number; reveals: number };

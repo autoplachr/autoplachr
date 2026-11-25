@@ -7,6 +7,7 @@ import { vehicleMakeOptions } from "./make-equipment";
 import { Dialog, Rating, VehiclePhoto } from "./ui";
 import { equipmentFor } from "../src/data/equipment-catalog";
 import { api } from "./account-api";
+import { appointmentLabel, dealershipHoursToday } from "../src/data/working-hours";
 import { BuyerTools, monthlyPayment } from "./buyer-tools";
 
 const equipmentHeadings = ["Sigurnost i asistencije", "Udobnost i interijer", "Multimedija i navigacija", "Eksterijer i ovjes"];
@@ -172,11 +173,15 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
           <p className="finance-summary">Informativna rata leasinga <b className="tabular">{euro(Math.round(monthlyPayment(vehicle.price, 20, 60)))} / mj.</b></p>
         </section>
         <section className="detail-panel seller-card" aria-label="Kontakt prodavača">
-          <h2>{vehicle.seller || "Privatni prodavač"}</h2>
+          <h2>{vehicle.dealershipId ? <a className="legal-link" href={"/?salon="+encodeURIComponent(vehicle.dealershipId)}>{vehicle.seller}</a> : vehicle.seller || "Privatni prodavač"}</h2>
           {vehicle.verified && <p className="verified-label"><Check size={15}/> Verificirana autokuća</p>}
           {vehicle.sellerRating && <p className="seller-rating"><Star size={15} fill="currentColor"/><span className="tabular">{vehicle.sellerRating.score.toLocaleString("hr-HR")} ({vehicle.sellerRating.reviews} recenzija)</span></p>}
-          <p>{vehicle.sellerAddress || vehicle.city}</p>
-          {vehicle.sellerHours && <p>Otvoreno danas: <span className="tabular">{vehicle.sellerHours}</span></p>}
+          <p>{vehicle.sellerAddress || [vehicle.postalCode, vehicle.city].filter(Boolean).join(" ")}</p>
+          {vehicle.sellerWorkingHours ? <>
+            <p className="tabular">{dealershipHoursToday(vehicle.sellerWorkingHours)}</p>
+            <details className="seller-hours"><summary>Tjedno radno vrijeme</summary><p>{vehicle.sellerHours}</p></details>
+            {vehicle.sellerWorkingHours.afterHours && !vehicle.sellerWorkingHours.appointmentOnly && <p>{appointmentLabel}.</p>}
+          </> : vehicle.sellerHours && <p>Radno vrijeme: <span className="tabular">{vehicle.sellerHours}</span></p>}
           <div className="contact-actions">
             {phone && !vehicle.demo ? <a className="btn primary tabular" href={"tel:" + phone.replace(/[^+\d]/g, "")}><Phone size={16}/>{phone}</a> :
               <button className="btn primary" type="button" disabled={Boolean(phone) || revealing} onClick={reveal}><Phone size={16}/>{phone ? phone + " (demo)" : "Prikaži broj telefona"}</button>}

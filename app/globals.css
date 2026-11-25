@@ -491,3 +491,29 @@ input[type="checkbox"] { appearance: auto; width: 16px; height: 16px; flex: 0 0 
   .publish-nav .publish-text { display: none; }
 }
 @media print { .cookie-banner, .legal-print { display: none !important; } .legal-document { border: 0; } }
+
+.location-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; }
+.location-city { position:relative; min-width:0; }
+.location-suggestions { position:absolute; z-index:5; inset:100% auto auto 0; width:max-content; max-width:min(360px, calc(100vw - 52px)); background:var(--surface); border:1px solid var(--border-hover); border-radius:var(--radius); box-shadow:0 6px 18px #0002; }
+.location-suggestions button { display:block; text-align:left; width:100%; padding:8px 10px; font-size:13px; }
+.location-suggestions button:hover,.location-suggestions button:focus-visible { background:var(--hover); }
+.hours-builder { display:grid; min-width:0; gap:9px; border:1px solid var(--border); border-radius:var(--radius); padding:10px; background:#fff; }
+html[data-theme="dark"] .hours-builder { background:#191E2B; }
+.hours-builder legend { font-weight:700; padding-inline:4px; }
+.hours-builder output { display:block; }
+.hours-presets .btn { border-radius:16px; font-size:13px; padding-block:4px; }
+.hours-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:center; gap:6px; border-top:1px solid var(--border); padding-top:6px; }
+.hours-row strong { font-size:13px; }
+.hours-switch { display:flex; gap:6px; align-items:center; color:var(--spec); font-size:13px; }
+.hours-switch input[role="switch"] { appearance:none; width:26px; flex-basis:26px; border:1px solid var(--border-hover); border-radius:20px; background:var(--hover); }
+.hours-switch input[role="switch"]::after { content:""; display:block; width:10px; height:10px; border-radius:50%; margin:2px; background:var(--muted); }
+.hours-switch input[role="switch"]:checked { background:var(--accent); border-color:var(--accent); }
+.hours-switch input[role="switch"]:checked::after { transform:translateX(10px); background:#fff; }
+.seller-hours { color:var(--muted); margin-block:5px; font-size:13px; }
+.seller-hours summary { cursor:pointer; }
+@media (min-width:640px) {
+  .location-grid { grid-template-columns:1.15fr .85fr 1.15fr; }
+  .hours-row { grid-template-columns:1.15fr .85fr repeat(2,minmax(0,1fr)); }
+}
+.dealership-profile { margin-bottom:12px; }
+.dealership-profile h1 { font-size:22px; font-weight:740; margin-bottom:5px; }

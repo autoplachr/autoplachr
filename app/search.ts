@@ -1,5 +1,6 @@
+import { croatianCounties } from "../src/data/croatia-locations";
 import { equipmentFor, equipmentId } from "../src/data/equipment-catalog";
-import { cities, flags, fuels, gears, rating, type Flag, type Vehicle } from "./catalog";
+import { cities, countyByCity, flags, fuels, gears, rating, type Flag, type Vehicle } from "./catalog";
 import { legacySportOption, selectedMakeOptions, vehicleMakeOptions } from "./make-equipment";
 import { CAR_MAKES, chassisFromTitle, matchesGeneration, modelsFor, validGeneration } from "../src/data/car-catalog";
 
@@ -41,7 +42,7 @@ export function readSearch(query: string): Search {
   return {
     marka, model, generacija: validGeneration(marka, model, generation) ? generation : "", cijena: accept("cijena", prices.map(String)),
     godiste: accept("godiste", years.map(String)), km: accept("km", distances.map(String)),
-    gorivo: accept("gorivo", fuels), mjenjac: accept("mjenjac", gears), grad: accept("grad", cities),
+    gorivo: accept("gorivo", fuels), mjenjac: accept("mjenjac", gears), grad: accept("grad", [...cities, ...croatianCounties]),
     opcije: flags.filter(flag => generalOptions.includes(flag)),
     oprema: validEquipmentFilters(marka, model, generation, equipment),
     sortiranje: accept("sortiranje", Object.keys(sorts), "newest") as Search["sortiranje"],
@@ -67,7 +68,7 @@ export function matchVehicles(vehicles: Vehicle[], s: Search) {
     (!s.cijena || (s.cijena === "50000" ? v.price >= 50000 : v.price <= Number(s.cijena))) &&
     (!s.godiste || Number(v.date.slice(0, 4)) >= Number(s.godiste)) &&
     (!s.km || v.km <= Number(s.km)) && (!s.gorivo || v.fuel === s.gorivo) &&
-    (!s.mjenjac || v.gear === s.mjenjac) && (!s.grad || v.city === s.grad) &&
+    (!s.mjenjac || v.gear === s.mjenjac) && (!s.grad || v.city === s.grad || (v.county || countyByCity[v.city]) === s.grad) &&
     s.opcije.every(flag => v.flags.includes(flag))
   );
   const matching = s.oprema.length ? result.filter(vehicle => {
