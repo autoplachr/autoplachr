@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, CarFront, Check, Grid2X2, Heart, List, Moon, Sun, Plus, SlidersHorizontal, Store, X } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from "react";
 import { restoreListingPhotos, cities, countyByCity, euro, fuels, gears, number, power, quick, registered, vehicles, type Vehicle } from "./catalog";
 import { distances, initialSearch, matchVehicles, prices, readSearch, sorts, writeSearch, years, type Search } from "./search";
 import { CatalogFields } from "./catalog-fields";
@@ -60,8 +60,16 @@ function FilterControls({ search, count, update, apply }: {
   </form>;
 }
 
+function listingUrl(id: string) {
+  return "?oglas=" + encodeURIComponent(id);
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0 });
+}
+
 function Listing({ vehicle, saved, onOpen, onSave, eager }: {
-  vehicle: Vehicle; saved: boolean; onOpen: () => void; onSave: () => void; eager: boolean;
+  vehicle: Vehicle; saved: boolean; onOpen: (event: MouseEvent<HTMLAnchorElement>) => void; onSave: () => void; eager: boolean;
 }) {
   const vat = vehicle.flags.includes("pdv");
   const arriving = vehicle.flags.includes("dolazak");
@@ -79,7 +87,7 @@ function Listing({ vehicle, saved, onOpen, onSave, eager }: {
       <button className={"icon-btn heart-button " + (saved ? "saved" : "")} type="button" aria-label={saved ? "Ukloni spremljeno vozilo " + vehicle.title : "Spremi " + vehicle.title} aria-pressed={saved} onClick={onSave}><Heart size={17} fill={saved ? "currentColor" : "none"}/></button>
     </div>
     <div className="listing-content">
-      <h3><button className="card-link" type="button" onClick={onOpen}>{vehicle.title}</button></h3>
+      <h3><a className="card-link" href={listingUrl(vehicle.id)} onClick={onOpen}>{vehicle.title}</a></h3>
       <ul className="listing-specs" aria-label="Osnovni podaci">{specs.map((spec, index) =>
         <li key={spec} className={index < 3 ? "tabular" : undefined}>{spec}</li>
       )}</ul>
@@ -96,7 +104,7 @@ function Listing({ vehicle, saved, onOpen, onSave, eager }: {
       <strong className="tabular">{euro(vehicle.price)}</strong>
       <Rating vehicle={vehicle}/>
       {vat && <span className="vat-note">Uključen PDV (R1)</span>}
-      <button className="listing-details" type="button" onClick={onOpen} aria-label={"Detalji: " + vehicle.title}>Detalji <ArrowRight size={15}/></button>
+      <a className="listing-details" href={listingUrl(vehicle.id)} onClick={onOpen} aria-label={"Detalji: " + vehicle.title}>Detalji <ArrowRight size={15}/></a>
     </div>
   </article>;
 }
@@ -135,7 +143,9 @@ export default function Marketplace() {
   const [savedOnly, setSavedOnly] = useState(false);
   const [dealerOnly, setDealerOnly] = useState(false);
   const [panel, setPanel] = useState<Panel>(null);
-  const [detail, setDetail] = useState<Vehicle | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const resultsScroll = useRef(0);
+  const activeDetail = useRef<string | null>(null);
   const [notice, setNotice] = useState("");
   useEffect(() => {
     setDark(document.documentElement.dataset.theme === "dark");
@@ -146,7 +156,14 @@ export default function Marketplace() {
       setDark(selected);
     };
     window.addEventListener("storage", themeChanged);
-    const locationChanged = () => setSearch(readSearch(window.location.search));
+    const locationChanged = (event?: PopStateEvent) => {
+      const id = new URLSearchParams(window.location.search).get("oglas");
+      setSearch(readSearch(window.location.search));
+      const wasDetail = activeDetail.current !== null;
+      activeDetail.current = id;
+      setDetailId(id);
+      if (event && (wasDetail || id)) requestAnimationFrame(() => window.scrollTo(0, id ? 0 : resultsScroll.current));
+    };
     const sync = () => {
       setSaved(readStored<string>(storageKeys.saved));
       setPublished(readStored<Vehicle>(storageKeys.inventory).map(restoreListingPhotos));
@@ -165,6 +182,36 @@ export default function Marketplace() {
   }, [notice]);
 
   const allVehicles = useMemo(() => [...published, ...vehicles], [published]);
+  const detail = allVehicles.find(vehicle => vehicle.id === detailId);
+  function openListing(event: MouseEvent<HTMLAnchorElement>, id: string) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (!detailId) resultsScroll.current = window.scrollY;
+    const url = new URL(window.location.href);
+    url.searchParams.set("oglas", id);
+    const depth = detailId ? Number(history.state?.sasijaDetailDepth ?? 0) : 0;
+    history.pushState({ sasijaDetailDepth: depth + (detailId && !depth ? 0 : 1) }, "", url);
+    activeDetail.current = id;
+    setDetailId(id);
+    requestAnimationFrame(() => {
+      scrollToTop();
+      document.getElementById("vehicle-title")?.focus({ preventScroll: true });
+    });
+  }
+  function backToResults() {
+    const depth = Number(history.state?.sasijaDetailDepth ?? 0);
+    if (depth > 0) {
+      history.go(-depth);
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete("oglas");
+    history.replaceState(null, "", url);
+    activeDetail.current = null;
+    setDetailId(null);
+    requestAnimationFrame(scrollToTop);
+  }
+  const goToResults = () => { if (detailId) backToResults(); };
   const inventory = useMemo(() => allVehicles.filter(v => (!savedOnly || saved.includes(v.id)) && (!dealerOnly || v.dealer)), [allVehicles, saved, savedOnly, dealerOnly]);
   const results = useMemo(() => matchVehicles(inventory, search), [inventory, search]);
   const savedCount = allVehicles.filter(v => saved.includes(v.id)).length;
@@ -179,11 +226,19 @@ export default function Marketplace() {
     setSaved(next);
   }
   function showMarket() {
+    goToResults();
     setDealerOnly(false);
     setSavedOnly(false);
     window.scrollTo({ top: 0 });
   }
   function publish(vehicle: Vehicle) {
+    if (detailId) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("oglas");
+      history.replaceState(null, "", url);
+      activeDetail.current = null;
+      setDetailId(null);
+    }
     const next = [vehicle, ...readStored<Vehicle>(storageKeys.inventory).map(restoreListingPhotos)];
     localStorage.setItem(storageKeys.inventory, JSON.stringify(next));
     setPublished(next);
@@ -213,17 +268,21 @@ export default function Marketplace() {
         <button className="brand" type="button" aria-label="Šasija HR, početna" onClick={showMarket}><span className="brand-icon"><CarFront size={20} strokeWidth={2.2}/></span><span>ŠASIJA</span><span className="brand-domain tabular">.hr</span></button>
         <nav className="main-nav" aria-label="Glavna navigacija">
           <button type="button" aria-current={!dealerOnly && !savedOnly ? "page" : undefined} onClick={showMarket}>Rabljena vozila</button>
-          <button type="button" aria-current={dealerOnly ? "page" : undefined} onClick={() => { setDealerOnly(true); setSavedOnly(false); scrollResults(); }}>Autokuće</button>
+          <button type="button" aria-current={dealerOnly ? "page" : undefined} onClick={() => { goToResults(); setDealerOnly(true); setSavedOnly(false); scrollResults(); }}>Autokuće</button>
           <button type="button" onClick={() => setPanel("tax")}>PPMV Kalkulator</button>
         </nav>
         <div className="header-actions">
           <button type="button" className="icon-btn theme-toggle" aria-label="Tamna tema" aria-pressed={dark} title={dark ? "Uključi svijetlu temu" : "Uključi tamnu temu"} onClick={changeTheme}>{dark ? <Sun size={17}/> : <Moon size={17}/>}</button>
-          <button type="button" className="btn quiet save-nav" aria-label={"Spremljeno " + savedCount} aria-pressed={savedOnly} onClick={() => { setSavedOnly(!savedOnly); setDealerOnly(false); scrollResults(); }}><Heart size={16}/><span className="saved-text">Spremljeno</span><span className="saved-count tabular">{savedCount}</span></button>
+          <button type="button" className="btn quiet save-nav" aria-label={"Spremljeno " + savedCount} aria-pressed={savedOnly} onClick={() => { goToResults(); setSavedOnly(!savedOnly); setDealerOnly(false); scrollResults(); }}><Heart size={16}/><span className="saved-text">Spremljeno</span><span className="saved-count tabular">{savedCount}</span></button>
           <button type="button" className="btn primary publish-nav" onClick={() => setPanel("publish")}><Plus size={17}/><span>Predaj oglas</span><span className="free tabular">0 €</span></button>
         </div>
       </div>
     </header>
-    <main className="shell market">
+    {detailId ? detail ? <Detail key={detail.id} vehicle={detail} inventory={allVehicles}
+      saved={saved.includes(detail.id)} onSave={() => toggleSaved(detail.id)} onBack={backToResults}
+      onOpen={openListing} onNotice={setNotice} /> : <main className="shell market detail-missing">
+        <div className="empty-state"><h1>Oglas nije dostupan</h1><button type="button" className="btn secondary" onClick={backToResults}>Natrag na rezultate</button></div>
+      </main> : <main className="shell market">
       <aside className="filter-sidebar" aria-labelledby="filter-title">
         <h2 id="filter-title">Filteri</h2>
         {filters}
@@ -246,20 +305,19 @@ export default function Marketplace() {
         </div>
         {dealerOnly && dealers.length > 0 && <div className="dealer-profiles">{dealers.map(dealer => <div key={dealer.email}><Store size={17}/><strong>{dealer.name}</strong><span>{dealer.city}</span></div>)}</div>}
         {results.length ? <div className={"listings " + (search.prikaz === "lista" ? "list-view" : "grid-view")}>{results.map((vehicle, index) =>
-          <Listing key={vehicle.id} vehicle={vehicle} saved={saved.includes(vehicle.id)} eager={index < 3} onOpen={() => setDetail(vehicle)} onSave={() => toggleSaved(vehicle.id)}/>
+          <Listing key={vehicle.id} vehicle={vehicle} saved={saved.includes(vehicle.id)} eager={index < 3} onOpen={event => openListing(event, vehicle.id)} onSave={() => toggleSaved(vehicle.id)}/>
         )}</div> : <div className="empty-state"><h2>{savedOnly && !savedCount ? "Nemate spremljenih vozila" : "Nema vozila za odabrane filtre"}</h2><button type="button" className="btn secondary" onClick={() => { if (savedOnly && !savedCount) setSavedOnly(false); update({ ...initialSearch, prikaz: search.prikaz }); }}>{savedOnly && !savedCount ? "Pogledaj ponudu" : "Poništi filtere"}</button></div>}
         <section id="autokuce" className="dealership">
           <h2>Za autokuće i uvoznike</h2>
           <button className="btn secondary" type="button" onClick={() => setPanel("register")}>Registriraj autokuću</button>
         </section>
       </section>
-    </main>
+    </main>}
     <footer className="site-footer"><div className="shell"><span>ŠASIJA<span className="tabular">.hr</span></span><p>Ogledni oglasi i tržišne procjene.</p><button className="text-link" type="button" onClick={() => setPanel("tax")}>PPMV kalkulator <ArrowRight size={14}/></button></div></footer>
     {panel === "filters" && <Dialog title="Filteri vozila" variant="filter-drawer" onClose={() => setPanel(null)}>{filters}</Dialog>}
     {panel === "tax" && <Dialog title="PPMV kalkulator uvoza" onClose={() => setPanel(null)} variant="form-dialog"><div className="dialog-content"><TaxCalculator/></div></Dialog>}
     {panel === "publish" && <PublishForm onClose={() => setPanel(null)} onPublish={publish}/>}
     {panel === "register" && <DealerForm onClose={() => setPanel(null)} onRegister={register}/>}
-    {detail && <Detail key={detail.id} vehicle={detail} saved={saved.includes(detail.id)} onSave={() => toggleSaved(detail.id)} onClose={() => setDetail(null)}/>}
     {notice && <div className="toast" role="status"><Check size={17}/>{notice}<button type="button" className="icon-btn" aria-label="Zatvori obavijest" onClick={() => setNotice("")}><X size={15}/></button></div>}
   </>;
 }

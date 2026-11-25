@@ -43,6 +43,8 @@ export type Vehicle = {
   date: string; km: number; kw: number; cc: number; co2: number; fuel: Fuel;
   gear: typeof gears[number]; drive: string; vin: string; city: string; seller: string;
   dealer: boolean; verified: boolean; phone: string; email?: string; flags: Flag[];
+  doors?: number; seats?: number; color?: string; registrationUntil?: string;
+  sellerAddress?: string; sellerHours?: string; sellerRating?: { score: number; reviews: number };
   photos: Photo[]; equipment: Equipment; makeEquipment?: string[]; range?: [number, number]; demo?: boolean; history?: string[]; sellerNote?: string;
 };
 
@@ -104,6 +106,23 @@ const seedHistory: Record<string, string[]> = {
   passatgte: ["Kabel za punjenje"],
 };
 
+const seedNotes: Record<string, string> = {
+  g20: "Servisi su upisani u servisnu knjižicu, a zadnji mali servis obavljen je prije 4.000 km. Ljetne gume imaju još oko 5 mm profila. Pregled u servisu po vašem izboru moguć je uz najavu.",
+  a4: "Servisna knjižica dostupna je na uvid. Prednje pločice mijenjane su na zadnjem servisu. Pregled u Rijeci po dogovoru, zamjena moguća uz procjenu vozila.",
+  golf: "Vozilo je od prvog vlasnika i trenutačno je u dolasku. Po dolasku u Osijek moguće je dogovoriti probnu vožnju i pregled na dizalici.",
+  c220: "Održavan prema servisnom planu. Uz vozilo dolaze dva ključa i jamstvo od 12 mjeseci. Zamjenu možemo procijeniti nakon pregleda vašeg vozila.",
+  macan: "Servisni računi i oba ključa dostupni su na uvid. Prednje kočnice zamijenjene su na posljednjem servisu. Probna vožnja i pregled u neovisnom servisu mogući su uz prethodnu najavu. Zamjena uz procjenu i dogovor o doplati.",
+  octavia: "Redovno servisiran, servisna knjižica dostupna. Uz automobil ide set zimskih guma. Pregled i probna vožnja u Varaždinu po dogovoru.",
+  a6: "Servisna dokumentacija je uz vozilo. Pregled na dizalici možemo organizirati uz prethodnu najavu. Za zamjenu pošaljite podatke i fotografije svog automobila.",
+  passat: "Drugi sam vlasnik. Stražnje pločice i ulje mijenjani su prošle jeseni. Pregled navečer po dogovoru. Zamjena me ne zanima.",
+  tiguan: "Vozilo je u dolasku. Servisnu povijest možemo poslati unaprijed, a termin pregleda dogovoriti nakon što stigne u Varaždin.",
+  f30: "Računi od servisa su spremljeni. Na prednjem braniku ima nekoliko tragova od kamenčića. Pregled i probna vožnja mogući su vikendom.",
+  "118": "Servisna knjižica i dva ključa. Zimske gume su na zasebnim naplatcima. Pregled u Osijeku nakon posla, bez zamjene.",
+  e220: "Servisna knjižica dostupna na upit. Na zadnjem servisu mijenjani su ulje i filtri. Pregled u Rijeci moguće je dogovoriti i subotom.",
+  touring: "Karavan je od prvog vlasnika i trenutačno je u dolasku. Nakon dolaska moguć je pregled u ovlaštenom servisu. Za zamjenu je potrebna prethodna procjena.",
+  passatgte: "Kućni kabel za punjenje dolazi uz auto. Tijekom pregleda možemo isprobati punjenje. Zamjena me ne zanima.",
+};
+
 type Seed = [id: string, key: string, make: keyof typeof CAR_CATALOG, model: string, generation: string, variant: string, title: string, trim: string, price: number,
   date: string, km: number, kw: number, cc: number, co2: number, city: number, seller: string,
   flag: Flag[], range: [number, number], drive?: string, gear?: Vehicle["gear"], fuel?: Fuel];
@@ -128,7 +147,10 @@ export const vehicles: Vehicle[] = seed.map(([
   drive = "Prednji", gear = "Automatski", fuel = "Dizel",
 ], index) => ({
   id, make, model, generation, variant, title, trim, price, date, km, kw, cc, co2, city: cities[city], drive, gear, fuel,
-  history: seedHistory[id], makeEquipment: seedMakeEquipment[id],
+  history: seedHistory[id], sellerNote: seedNotes[id], seats: 5, doors: ["g20", "a4", "c220", "a6", "f30", "e220"].includes(id) ? 4 : 5,
+  ...(id === "macan" ? { color: "Bijela", registrationUntil: "07/2027", sellerRating: { score: 4.8, reviews: 64 },
+    sellerAddress: "Slavonska avenija 52, 10000 Zagreb", sellerHours: "08:00 – 18:00" } : {}),
+  makeEquipment: seedMakeEquipment[id],
   vin: "EXAMPLE0000" + String(100001 + index), seller, dealer: Boolean(seller), verified: Boolean(seller),
   phone: "+385 00 000 000", flags, range, demo: true, photos: modelPhotos(key),
   equipment: {
