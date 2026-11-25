@@ -21,6 +21,8 @@ import Detail from "./detail";
 import PublishForm from "./publish";
 import { ValuationPage } from "./valuation-page";
 import { describeFamily, modelFor, modelsFor } from "../src/data/car-catalog";
+import { getSupabaseBrowserClient, isSupabaseConfigured } from "../src/lib/supabase/client";
+import { getSiteOrigin } from "../src/lib/site-origin";
 
 import { AccountPage, AuthPage, type AccountTabKey } from "./account";
 import { api, type Account, type ListingStatus, type OwnedListing } from "./account-api";
@@ -922,7 +924,35 @@ export default function Marketplace({
   const resetOnPop = useRef(false);
   const cancelResultScroll = useRef<(() => void) | null>(null);
   const activeDetail = useRef<string | null>(null);
+  const authExchangeStarted = useRef(false);
   const [notice, setNotice] = useState("");
+
+  // Older confirmation emails point at `/?code=...`. Exchange that code once
+  // and land directly on the account instead of showing a broken home page.
+  useEffect(() => {
+    if (authExchangeStarted.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (!code || window.location.pathname !== "/") return;
+    authExchangeStarted.current = true;
+    (async () => {
+      const supabase = isSupabaseConfigured ? getSupabaseBrowserClient() : null;
+      if (supabase) {
+        try {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (!error) {
+            try { await supabase.rpc("ensure_my_profile"); } catch { /* Profile sync is non-blocking. */ }
+            window.history.replaceState(null, "", "/racun");
+            window.location.replace(new URL("/racun", getSiteOrigin()).href);
+            return;
+          }
+        } catch { /* Fall through to the standard callback. */ }
+      }
+      window.history.replaceState(null, "", "/auth/callback?" + params.toString());
+      window.location.replace(new URL("/auth/callback?" + params.toString(), getSiteOrigin()).href);
+    })();
+  }, []);
+
   useEffect(() => {
     const previousRestoration = history.scrollRestoration;
     history.scrollRestoration = "manual";

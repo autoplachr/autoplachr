@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getSiteOrigin } from "../../../src/lib/site-origin";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "../../../src/lib/supabase/client";
 
 export default function AuthCallbackPage() {
@@ -11,10 +12,12 @@ export default function AuthCallbackPage() {
     async function finalize() {
       const params = new URLSearchParams(window.location.search);
       const code = params.get("code");
+      const flowId = params.get("sb_flow_id");
+      const siteOrigin = getSiteOrigin();
       let target = "/racun";
 
       if (!isSupabaseConfigured) {
-        window.location.replace(target);
+        window.location.replace(new URL(target, siteOrigin).href);
         return;
       }
 
@@ -26,18 +29,18 @@ export default function AuthCallbackPage() {
 
       try {
         if (code) {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code, flowId ? { flowId } : undefined);
           if (error) throw error;
           if ("redirectType" in data && data.redirectType === "recovery") target = "/auth/recovery";
         } else {
           const { data, error } = await supabase.auth.getSession();
           if (error || !data.session) throw new Error("Missing session");
         }
-        if (active) window.location.replace(target);
+        if (active) window.location.replace(new URL(target, siteOrigin).href);
       } catch {
         if (active) {
           setStatus("Prijava nije uspjela. Preusmjeravanje na prijavu…");
-          setTimeout(() => window.location.replace("/prijava?error=oauth"), 900);
+          setTimeout(() => window.location.replace(new URL("/prijava?error=oauth", siteOrigin).href), 900);
         }
       }
     }

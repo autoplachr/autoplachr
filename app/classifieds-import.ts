@@ -2,6 +2,7 @@ import type { Photo, Vehicle } from "./catalog";
 import { equipmentFor, equipmentId } from "../src/data/equipment-catalog";
 import type { normalizeImportedVehicle } from "./search";
 import type { FeedDealer, FeedVehicle } from "../src/lib/dealership-feed";
+import { getSupabaseBrowserClient, isSupabaseConfigured } from "../src/lib/supabase/client";
 
 export type ImportedFacts = ReturnType<typeof normalizeImportedVehicle>;
 type ImportResult = {
@@ -16,6 +17,14 @@ type ImportResult = {
 };
 
 export async function importClassifieds(payload: { url: string; feed?: boolean } | { rawContent: string }): Promise<ImportResult> {
+  if (isSupabaseConfigured) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) throw new Error("Prijavite se za uvoz oglasa.");
+    const { data, error } = await supabase.functions.invoke("import-listing", { body: payload });
+    const result = (data ?? {}) as ImportResult;
+    if (error && !result.blocked) throw new Error(error.message || "Uvoz trenutno nije dostupan.");
+    return result;
+  }
   const response = await fetch("/api/import-url", {
     method: "POST",
     headers: { "content-type": "application/json" },

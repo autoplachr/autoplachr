@@ -12,6 +12,7 @@ import { emptyEquipment, modelPhotos, type Vehicle } from "../../../app/catalog"
 import { formatHours, presetHours, validHours, type WorkingHours } from "../../data/working-hours";
 import { normalizePhone, profileErrors } from "../../data/profile-validation";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "./client";
+import { getAuthCallbackUrl } from "../site-origin";
 
 function slugifySubdomain(name: string): string {
   return name
@@ -169,7 +170,7 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
   }
 
   if (endpoint === "auth/google") {
-    const redirectTo = `${window.location.origin}/auth/callback`;
+    const redirectTo = getAuthCallbackUrl();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },
@@ -182,7 +183,7 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
     const email = String(data.email ?? "").trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Unesite valjanu e-mail adresu.");
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback`,
+      redirectTo: getAuthCallbackUrl(),
     });
     if (error) throw new Error("Slanje poveznice za poništavanje lozinke nije uspjelo.");
     return { ok: true };
@@ -191,7 +192,7 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
   if (endpoint === "auth/resend") {
     const email = String(data.email ?? "").trim().toLowerCase();
     const { error } = await supabase.auth.resend({
-      type: "signup", email, options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      type: "signup", email, options: { emailRedirectTo: getAuthCallbackUrl() },
     });
     if (error) throw new Error("Ponovno slanje potvrde nije uspjelo. Pokušajte uskoro.");
     return { ok: true };
@@ -224,7 +225,7 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: getAuthCallbackUrl(),
         data: {
           account_type: type,
           full_name: fullName,

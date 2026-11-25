@@ -13,3 +13,4 @@ dist/
 .wrangler/
 .local-data/
 public/uploads/imported/
+supabase/.temp/

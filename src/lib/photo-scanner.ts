@@ -6,6 +6,7 @@ import {
   type VisionHint,
   type VisionPhotoInput,
 } from "./car-vision";
+import { getSupabaseBrowserClient, isSupabaseConfigured } from "./supabase/client";
 
 export type ScannedEquipmentHit = {
   id: string;
@@ -124,14 +125,22 @@ async function fetchServerVision(
   hint: VisionHint,
 ): Promise<Partial<PhotoAnalysisResponse> | null> {
   if (typeof window === "undefined" || typeof fetch === "undefined") return null;
+  const payload = {
+    photos: photos.slice(0, 6).map(p => ({ src: p.src, name: p.name })),
+    hint,
+  };
   try {
+    if (isSupabaseConfigured) {
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) return null;
+      const { data, error } = await supabase.functions.invoke("analyze-listing", { body: payload });
+      if (error || !data || typeof data !== "object") return null;
+      return data as Partial<PhotoAnalysisResponse>;
+    }
     const response = await fetch("/api/analyze-car-photos", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        photos: photos.slice(0, 6).map(p => ({ src: p.src, name: p.name })),
-        hint,
-      }),
+      body: JSON.stringify(payload),
     });
     if (!response.ok) return null;
     const data = (await response.json()) as Partial<PhotoAnalysisResponse>;

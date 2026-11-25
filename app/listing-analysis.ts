@@ -1,5 +1,6 @@
 import type { Photo } from "./catalog";
 import { parseListingText } from "./search";
+import { getSupabaseBrowserClient, isSupabaseConfigured } from "../src/lib/supabase/client";
 
 export type ListingAnalysis = Partial<ReturnType<typeof parseListingText>> & {
   source?: "vision";
@@ -66,13 +67,23 @@ export async function analyzeListingPhotos(photos: { src: string; name?: string 
   let vision: ListingAnalysis = {};
   if (photos.length) {
     try {
-      const response = await fetch("/api/analyze-listing", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ photos, description }),
-        signal,
-      });
-      if (response.ok) vision = await response.json();
+      if (isSupabaseConfigured) {
+        const supabase = getSupabaseBrowserClient();
+        if (supabase) {
+          const { data, error } = await supabase.functions.invoke("analyze-listing", {
+            body: { photos: photos.slice(0, 6), description, rawText: description },
+          });
+          if (!error && data && typeof data === "object") vision = data as ListingAnalysis;
+        }
+      } else {
+        const response = await fetch("/api/analyze-listing", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ photos, description }),
+          signal,
+        });
+        if (response.ok) vision = await response.json();
+      }
     } catch {
       // The form can use explicit details in the filenames and description offline.
     }

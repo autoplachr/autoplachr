@@ -1,0 +1,7 @@
+project_id = "kxspnnxecchkpbaagnwq"
+
+[functions.import-listing]
+verify_jwt = true
+
+[functions.analyze-listing]
+verify_jwt = true

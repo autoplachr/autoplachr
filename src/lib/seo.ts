@@ -3,8 +3,9 @@ import { buildMockVehicles } from "../data/mock-vehicles";
 import importedListings from "../../data/imported-listings.json";
 import type { Photo, Vehicle } from "../../app/catalog";
 import photoData from "../../app/photos.json";
+import { PRODUCTION_SITE_URL } from "./site-origin";
 
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://autoplac.hr").replace(/\/$/, "");
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || PRODUCTION_SITE_URL).replace(/\/$/, "");
 export const SITE_NAME = "AUTOPLAC.HR";
 
 export function slugifyHr(input: string): string {
