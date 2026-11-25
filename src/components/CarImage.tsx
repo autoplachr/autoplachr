@@ -8,7 +8,7 @@ export function CarImage(props:Props) {
   return <CarImageSource key={JSON.stringify([props.photo?.src,props.photo?.backup,props.photo?.preview,props.thumbnail])} {...props}/>;
 }
 function CarImageSource({photo,alt,eager=false,thumbnail=false}:Props) {
-  const sources=[thumbnail && photo?.preview,photo?.src,photo?.backup].filter((src):src is string=>Boolean(src));
+  const sources=[thumbnail && photo?.preview,photo?.backup,photo?.src].filter((src):src is string=>Boolean(src));
   const options=[...new Set(sources)];
   const image=useRef<HTMLImageElement>(null);
   const [failed,setFailed]=useState(false);

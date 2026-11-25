@@ -1,5 +1,6 @@
 "use client";
 
+import { ListingPhoto } from "../src/components/ListingPhoto";
 import { BrandSelect } from "../src/components/BrandSelect";
 import { BrandLogo } from "../src/components/BrandLogo";
 import { ArrowDown, ArrowRight, CarFront, Check, ChevronDown, Grid2X2, Heart, List, Moon, Plus, SlidersHorizontal, Sun, UserRound, X } from "lucide-react";
@@ -7,7 +8,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { restoreListingPhotos, countyByCity, euro, fuels, gears, marketValuation, number, power, quick, registered, vehicles, type Flag, type Vehicle } from "./catalog";
 import { categories, distances, initialSearch, matchVehicles, prices, readSearch, sorts, validEquipmentFilters, writeSearch, years, type CategoryId, type Search } from "./search";
 import { CatalogFields } from "./catalog-fields";
-import { Dialog, ListingOptions, MakeEquipmentOptions, PhotoCount, Rating, Select, VehiclePhoto } from "./ui";
+import { Dialog, ListingOptions, MakeEquipmentOptions, Rating, Select } from "./ui";
 import { vehicleMakeOptions } from "./make-equipment";
 import { TaxCalculator } from "./buyer-tools";
 import Detail from "./detail";
@@ -375,19 +376,7 @@ function RecommendedStrip({
             vehicle.history?.includes("1. vlasnik") ? "1. vlasnik" : null;
           return (
             <article key={vehicle.id} className="rec-card">
-              <div className="rec-media">
-                <VehiclePhoto photo={vehicle.photos[0]} alt={vehicle.title} eager={index < 4} thumbnail />
-                {tag && <span className="rec-tag">{tag}</span>}
-                <button
-                  className={"icon-btn heart-button " + (isSaved ? "saved" : "")}
-                  type="button"
-                  aria-label={isSaved ? "Ukloni spremljeno vozilo " + vehicle.title : "Spremi " + vehicle.title}
-                  aria-pressed={isSaved}
-                  onClick={() => onSave(vehicle.id)}
-                >
-                  <Heart size={16} fill={isSaved ? "currentColor" : "none"} />
-                </button>
-              </div>
+              <ListingPhoto className="rec-media" vehicle={vehicle} saved={isSaved} onSave={()=>onSave(vehicle.id)} eager={index < 4} status={tag}/>
               <div className="rec-body">
                 <h3>
                   <a className="card-link" href={listingUrl(vehicle.id)} onClick={event => onOpen(event, vehicle.id)}>
@@ -484,12 +473,8 @@ function Listing({ vehicle, saved, onOpen, onSave, eager }: {
   const valuation = marketValuation(vehicle);
   const delta = describeMarketDelta(valuation.deltaEur, valuation.deltaPercent, euro);
   return <article className="listing">
-    <div className="listing-media">
-      <VehiclePhoto photo={vehicle.photos[0]} alt={vehicle.title} eager={eager} thumbnail/>
-      {(arriving || vat) && <span className={"listing-badge" + (arriving ? " arriving" : "")}>{arriving ? quick.dolazak : "PDV u cijeni (R1)"}</span>}
-      <PhotoCount index={0} total={vehicle.photos.length}/>
-      <button className={"icon-btn heart-button " + (saved ? "saved" : "")} type="button" aria-label={saved ? "Ukloni spremljeno vozilo " + vehicle.title : "Spremi " + vehicle.title} aria-pressed={saved} onClick={onSave}><Heart size={17} fill={saved ? "currentColor" : "none"}/></button>
-    </div>
+    <ListingPhoto className="listing-media" vehicle={vehicle} saved={saved} onSave={onSave} eager={eager}
+      status={arriving ? quick.dolazak : vat ? "PDV u cijeni (R1)" : vehicle.flags.includes("cvh") ? "CVH potvrđeni km" : null}/>
     <div className="listing-content">
       <h3><a className="card-link" href={listingUrl(vehicle.id)} onClick={onOpen}><BrandLogo make={vehicle.make} size="xs"/><span>{vehicle.title}</span></a></h3>
       <ul className="listing-specs" aria-label="Osnovni podaci">{specs.map((spec, index) =>

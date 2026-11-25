@@ -306,7 +306,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
     {fullscreen && <Dialog title="Fotografije vozila" variant="photo-lightbox" onClose={() => setFullscreen(false)}>
       <div className="lightbox-body" onKeyDown={photoKeys}>
         <div className="lightbox-image"><VehiclePhoto photo={active} alt={vehicle.title} eager/>{counter}{arrows()}</div>
-        {active?.link && <details className="image-source"><summary>Izvor fotografije</summary><a href={active.link} target="_blank" rel="noreferrer">{active.credit || "Izvor"}</a>{active.licenseUrl && <> · <a href={active.licenseUrl} target="_blank" rel="noreferrer">{active.license}</a></>}</details>}
+        {active?.link && <details className="image-source"><summary>Izvor fotografije</summary><a href={active.link} target="_blank" rel="noreferrer">{active.credit || "Izvor"}</a>{active.licenseUrl && <> · <a href={active.licenseUrl} target="_blank" rel="noreferrer">{active.license}</a></>}{active.preview && <> · Kadrirano za pregled</>}</details>}
       </div>
     </Dialog>}
     {shareUrl && <Dialog title="Podijeli oglas" variant="form-dialog" onClose={() => setShareUrl("")}>
