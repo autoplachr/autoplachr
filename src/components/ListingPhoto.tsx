@@ -1,20 +1,15 @@
 "use client";
 import { Camera, ChevronLeft, ChevronRight, Heart } from "lucide-react";
-import { useRef, useState, type MouseEvent, type TouchEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type PointerEvent, type TouchEvent } from "react";
 import type { Vehicle } from "../../app/catalog";
 import { CarImage } from "./CarImage";
 
-export function ListingPhoto({
-  vehicle,
-  saved,
-  onSave,
-  eager,
-  status,
-  compact = false,
-  className,
-  href,
-  onOpen,
-}: {
+export function ListingPhoto(props: ListingPhotoProps) {
+  const key = JSON.stringify([props.vehicle.id, props.vehicle.photos?.map(({ src, backup }) => [src, backup])]);
+  return <ListingGallery key={key} {...props} />;
+}
+
+type ListingPhotoProps = {
   vehicle: Vehicle;
   saved: boolean;
   onSave: () => void;
@@ -24,96 +19,142 @@ export function ListingPhoto({
   className: string;
   href?: string;
   onOpen?: (event: MouseEvent<HTMLAnchorElement>) => void;
-}) {
-  const [index, setIndex] = useState(0);
-  const [hoverZone, setHoverZone] = useState<number | null>(null);
-  const prefetchedRef = useRef(false);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+};
+
+function ListingGallery({
+  vehicle,
+  saved,
+  onSave,
+  eager,
+  status,
+  compact = false,
+  className,
+  href,
+  onOpen,
+}: ListingPhotoProps) {
+  const [selection, setSelection] = useState({ index: 0, direction: 1 });
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [readyIndex, setReadyIndex] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
+  const failed = useRef(new Set<number>());
+  const mediaRef = useRef<HTMLDivElement>(null);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverTarget = useRef<number | null>(null);
+  const manual = useRef(false);
+  const swipe = useRef<{ x: number; y: number } | null>(null);
+  const suppressClickUntil = useRef(0);
 
   const photos = vehicle.photos ?? [];
   const total = photos.length;
   const zoneCount = Math.min(total, 5);
-  const active = total ? (hoverZone !== null ? hoverZone : index) % total : 0;
-  const displayIndex = total ? active + 1 : 0;
-  const move = (offset: number) => {
-    setHoverZone(null);
-    setIndex(current => (current + offset + total) % total);
-  };
+  const active = hoverIndex ?? selection.index;
+  const displayIndex = active === readyIndex ? active : 0;
+  const hasGallery = total - failedCount > 1;
 
-  function preloadSiblings() {
-    if (prefetchedRef.current || total <= 1 || typeof window === "undefined") return;
-    prefetchedRef.current = true;
-    for (const p of photos.slice(1, 5)) {
-      const url = p.backup || p.src;
-      if (!url) continue;
-      const img = new window.Image();
-      img.decoding = "async";
-      img.src = url;
+  function cancelHover() {
+    if (hoverTimer.current !== null) clearTimeout(hoverTimer.current);
+    hoverTimer.current = null;
+    hoverTarget.current = null;
+  }
+
+  useEffect(() => {
+    const card = mediaRef.current?.closest("article") ?? mediaRef.current;
+    function leaveCard() {
+      cancelHover();
+      setHoverIndex(null);
+      manual.current = false;
     }
+    card?.addEventListener("pointerleave", leaveCard);
+    return () => {
+      cancelHover();
+      card?.removeEventListener("pointerleave", leaveCard);
+    };
+  }, []);
+
+  function nextIndex(from: number, direction: number) {
+    for (let step = 1; step <= total; step++) {
+      const candidate = (from + direction * step + total) % total;
+      if (!failed.current.has(candidate)) return candidate;
+    }
+    return 0;
   }
 
-  function handleTouchStart(e: TouchEvent<HTMLDivElement>) {
-    if (total <= 1 || e.touches.length !== 1) return;
-    preloadSiblings();
-    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  function move(direction: number) {
+    manual.current = true;
+    cancelHover();
+    setHoverIndex(null);
+    setReadyIndex(0);
+    setSelection({ index: nextIndex(active, direction), direction });
   }
 
-  function handleTouchMove(e: TouchEvent<HTMLDivElement>) {
-    if (total <= 1 || !touchStartRef.current || e.touches.length !== 1) return;
-    const dx = e.touches[0].clientX - touchStartRef.current.x;
-    const dy = e.touches[0].clientY - touchStartRef.current.y;
-    if (Math.abs(dx) < 18 || Math.abs(dx) < Math.abs(dy)) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const relX = Math.max(0, Math.min(rect.width - 1, e.touches[0].clientX - rect.left));
-    const zone = Math.min(zoneCount - 1, Math.floor((relX / Math.max(1, rect.width)) * zoneCount));
-    setHoverZone(zone);
+  function handleUnavailable(index: number) {
+    if (failed.current.has(index)) return;
+    failed.current.add(index);
+    setFailedCount(failed.current.size);
+    if (hoverIndex === index) setHoverIndex(null);
+    setSelection(current => current.index === index
+      ? { ...current, index: nextIndex(index, current.direction) }
+      : current);
   }
 
-  function handleTouchEnd() {
-    if (hoverZone !== null) setIndex(hoverZone);
-    touchStartRef.current = null;
+  function preview(event: PointerEvent<HTMLDivElement>) {
+    if (event.pointerType !== "mouse" || manual.current || !hasGallery) return;
+    if (event.target instanceof Element && event.target.closest("button")) {
+      cancelHover();
+      return;
+    }
+    const { left, width } = event.currentTarget.getBoundingClientRect();
+    const zone = Math.max(0, Math.min(zoneCount - 1, Math.floor((event.clientX - left) / Math.max(1, width) * zoneCount)));
+    if (zone === hoverTarget.current) return;
+    cancelHover();
+    if (zone === active || failed.current.has(zone)) return;
+    hoverTarget.current = zone;
+    hoverTimer.current = setTimeout(() => {
+      setReadyIndex(0);
+      setHoverIndex(zone);
+      cancelHover();
+    }, 100);
+  }
+
+  function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
+    swipe.current = event.touches.length === 1 && hasGallery
+      ? { x: event.touches[0].clientX, y: event.touches[0].clientY }
+      : null;
+  }
+
+  function handleTouchEnd(event: TouchEvent<HTMLDivElement>) {
+    const start = swipe.current;
+    swipe.current = null;
+    if (!start || !event.changedTouches.length) return;
+    const dx = event.changedTouches[0].clientX - start.x;
+    const dy = event.changedTouches[0].clientY - start.y;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+    suppressClickUntil.current = Date.now() + 400;
+    move(dx < 0 ? 1 : -1);
   }
 
   return (
     <div
-      className={`${className} listing-photo group/photo${compact ? " listing-photo-compact" : ""}`}
-      onMouseEnter={preloadSiblings}
-      onMouseLeave={() => setHoverZone(null)}
+      ref={mediaRef}
+      className={`${className} listing-photo${compact ? " listing-photo-compact" : ""}`}
+      onPointerEnter={preview}
+      onPointerMove={preview}
+      onPointerLeave={cancelHover}
       onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={() => { swipe.current = null; }}
     >
-      <CarImage photo={photos[active]} alt={vehicle.title} eager={eager || active > 0} />
-
-      {total > 1 && (
-        <div
-          className="absolute inset-0 z-[2] grid"
-          style={{ gridTemplateColumns: `repeat(${zoneCount}, minmax(0, 1fr))` }}
-        >
-          {Array.from({ length: zoneCount }, (_, zIdx) =>
-            href ? (
-              <a
-                key={zIdx}
-                href={href}
-                onClick={onOpen}
-                tabIndex={-1}
-                aria-hidden="true"
-                onMouseEnter={() => setHoverZone(zIdx)}
-                className="block h-full w-full cursor-pointer"
-              />
-            ) : (
-              <div
-                key={zIdx}
-                aria-hidden="true"
-                onMouseEnter={() => setHoverZone(zIdx)}
-                className="h-full w-full"
-              />
-            ),
-          )}
-        </div>
+      <CarImage className="listing-photo-layer" layer photo={photos[0]} alt={vehicle.title} eager={eager}
+        onUnavailable={total ? () => handleUnavailable(0) : undefined} />
+      {active > 0 && (
+        <CarImage key={active} className="listing-photo-layer" layer photo={photos[active]} alt="" eager
+          onReady={() => setReadyIndex(active)}
+          onUnavailable={() => handleUnavailable(active)} />
       )}
-
-      {compact && total <= 1 && href && <a className="absolute inset-0 z-[2]" href={href} onClick={onOpen} tabIndex={-1} aria-hidden="true" />}
+      {href && <a className="absolute inset-0 z-[2]" href={href} tabIndex={-1} aria-hidden="true" onClick={event => {
+        if (Date.now() < suppressClickUntil.current) event.preventDefault();
+        else onOpen?.(event);
+      }} />}
       {!compact && status && <span className="listing-photo-status !z-[4]">{status}</span>}
       <button
         className={"icon-btn heart-button !z-[4]" + (saved ? " saved" : "")}
@@ -125,7 +166,7 @@ export function ListingPhoto({
         <Heart size={14} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
       </button>
 
-      {total > 1 && (
+      {hasGallery && (
         <>
           <button
             className="listing-photo-arrow previous !z-[4]"
@@ -146,41 +187,18 @@ export function ListingPhoto({
         </>
       )}
 
-      {!compact && total > 1 && (
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-[3] px-2 pb-1.5 pt-5 flex items-end justify-between gap-2"
-          aria-hidden="true"
-        >
-          <div
-            className="grid flex-1 gap-1 rounded bg-black/65 p-1"
-            style={{ gridTemplateColumns: `repeat(${zoneCount}, minmax(0, 1fr))` }}
-          >
-            {Array.from({ length: zoneCount }, (_, barIdx) => (
-              <span
-                key={barIdx}
-                className={`h-[3px] rounded-full ${
-                  barIdx === active % zoneCount
-                    ? "bg-white"
-                    : "bg-white/40"
-                }`}
-              />
-            ))}
-          </div>
-          <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold text-white bg-black/75 tabular-nums shrink-0">
-            <Camera size={12} aria-hidden="true" />
-            {displayIndex}/{total}
-          </span>
+      {hasGallery && (
+        <div className="listing-photo-dots" aria-hidden="true">
+          {Array.from({ length: Math.min(5, total - Math.floor(displayIndex / 5) * 5) }, (_, dot) => (
+            <span key={dot} data-active={dot === displayIndex % 5} />
+          ))}
         </div>
       )}
-
-      {(compact ? total > 0 : total === 1) && (
-        <span
-          className="listing-photo-count tabular !z-[4]"
-          aria-live="polite"
-          aria-label={`Fotografija ${displayIndex} od ${total}`}
-        >
+      {total > 0 && (
+        <span className="listing-photo-count tabular !z-[4]" aria-live="polite"
+          aria-label={`Fotografija ${displayIndex + 1} od ${total}`}>
           {!compact && <Camera size={13} aria-hidden="true" />}
-          {displayIndex}/{total}
+          {displayIndex + 1}/{total}
         </span>
       )}
     </div>

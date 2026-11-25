@@ -1080,8 +1080,8 @@ html.dark .brand-logo-emblem[data-contrast="color"] svg { filter:drop-shadow(0 0
 .car-image-placeholder { display:grid; place-items:center; width:100%; height:100%; color:var(--muted); }
 .rec-media { aspect-ratio:16 / 10; width:100%; overflow:hidden; }
 
-.listing-photo { position:relative; color:#fff; }
-.listing-photo .car-image-placeholder { background:#202936; color:#D6DEE9; }
+.listing-photo { position:relative; color:#fff; background: var(--hover) url("/cars/unavailable.svg") center / cover no-repeat; touch-action:pan-y pinch-zoom; }
+.listing-photo > .listing-photo-layer { position:absolute; inset:0; background:transparent; pointer-events:none; }
 .listing-photo .heart-button {
   width:28px; height:28px; border:1px solid #FFFFFF33; border-radius:50%;
   color:#fff; background:rgba(9, 9, 11, 0.78); box-shadow:none;
@@ -1098,16 +1098,28 @@ html.dark .brand-logo-emblem[data-contrast="color"] svg { filter:drop-shadow(0 0
   font-size:11px; font-weight:550; color:#FFFFFFF2; padding:2px 6px; border-radius:4px; background:rgba(9, 9, 11, 0.78);
 }
 .listing-photo-arrow {
-  position:absolute; z-index:2; top:50%; transform:translateY(-50%);
-  display:grid; place-items:center; width:27px; height:27px; border-radius:50%;
-  background:#09090B99; border:1px solid #FFFFFF26; color:#fff;
+  position:absolute; z-index:2; top:calc(50% - 22px);
+  display:grid; place-items:center; width:44px; height:44px; border-radius:50%; color:#fff;
 }
-.listing-photo-arrow.previous { left:7px; }
-.listing-photo-arrow.next { right:7px; }
-.listing-photo-arrow:hover { background:#09090BD9; }
+.listing-photo-arrow.previous { left:2px; }
+.listing-photo-arrow.next { right:2px; }
+.listing-photo-arrow::before { content:""; position:absolute; inset:8px; border-radius:50%; background:#09090BAA; }
+.listing-photo-arrow:hover::before { background:#09090BE6; }
+.listing-photo-arrow svg { position:relative; }
+.listing-photo-arrow:focus-visible { outline:2px solid #2563EB; outline-offset:-2px; }
+.listing-photo-dots { position:absolute; z-index:3; bottom:8px; left:50%; translate:-50% 0; display:flex; gap:4px; padding:4px 6px; border-radius:999px; background:#09090BAA; pointer-events:none; }
+.listing-photo-dots span { width:5px; height:5px; border-radius:50%; background:#FFFFFF70; }
+.listing-photo-dots span[data-active="true"] { background:#fff; }
 @media (hover:hover) and (pointer:fine) {
-  .listing-photo-arrow { opacity:0; transition:opacity 150ms ease; }
-  .rec-card:hover .listing-photo-arrow, .listing-photo:not(.listing-photo-compact):focus-within .listing-photo-arrow { opacity:1; }
+  .listing-photo :is(.listing-photo-arrow, .listing-photo-dots) { opacity:0; pointer-events:none; }
+  :is(.vehicle-card, .rec-card):is(:hover, :focus-within) .listing-photo-arrow,
+  .listing-photo:is(:hover, :focus-within) .listing-photo-arrow { opacity:1; pointer-events:auto; }
+  :is(.vehicle-card, .rec-card):is(:hover, :focus-within) .listing-photo-dots,
+  .listing-photo:is(:hover, :focus-within) .listing-photo-dots { opacity:1; }
+}
+@media (prefers-reduced-motion:no-preference) {
+  .listing-photo :is(.listing-photo-arrow, .listing-photo-dots) { transition:opacity 150ms ease; }
+  .listing-photo-arrow:active { transform:scale(.98); }
 }
 
 .brand-select-popover, .location-suggestions {
@@ -1257,14 +1269,9 @@ html.dark .vehicle-market-rating[data-below-market="true"] { color: #10B981; }
 .listing-photo-compact .heart-button:hover::before { background: #000C; }
 .listing-photo-compact .heart-button.saved { color: #FCA5A5; }
 .listing-photo-compact .listing-photo-count { pointer-events: none; line-height: 1.35; }
-.listing-photo-compact .listing-photo-arrow { opacity: 0; width: 44px; height: 44px; pointer-events: none; }
-.listing-photo-compact .listing-photo-arrow:focus-visible { opacity: 1; pointer-events: auto; }
 .listing-photo-compact :is(.heart-button, .listing-photo-arrow):focus-visible { outline: 2px solid #2563EB; outline-offset: -2px; }
 @media (prefers-reduced-motion: no-preference) {
   .vehicle-card:has(.card-link:active), .listing-photo-compact .heart-button:active { transform: scale(.98); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .listing-photo-compact .listing-photo-arrow { transition: none; }
 }
 .vehicle-list-row { grid-template-rows: auto auto auto; overflow: hidden; }
 .vehicle-list-body { display: flex; flex-direction: column; justify-content: space-between; min-width: 0; padding: 16px; }
