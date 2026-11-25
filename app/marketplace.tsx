@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowRight, CarFront, Check, ChevronDown, Grid2X2, Heart, List, Moon, Plus, SlidersHorizontal, Sparkles, Sun, UserRound, X } from "lucide-react";
+import { ArrowDown, ArrowRight, CarFront, Check, ChevronDown, Grid2X2, Heart, List, Moon, Plus, SlidersHorizontal, Sun, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { restoreListingPhotos, countyByCity, euro, fuels, gears, marketValuation, number, power, quick, registered, vehicles, type Flag, type Vehicle } from "./catalog";
 import { categories, distances, initialSearch, matchVehicles, prices, readSearch, sorts, validEquipmentFilters, writeSearch, years, type CategoryId, type Search } from "./search";
@@ -388,15 +388,14 @@ function RecommendedStrip({
       <div className="recommended-grid">
         {recommended.map(({ vehicle, val }, index) => {
           const isSaved = savedIds.includes(vehicle.id);
-          const tag = val.rating.rank === 0 || index < 3 ? "Prilika tjedna" : "Preporuka";
+          const tag = vehicle.flags.includes("cvh") ? "CVH potvrđeni km" :
+            vehicle.flags.includes("pdv") ? "Sustav PDV-a (R1)" :
+            vehicle.history?.includes("1. vlasnik") ? "1. vlasnik" : null;
           return (
             <article key={vehicle.id} className="rec-card">
               <div className="rec-media">
                 <VehiclePhoto photo={vehicle.photos[0]} alt={vehicle.title} eager={index < 4} />
-                <span className={"rec-tag" + (tag === "Prilika tjedna" ? " deal" : "")}>
-                  {tag === "Prilika tjedna" && <Sparkles size={12} aria-hidden="true" />}
-                  {tag}
-                </span>
+                {tag && <span className="rec-tag">{tag}</span>}
                 <button
                   className={"icon-btn heart-button " + (isSaved ? "saved" : "")}
                   type="button"
@@ -414,7 +413,7 @@ function RecommendedStrip({
                   </a>
                 </h3>
                 <p className="rec-specs tabular">
-                  {registered(vehicle.date)} • {number(vehicle.km)} km • {vehicle.kw} kW • {vehicle.fuel}
+                  {registered(vehicle.date)} • {number(vehicle.km)} km • {power(vehicle.kw)} • {vehicle.gear} • {vehicle.fuel}
                 </p>
                 <div className="rec-price-row">
                   <strong className="tabular">{euro(vehicle.price)}</strong>
