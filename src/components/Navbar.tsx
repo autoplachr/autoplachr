@@ -1,0 +1,133 @@
+"use client";
+
+import { Heart, Menu, Plus, X } from "lucide-react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
+
+const links = [
+  { href: "/", label: "Rabljena vozila" },
+  { href: "/autokuce", label: "Autokuće" },
+  { href: "/ppmv-kalkulator", label: "PPMV Kalkulator" },
+  { href: "/procjena-cijene", label: "Procjena cijene" },
+] as const;
+
+type Props = {
+  activeRoute: string;
+  routeKey: string;
+  savedCount: number;
+  savedOnly: boolean;
+  account?: { name: string; avatar?: string; unread?: number };
+  onSaved: (enabled: boolean) => void;
+  onNavigate: (href: string) => void;
+  onPublish: () => void;
+};
+
+export function Navbar({ activeRoute, routeKey, savedCount, savedOnly, account, onSaved, onNavigate, onPublish }: Props) {
+  const [open, setOpen] = useState(false);
+  const header = useRef<HTMLElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const accountHref = account ? "/racun" : "/prijava";
+  const initials = account?.name.trim().split(/\s+/).slice(0, 2).map(name => name[0]?.toUpperCase()).join("") || "AP";
+
+  useEffect(() => setOpen(false), [routeKey]);
+  useEffect(() => {
+    if (!open) return;
+    const desktop = window.matchMedia("(min-width: 768px)");
+    function close() { setOpen(false); }
+    function onPointerDown(event: PointerEvent) {
+      if (event.target instanceof Node && !header.current?.contains(event.target)) close();
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      close();
+      toggle.current?.focus();
+    }
+    function onResize(event: MediaQueryListEvent) {
+      if (event.matches) close();
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("popstate", close);
+    desktop.addEventListener("change", onResize);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("popstate", close);
+      desktop.removeEventListener("change", onResize);
+    };
+  }, [open]);
+
+  function follow(event: MouseEvent<HTMLAnchorElement>, href: string) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    setOpen(false);
+    onNavigate(href);
+  }
+  function publish() {
+    setOpen(false);
+    onPublish();
+  }
+  function showSaved(enabled: boolean) {
+    setOpen(false);
+    onSaved(enabled);
+  }
+  function navigationLinks() {
+    return links.map(({ href, label }) => <a key={href} href={href}
+      aria-current={activeRoute === href ? "page" : undefined} onClick={event => follow(event, href)}>{label}</a>);
+  }
+  const savedButton = <button type="button" className="site-header-action site-saved" aria-label={"Spremljeni oglasi: " + savedCount}
+    aria-pressed={savedOnly} onClick={() => showSaved(!savedOnly)}>
+    <Heart size={17} aria-hidden="true" />
+    <span className="site-saved-text">Spremljeno</span>
+    <span className="site-saved-count tabular" data-empty={savedCount === 0}>{savedCount}</span>
+  </button>;
+  const publishButton = <button type="button" className="site-header-action site-publish tabular" aria-label="Predaj oglas, 0 eura" onClick={publish}>
+    <Plus size={16} aria-hidden="true" /> <span className="site-publish-text">Predaj oglas</span> 0 €
+  </button>;
+
+  return <header ref={header} className="topbar site-header">
+    <div className="site-header-inner">
+      <a className="site-wordmark" href="/" aria-label="Autoplac HR, početna" onClick={event => follow(event, "/")}>
+        AUTOPLAC <span>.hr</span>
+      </a>
+      <nav className="site-desktop-nav" aria-label="Glavna navigacija">{navigationLinks()}</nav>
+      <div className="site-header-actions site-desktop-actions">
+        {savedButton}
+        <span className="site-header-divider" aria-hidden="true" />
+        <a className="site-header-action site-account" href={accountHref} onClick={event => follow(event, accountHref)}
+          aria-current={activeRoute === accountHref ? "page" : undefined} aria-label={account ? "Moj račun" : undefined}>
+          {account ? <>
+            <span className="site-account-avatar" aria-hidden="true">{account.avatar ? <img src={account.avatar} alt="" /> : initials}</span>
+            <span className="site-account-name">{account.name.trim().split(/\s+/)[0]}</span>
+            {Boolean(account.unread) && <span className="site-account-unread tabular">{account.unread}</span>}
+          </> : "Prijava"}
+        </a>
+        {publishButton}
+      </div>
+      <div className="site-header-actions site-mobile-quick">
+        {publishButton}
+        {savedButton}
+        <button ref={toggle} type="button" className="site-header-action site-menu-toggle"
+          aria-label={open ? "Zatvori izbornik" : "Otvori izbornik"} aria-expanded={open} aria-controls="site-mobile-nav"
+          onClick={() => setOpen(value => !value)}>
+          {open ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
+        </button>
+      </div>
+    </div>
+    <nav id="site-mobile-nav" className="site-mobile-nav" aria-label="Mobilna navigacija" hidden={!open}>
+      <div className="site-mobile-links">
+        {navigationLinks()}
+        <button type="button" aria-pressed={savedOnly} onClick={() => showSaved(true)}>
+          Spremljeni oglasi {savedCount > 0 && <span className="tabular">{savedCount}</span>}
+        </button>
+      </div>
+      <div className="site-mobile-actions">
+        <a className="site-header-action site-mobile-account" href={accountHref} onClick={event => follow(event, accountHref)}>
+          {account ? "Moj račun" : "Prijava / Registracija"}
+        </a>
+        <button type="button" className="site-header-action site-publish tabular" onClick={publish}>
+          <Plus size={16} aria-hidden="true" /> Predaj besplatan oglas (0 €)
+        </button>
+      </div>
+    </nav>
+  </header>;
+}

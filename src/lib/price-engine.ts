@@ -1,4 +1,4 @@
-import { CAR_CATALOG, chassisFromTitle, modelFor } from "../data/car-catalog";
+import { CAR_CATALOG, chassisFromTitle, clampYearToRange, generationRange, modelFor } from "../data/car-catalog";
 import type { Vehicle } from "../../app/catalog";
 import { vehicleMakeOptions } from "../../app/make-equipment";
 import { estimateTax } from "../../app/tax";
@@ -17,6 +17,23 @@ export type ValuationFactor = {
   impactEur: number;
 };
 
+export type AuditCategory =
+  | "Vozilo i starost"
+  | "Kilometraža"
+  | "Pogon i snaga"
+  | "Oprema"
+  | "Povijest, porez i tržište";
+
+export type AuditFactor = {
+  id: string;
+  category: AuditCategory;
+  parameterLabel: string;
+  userValue: string;
+  benchmarkValue: string;
+  impactEur: number;
+  explanation: string;
+};
+
 export type MarketValuationInput = {
   make: string;
   model: string;
@@ -33,6 +50,9 @@ export type MarketValuationInput = {
   gear: string;
   drive?: string;
   bodyType?: string;
+  registrationUntil?: string;
+  city?: string;
+  county?: string;
   askingPrice?: number;
   equipment?: string[] | Record<string, string[]>;
   makeEquipment?: string[];
@@ -65,6 +85,7 @@ export type MarketValuationResult = {
   deltaPercent: number;
   rating: PriceRatingTier;
   factors: ValuationFactor[];
+  auditFactors: AuditFactor[];
   baseModelValueEur: number;
   mileageImpactEur: number;
   equipmentValueEur: number;
@@ -73,6 +94,7 @@ export type MarketValuationResult = {
   sampleCount: number;
   breakdown: ValuationBreakdownRow[];
   ageYears: number;
+  ageMonths: number;
   expectedKm: number;
   estimatedNewPriceHr: number;
   deEstimatedPriceEur: number;
@@ -227,163 +249,177 @@ const BRAND_PROFILES: Record<string, { tier: number; retention: number }> = {
 
 const MODEL_SPECS: Record<string, Record<string, ModelSpec>> = {
   BMW: {
-    "Serija 1": { baseNew: 32000, refKw: 105, segment: "compact", retention: 1.03, generations: { E81: 0.88, E82: 0.92, E87: 0.88, E88: 0.93, F20: 0.99, F21: 0.99, F40: 1.04, F70: 1.08 } },
-    "Serija 2": { baseNew: 35000, refKw: 115, segment: "compact", retention: 1.01, generations: { F22: 1.03, F23: 1.05, F45: 0.93, F46: 0.94, F44: 1.0, G42: 1.08, U06: 1.02 } },
-    "Serija 3": { baseNew: 40500, refKw: 135, segment: "midsize", retention: 1.04, generations: { E46: 0.96, E90: 0.96, E91: 0.97, E92: 1.03, E93: 1.05, F30: 0.99, F31: 1.0, F34: 0.97, G20: 1.04, G21: 1.05 } },
-    "Serija 4": { baseNew: 46000, refKw: 140, segment: "midsize", retention: 1.04, generations: { F32: 1.0, F33: 1.03, F36: 1.01, G22: 1.07, G23: 1.08, G26: 1.06 } },
-    "Serija 5": { baseNew: 53500, refKw: 145, segment: "executive", retention: 1.02, generations: { E60: 0.92, E61: 0.93, F10: 0.97, F11: 0.99, F07: 0.93, G30: 1.04, G31: 1.05, G60: 1.09, G61: 1.1 } },
-    "Serija 7": { baseNew: 98000, refKw: 210, segment: "luxury", retention: 0.93, generations: { E65: 0.85, E66: 0.85, F01: 0.91, F02: 0.91, G11: 1.0, G12: 1.01, G70: 1.08 } },
-    X1: { baseNew: 37500, refKw: 110, segment: "suv-compact", retention: 1.03, generations: { E84: 0.93, F48: 1.01, U11: 1.08 } },
-    X2: { baseNew: 38500, refKw: 110, segment: "suv-compact", retention: 1.0, generations: { F39: 0.99, U10: 1.06 } },
-    X3: { baseNew: 49500, refKw: 140, segment: "suv-mid", retention: 1.04, generations: { E83: 0.89, F25: 0.96, G01: 1.05, G45: 1.1 } },
-    X4: { baseNew: 54000, refKw: 145, segment: "suv-mid", retention: 1.03, generations: { F26: 0.97, G02: 1.05 } },
-    X5: { baseNew: 76000, refKw: 200, segment: "suv-large", retention: 1.02, generations: { E53: 0.88, E70: 0.93, F15: 0.99, G05: 1.06 } },
-    X6: { baseNew: 81000, refKw: 210, segment: "suv-large", retention: 1.01, generations: { E71: 0.92, F16: 0.99, G06: 1.06 } },
+    "Serija 1": { baseNew: 30000, refKw: 105, segment: "compact", retention: 1.03, generations: { E81: 0.88, E82: 0.92, E87: 0.88, E88: 0.93, F20: 0.99, F21: 0.99, F40: 1.04, F70: 1.08 } },
+    "Serija 2": { baseNew: 33000, refKw: 115, segment: "compact", retention: 1.01, generations: { F22: 1.03, F23: 1.05, F45: 0.93, F46: 0.94, F44: 1.0, G42: 1.08, U06: 1.02 } },
+    "Serija 3": { baseNew: 35000, refKw: 135, segment: "midsize", retention: 1.04, generations: { E46: 0.96, E90: 0.96, E91: 0.97, E92: 1.03, E93: 1.05, F30: 0.99, F31: 1.0, F34: 0.97, G20: 1.04, G21: 1.05 } },
+    "Serija 4": { baseNew: 42500, refKw: 140, segment: "midsize", retention: 1.04, generations: { F32: 1.0, F33: 1.03, F36: 1.01, G22: 1.07, G23: 1.08, G26: 1.06 } },
+    "Serija 5": { baseNew: 49500, refKw: 145, segment: "executive", retention: 1.02, generations: { E60: 0.92, E61: 0.93, F10: 0.97, F11: 0.99, F07: 0.93, G30: 1.04, G31: 1.05, G60: 1.09, G61: 1.1 } },
+    "Serija 7": { baseNew: 92000, refKw: 210, segment: "luxury", retention: 0.93, generations: { E65: 0.85, E66: 0.85, F01: 0.91, F02: 0.91, G11: 1.0, G12: 1.01, G70: 1.08 } },
+    X1: { baseNew: 35000, refKw: 110, segment: "suv-compact", retention: 1.03, generations: { E84: 0.93, F48: 1.01, U11: 1.08 } },
+    X2: { baseNew: 36000, refKw: 110, segment: "suv-compact", retention: 1.0, generations: { F39: 0.99, U10: 1.06 } },
+    X3: { baseNew: 46500, refKw: 140, segment: "suv-mid", retention: 1.04, generations: { E83: 0.89, F25: 0.96, G01: 1.05, G45: 1.1 } },
+    X4: { baseNew: 50500, refKw: 145, segment: "suv-mid", retention: 1.03, generations: { F26: 0.97, G02: 1.05 } },
+    X5: { baseNew: 72000, refKw: 200, segment: "suv-large", retention: 1.02, generations: { E53: 0.88, E70: 0.93, F15: 0.99, G05: 1.06 } },
+    X6: { baseNew: 77000, refKw: 210, segment: "suv-large", retention: 1.01, generations: { E71: 0.92, F16: 0.99, G06: 1.06 } },
   },
   Audi: {
-    A1: { baseNew: 24500, refKw: 81, segment: "city", retention: 1.04, generations: { "8X": 0.96, GB: 1.04 } },
-    A3: { baseNew: 31000, refKw: 105, segment: "compact", retention: 1.04, generations: { "8L": 0.86, "8P": 0.95, "8V": 1.01, "8Y": 1.06 } },
-    A4: { baseNew: 39000, refKw: 125, segment: "midsize", retention: 1.03, generations: { B5: 0.85, B6: 0.89, B7: 0.92, B8: 0.98, B9: 1.03 } },
-    A5: { baseNew: 44000, refKw: 140, segment: "midsize", retention: 1.04, generations: { "8T": 0.96, "8F": 0.98, F5: 1.04, B10: 1.09 } },
-    A6: { baseNew: 55000, refKw: 165, segment: "executive", retention: 1.02, generations: { C5: 0.85, C6: 0.91, C7: 0.97, C8: 1.05, C9: 1.1 } },
-    A7: { baseNew: 64000, refKw: 185, segment: "executive", retention: 1.01, generations: { "4G": 0.98, "4K": 1.05 } },
-    Q2: { baseNew: 30500, refKw: 96, segment: "suv-compact", retention: 1.03, generations: { GA: 1.02 } },
-    Q3: { baseNew: 38500, refKw: 110, segment: "suv-compact", retention: 1.05, generations: { "8U": 0.96, F3: 1.05, FJ: 1.09 } },
-    Q5: { baseNew: 50000, refKw: 140, segment: "suv-mid", retention: 1.04, generations: { "8R": 0.95, FY: 1.05, GU: 1.09 } },
-    Q7: { baseNew: 75000, refKw: 200, segment: "suv-large", retention: 1.01, generations: { "4L": 0.9, "4M": 1.04 } },
-    "Q4 e-tron": { baseNew: 46000, refKw: 150, segment: "suv-compact", retention: 0.94, generations: { F4: 1.0 } },
+    A1: { baseNew: 23500, refKw: 81, segment: "city", retention: 1.04, generations: { "8X": 0.96, GB: 1.04 } },
+    A3: { baseNew: 29000, refKw: 105, segment: "compact", retention: 1.04, generations: { "8L": 0.86, "8P": 0.95, "8V": 1.01, "8Y": 1.06 } },
+    A4: { baseNew: 36000, refKw: 125, segment: "midsize", retention: 1.03, generations: { B5: 0.85, B6: 0.89, B7: 0.92, B8: 0.98, B9: 1.03 } },
+    A5: { baseNew: 41000, refKw: 140, segment: "midsize", retention: 1.04, generations: { "8T": 0.96, "8F": 0.98, F5: 1.04, B10: 1.09 } },
+    A6: { baseNew: 52500, refKw: 165, segment: "executive", retention: 1.02, generations: { C5: 0.85, C6: 0.91, C7: 0.97, C8: 1.05, C9: 1.1 } },
+    A7: { baseNew: 60000, refKw: 185, segment: "executive", retention: 1.01, generations: { "4G": 0.98, "4K": 1.05 } },
+    Q2: { baseNew: 28500, refKw: 96, segment: "suv-compact", retention: 1.03, generations: { GA: 1.02 } },
+    Q3: { baseNew: 36000, refKw: 110, segment: "suv-compact", retention: 1.05, generations: { "8U": 0.96, F3: 1.05, FJ: 1.09 } },
+    Q5: { baseNew: 47000, refKw: 140, segment: "suv-mid", retention: 1.04, generations: { "8R": 0.95, FY: 1.05, GU: 1.09 } },
+    Q7: { baseNew: 71000, refKw: 200, segment: "suv-large", retention: 1.01, generations: { "4L": 0.9, "4M": 1.04 } },
+    "Q4 e-tron": { baseNew: 42000, refKw: 150, segment: "suv-compact", retention: 0.94, generations: { F4: 1.0 } },
   },
   Volkswagen: {
-    Polo: { baseNew: 20500, refKw: 70, segment: "city", retention: 1.06, generations: { "9N": 0.88, "6R": 0.97, "6C": 0.99, AW: 1.05 } },
-    Golf: { baseNew: 27500, refKw: 100, segment: "compact", retention: 1.07, generations: { "1K": 0.93, "5K": 0.97, "5G": 1.03, "5G facelift": 1.06, CD: 1.04, "CD facelift": 1.07 } },
-    Passat: { baseNew: 36500, refKw: 115, segment: "midsize", retention: 1.05, generations: { B5: 0.87, B6: 0.91, B7: 0.96, B8: 1.03, B9: 1.08 } },
-    Tiguan: { baseNew: 37500, refKw: 110, segment: "suv-mid", retention: 1.06, generations: { "5N": 0.95, AD: 1.04, BW: 1.05, CT: 1.09 } },
-    "T-Roc": { baseNew: 28000, refKw: 96, segment: "suv-compact", retention: 1.05, generations: { A1: 1.03, II: 1.07 } },
-    "T-Cross": { baseNew: 23000, refKw: 81, segment: "suv-compact", retention: 1.04, generations: { C1: 1.03 } },
-    Arteon: { baseNew: 43000, refKw: 140, segment: "midsize", retention: 1.02, generations: { "3H": 1.04 } },
-    Touran: { baseNew: 32500, refKw: 110, segment: "mpv", retention: 1.05, generations: { "1T": 0.93, "5T": 1.04 } },
-    Touareg: { baseNew: 72000, refKw: 210, segment: "suv-large", retention: 1.0, generations: { "7L": 0.88, "7P": 0.96, CR: 1.05 } },
-    "ID.3": { baseNew: 35000, refKw: 150, segment: "compact", retention: 0.88, generations: { E1: 0.98 } },
-    "ID.4": { baseNew: 41000, refKw: 150, segment: "suv-mid", retention: 0.9, generations: { E2: 1.0 } },
-    Caddy: { baseNew: 28000, refKw: 85, segment: "mpv", retention: 1.05, generations: { "2K": 0.95, SB: 1.05 } },
+    Polo: { baseNew: 19500, refKw: 70, segment: "city", retention: 1.06, generations: { "9N": 0.88, "6R": 0.97, "6C": 0.99, AW: 1.05 } },
+    Golf: { baseNew: 25200, refKw: 100, segment: "compact", retention: 1.07, generations: { "1K": 0.93, "5K": 0.97, "5G": 1.03, "5G facelift": 1.06, CD: 1.04, "CD facelift": 1.07 } },
+    Passat: { baseNew: 34000, refKw: 115, segment: "midsize", retention: 1.05, generations: { B5: 0.87, B6: 0.91, B7: 0.96, B8: 1.03, B9: 1.08 } },
+    Tiguan: { baseNew: 35500, refKw: 110, segment: "suv-mid", retention: 1.06, generations: { "5N": 0.95, AD: 1.04, BW: 1.05, CT: 1.09 } },
+    "T-Roc": { baseNew: 26500, refKw: 96, segment: "suv-compact", retention: 1.05, generations: { A1: 1.03, II: 1.07 } },
+    "T-Cross": { baseNew: 22000, refKw: 81, segment: "suv-compact", retention: 1.04, generations: { C1: 1.03 } },
+    Arteon: { baseNew: 40000, refKw: 140, segment: "midsize", retention: 1.02, generations: { "3H": 1.04 } },
+    Touran: { baseNew: 31000, refKw: 110, segment: "mpv", retention: 1.05, generations: { "1T": 0.93, "5T": 1.04 } },
+    Touareg: { baseNew: 68000, refKw: 210, segment: "suv-large", retention: 1.0, generations: { "7L": 0.88, "7P": 0.96, CR: 1.05 } },
+    "ID.3": { baseNew: 32500, refKw: 150, segment: "compact", retention: 0.88, generations: { E1: 0.98 } },
+    "ID.4": { baseNew: 38000, refKw: 150, segment: "suv-mid", retention: 0.9, generations: { E2: 1.0 } },
+    Caddy: { baseNew: 26500, refKw: 85, segment: "mpv", retention: 1.05, generations: { "2K": 0.95, SB: 1.05 } },
   },
   "Mercedes-Benz": {
-    "A-klasa": { baseNew: 32000, refKw: 100, segment: "compact", retention: 1.03, generations: { W168: 0.78, W169: 0.85, W176: 0.98, W177: 1.05, V177: 1.05 } },
-    "B-klasa": { baseNew: 32500, refKw: 100, segment: "mpv", retention: 0.98, generations: { W245: 0.85, W246: 0.95, W247: 1.03 } },
-    "C-klasa": { baseNew: 42500, refKw: 135, segment: "midsize", retention: 1.04, generations: { W203: 0.86, S203: 0.86, W204: 0.96, S204: 0.97, C204: 0.99, W205: 1.02, S205: 1.03, W206: 1.08, S206: 1.08 } },
-    "E-klasa": { baseNew: 55000, refKw: 145, segment: "executive", retention: 1.04, generations: { W211: 0.88, S211: 0.89, W212: 0.96, S212: 0.97, W213: 1.04, S213: 1.05, W214: 1.1 } },
-    "S-klasa": { baseNew: 108000, refKw: 235, segment: "luxury", retention: 0.95, generations: { W220: 0.82, W221: 0.9, W222: 1.02, V222: 1.03, W223: 1.09, V223: 1.09 } },
-    CLA: { baseNew: 37500, refKw: 110, segment: "compact", retention: 1.04, generations: { C117: 0.99, X117: 0.99, C118: 1.06, X118: 1.06 } },
-    GLA: { baseNew: 38000, refKw: 110, segment: "suv-compact", retention: 1.03, generations: { X156: 0.97, H247: 1.05 } },
-    GLB: { baseNew: 42500, refKw: 110, segment: "suv-mid", retention: 1.02, generations: { X247: 1.03 } },
-    GLC: { baseNew: 53500, refKw: 145, segment: "suv-mid", retention: 1.05, generations: { X253: 1.02, C253: 1.04, X254: 1.09, C254: 1.1 } },
-    GLE: { baseNew: 78000, refKw: 200, segment: "suv-large", retention: 1.04, generations: { W166: 0.97, C292: 0.99, V167: 1.07, C167: 1.08 } },
-    "V-klasa": { baseNew: 59000, refKw: 140, segment: "mpv", retention: 1.08, generations: { W638: 0.82, W447: 1.07 } },
+    "A-klasa": { baseNew: 30000, refKw: 100, segment: "compact", retention: 1.03, generations: { W168: 0.78, W169: 0.85, W176: 0.98, W177: 1.05, V177: 1.05 } },
+    "B-klasa": { baseNew: 30500, refKw: 100, segment: "mpv", retention: 0.98, generations: { W245: 0.85, W246: 0.95, W247: 1.03 } },
+    "C-klasa": { baseNew: 39500, refKw: 135, segment: "midsize", retention: 1.04, generations: { W203: 0.86, S203: 0.86, W204: 0.96, S204: 0.97, C204: 0.99, W205: 1.02, S205: 1.03, W206: 1.08, S206: 1.08 } },
+    "E-klasa": { baseNew: 52000, refKw: 145, segment: "executive", retention: 1.04, generations: { W211: 0.88, S211: 0.89, W212: 0.96, S212: 0.97, W213: 1.04, S213: 1.05, W214: 1.1 } },
+    "S-klasa": { baseNew: 102000, refKw: 235, segment: "luxury", retention: 0.95, generations: { W220: 0.82, W221: 0.9, W222: 1.02, V222: 1.03, W223: 1.09, V223: 1.09 } },
+    CLA: { baseNew: 35000, refKw: 110, segment: "compact", retention: 1.04, generations: { C117: 0.99, X117: 0.99, C118: 1.06, X118: 1.06 } },
+    GLA: { baseNew: 35500, refKw: 110, segment: "suv-compact", retention: 1.03, generations: { X156: 0.97, H247: 1.05 } },
+    GLB: { baseNew: 39500, refKw: 110, segment: "suv-mid", retention: 1.02, generations: { X247: 1.03 } },
+    GLC: { baseNew: 50000, refKw: 145, segment: "suv-mid", retention: 1.05, generations: { X253: 1.02, C253: 1.04, X254: 1.09, C254: 1.1 } },
+    GLE: { baseNew: 74000, refKw: 200, segment: "suv-large", retention: 1.04, generations: { W166: 0.97, C292: 0.99, V167: 1.07, C167: 1.08 } },
+    "V-klasa": { baseNew: 56000, refKw: 140, segment: "mpv", retention: 1.08, generations: { W638: 0.82, W447: 1.07 } },
   },
   Škoda: {
-    Fabia: { baseNew: 19000, refKw: 66, segment: "city", retention: 1.04, generations: { "6Y": 0.86, "5J": 0.94, NJ: 1.02, PJ: 1.07 } },
-    Octavia: { baseNew: 27000, refKw: 105, segment: "compact", retention: 1.06, generations: { "1U": 0.85, "1Z": 0.93, "5E": 1.02, NX: 1.06 } },
-    Superb: { baseNew: 37000, refKw: 120, segment: "midsize", retention: 1.05, generations: { "3U": 0.84, "3T": 0.93, "3V": 1.03, "3Y": 1.08 } },
-    Karoq: { baseNew: 29500, refKw: 100, segment: "suv-compact", retention: 1.04, generations: { NU: 1.03 } },
-    Kodiaq: { baseNew: 39500, refKw: 125, segment: "suv-mid", retention: 1.05, generations: { NS: 1.03, PS: 1.08 } },
-    Scala: { baseNew: 22500, refKw: 81, segment: "compact", retention: 1.01, generations: { NW1: 1.01 } },
-    Kamiq: { baseNew: 22500, refKw: 81, segment: "suv-compact", retention: 1.03, generations: { NW4: 1.02 } },
-    Enyaq: { baseNew: 42000, refKw: 150, segment: "suv-mid", retention: 0.92, generations: { NY: 1.0 } },
-    Rapid: { baseNew: 18500, refKw: 70, segment: "compact", retention: 0.98, generations: { NH: 0.97 } },
+    Fabia: { baseNew: 18500, refKw: 66, segment: "city", retention: 1.04, generations: { "6Y": 0.86, "5J": 0.94, NJ: 1.02, PJ: 1.07 } },
+    Octavia: { baseNew: 24500, refKw: 105, segment: "compact", retention: 1.06, generations: { "1U": 0.85, "1Z": 0.93, "5E": 1.02, NX: 1.06 } },
+    Superb: { baseNew: 34500, refKw: 120, segment: "midsize", retention: 1.05, generations: { "3U": 0.84, "3T": 0.93, "3V": 1.03, "3Y": 1.08 } },
+    Karoq: { baseNew: 27500, refKw: 100, segment: "suv-compact", retention: 1.04, generations: { NU: 1.03 } },
+    Kodiaq: { baseNew: 36500, refKw: 125, segment: "suv-mid", retention: 1.05, generations: { NS: 1.03, PS: 1.08 } },
+    Scala: { baseNew: 21000, refKw: 81, segment: "compact", retention: 1.01, generations: { NW1: 1.01 } },
+    Kamiq: { baseNew: 21500, refKw: 81, segment: "suv-compact", retention: 1.03, generations: { NW4: 1.02 } },
+    Enyaq: { baseNew: 39000, refKw: 150, segment: "suv-mid", retention: 0.92, generations: { NY: 1.0 } },
+    Rapid: { baseNew: 17500, refKw: 70, segment: "compact", retention: 0.98, generations: { NH: 0.97 } },
   },
   Porsche: {
-    Macan: { baseNew: 79000, refKw: 195, segment: "suv-mid", retention: 1.13, generations: { "95B": 1.05, XAB: 1.02 } },
-    Cayenne: { baseNew: 104000, refKw: 250, segment: "suv-large", retention: 1.08, generations: { "9PA": 0.88, "92A": 0.98, E3: 1.07 } },
+    Macan: { baseNew: 72500, refKw: 195, segment: "suv-mid", retention: 1.12, generations: { "95B": 1.04, XAB: 1.02 } },
+    Cayenne: { baseNew: 98000, refKw: 250, segment: "suv-large", retention: 1.08, generations: { "9PA": 0.88, "92A": 0.98, E3: 1.07 } },
     "911": { baseNew: 145000, refKw: 283, segment: "sports", retention: 1.2, generations: { "996": 0.95, "997": 1.08, "991": 1.12, "992": 1.18 } },
     "718 Boxster": { baseNew: 78000, refKw: 220, segment: "sports", retention: 1.14, generations: { "982": 1.08 } },
     "718 Cayman": { baseNew: 77000, refKw: 220, segment: "sports", retention: 1.15, generations: { "982": 1.09 } },
-    Panamera: { baseNew: 118000, refKw: 243, segment: "luxury", retention: 1.02, generations: { "970": 0.92, "971": 1.05, "976": 1.1 } },
-    Taycan: { baseNew: 108000, refKw: 300, segment: "executive", retention: 0.87, generations: { Y1A: 0.98, Y1B: 1.02, Y1C: 1.02 } },
+    Panamera: { baseNew: 112000, refKw: 243, segment: "luxury", retention: 1.02, generations: { "970": 0.92, "971": 1.05, "976": 1.1 } },
+    Taycan: { baseNew: 102000, refKw: 300, segment: "executive", retention: 0.87, generations: { Y1A: 0.98, Y1B: 1.02, Y1C: 1.02 } },
   },
   Toyota: {
-    Yaris: { baseNew: 23500, refKw: 85, segment: "city", retention: 1.08, generations: { XP130: 0.98, XP210: 1.07 } },
-    "Yaris Cross": { baseNew: 28500, refKw: 85, segment: "suv-compact", retention: 1.08, generations: { XP210: 1.06 } },
-    Corolla: { baseNew: 30500, refKw: 90, segment: "compact", retention: 1.07, generations: { E210: 1.06 } },
-    Auris: { baseNew: 25500, refKw: 90, segment: "compact", retention: 1.03, generations: { E15: 0.94, E18: 1.02 } },
-    "C-HR": { baseNew: 32500, refKw: 90, segment: "suv-compact", retention: 1.06, generations: { AX10: 1.02, AX20: 1.07 } },
-    RAV4: { baseNew: 43500, refKw: 130, segment: "suv-mid", retention: 1.09, generations: { XA40: 0.98, XA50: 1.07, XA60: 1.1 } },
-    Aygo: { baseNew: 16500, refKw: 53, segment: "city", retention: 1.04 },
-    "Aygo X": { baseNew: 19500, refKw: 53, segment: "city", retention: 1.05 },
+    Yaris: { baseNew: 22000, refKw: 85, segment: "city", retention: 1.08, generations: { XP130: 0.98, XP210: 1.07 } },
+    "Yaris Cross": { baseNew: 26500, refKw: 85, segment: "suv-compact", retention: 1.08, generations: { XP210: 1.06 } },
+    Corolla: { baseNew: 28500, refKw: 90, segment: "compact", retention: 1.07, generations: { E210: 1.06 } },
+    Auris: { baseNew: 24000, refKw: 90, segment: "compact", retention: 1.03, generations: { E15: 0.94, E18: 1.02 } },
+    "C-HR": { baseNew: 30500, refKw: 90, segment: "suv-compact", retention: 1.06, generations: { AX10: 1.02, AX20: 1.07 } },
+    RAV4: { baseNew: 38200, refKw: 130, segment: "suv-mid", retention: 1.08, generations: { XA40: 0.98, XA50: 1.06, XA60: 1.1 } },
+    Aygo: { baseNew: 15500, refKw: 53, segment: "city", retention: 1.04 },
+    "Aygo X": { baseNew: 18500, refKw: 53, segment: "city", retention: 1.05 },
   },
   Hyundai: {
-    i10: { baseNew: 17000, refKw: 49, segment: "city", retention: 1.0 },
-    i20: { baseNew: 21500, refKw: 74, segment: "city", retention: 1.0 },
-    i30: { baseNew: 26500, refKw: 88, segment: "compact", retention: 1.01 },
-    Tucson: { baseNew: 36500, refKw: 110, segment: "suv-mid", retention: 1.03, generations: { TL: 0.99, NX4: 1.06 } },
-    Kona: { baseNew: 29500, refKw: 95, segment: "suv-compact", retention: 1.0, generations: { OS: 0.98, SX2: 1.05 } },
-    "Santa Fe": { baseNew: 48500, refKw: 147, segment: "suv-large", retention: 0.98 },
-    "IONIQ 5": { baseNew: 48000, refKw: 160, segment: "suv-mid", retention: 0.9 },
+    i10: { baseNew: 16500, refKw: 49, segment: "city", retention: 1.0 },
+    i20: { baseNew: 20500, refKw: 74, segment: "city", retention: 1.0 },
+    i30: { baseNew: 24500, refKw: 88, segment: "compact", retention: 1.01 },
+    Tucson: { baseNew: 32500, refKw: 110, segment: "suv-mid", retention: 1.03, generations: { TL: 0.99, NX4: 1.05 } },
+    Kona: { baseNew: 27500, refKw: 95, segment: "suv-compact", retention: 1.0, generations: { OS: 0.98, SX2: 1.05 } },
+    "Santa Fe": { baseNew: 45500, refKw: 147, segment: "suv-large", retention: 0.98 },
+    "IONIQ 5": { baseNew: 44000, refKw: 160, segment: "suv-mid", retention: 0.9 },
   },
   Kia: {
-    Picanto: { baseNew: 16800, refKw: 49, segment: "city", retention: 1.0 },
-    Rio: { baseNew: 21000, refKw: 74, segment: "city", retention: 1.0 },
-    Ceed: { baseNew: 26500, refKw: 88, segment: "compact", retention: 1.01 },
-    Sportage: { baseNew: 36500, refKw: 110, segment: "suv-mid", retention: 1.03, generations: { QL: 0.99, NQ5: 1.06 } },
-    Niro: { baseNew: 34500, refKw: 104, segment: "suv-compact", retention: 0.99 },
-    Sorento: { baseNew: 49500, refKw: 147, segment: "suv-large", retention: 0.99 },
-    EV6: { baseNew: 51000, refKw: 168, segment: "suv-mid", retention: 0.9 },
+    Picanto: { baseNew: 16000, refKw: 49, segment: "city", retention: 1.0 },
+    Rio: { baseNew: 20000, refKw: 74, segment: "city", retention: 1.0 },
+    Ceed: { baseNew: 24500, refKw: 88, segment: "compact", retention: 1.01 },
+    ProCeed: { baseNew: 27500, refKw: 110, segment: "compact", retention: 1.02, generations: { CD: 1.03 } },
+    Sportage: { baseNew: 33000, refKw: 110, segment: "suv-mid", retention: 1.03, generations: { QL: 0.99, NQ5: 1.06 } },
+    Niro: { baseNew: 32000, refKw: 104, segment: "suv-compact", retention: 0.99 },
+    Sorento: { baseNew: 46500, refKw: 147, segment: "suv-large", retention: 0.99 },
+    EV6: { baseNew: 47000, refKw: 168, segment: "suv-mid", retention: 0.9 },
   },
   Renault: {
-    Clio: { baseNew: 21000, refKw: 67, segment: "city", retention: 0.98, generations: { IV: 0.95, V: 1.03 } },
-    "Mégane": { baseNew: 27000, refKw: 85, segment: "compact", retention: 0.96, generations: { III: 0.92, IV: 1.0 } },
-    Captur: { baseNew: 25500, refKw: 85, segment: "suv-compact", retention: 0.98 },
-    Kadjar: { baseNew: 30000, refKw: 96, segment: "suv-mid", retention: 0.95 },
-    Austral: { baseNew: 35500, refKw: 116, segment: "suv-mid", retention: 0.98 },
-    Talisman: { baseNew: 35000, refKw: 118, segment: "midsize", retention: 0.93 },
+    Clio: { baseNew: 19800, refKw: 67, segment: "city", retention: 0.99, generations: { IV: 0.95, V: 1.03 } },
+    "Mégane": { baseNew: 25500, refKw: 85, segment: "compact", retention: 0.98, generations: { III: 0.92, IV: 1.02 } },
+    Captur: { baseNew: 24000, refKw: 85, segment: "suv-compact", retention: 0.98 },
+    Kadjar: { baseNew: 28000, refKw: 96, segment: "suv-mid", retention: 0.95 },
+    Austral: { baseNew: 33500, refKw: 116, segment: "suv-mid", retention: 0.98 },
+    Talisman: { baseNew: 33000, refKw: 118, segment: "midsize", retention: 0.94 },
   },
   Peugeot: {
-    "208": { baseNew: 22500, refKw: 74, segment: "city", retention: 0.98, generations: { A9: 0.94, P21: 1.05 } },
-    "2008": { baseNew: 27500, refKw: 81, segment: "suv-compact", retention: 0.99, generations: { A94: 0.94, P24: 1.05 } },
-    "308": { baseNew: 28500, refKw: 96, segment: "compact", retention: 0.97, generations: { T9: 0.97, P5: 1.05 } },
-    "3008": { baseNew: 36500, refKw: 96, segment: "suv-mid", retention: 1.01, generations: { P84: 1.03, P64: 1.07 } },
-    "5008": { baseNew: 40500, refKw: 110, segment: "suv-mid", retention: 0.99 },
-    "508": { baseNew: 39500, refKw: 118, segment: "midsize", retention: 0.95 },
+    "208": { baseNew: 21000, refKw: 74, segment: "city", retention: 0.98, generations: { A9: 0.94, P21: 1.05 } },
+    "2008": { baseNew: 25500, refKw: 81, segment: "suv-compact", retention: 0.99, generations: { A94: 0.94, P24: 1.05 } },
+    "308": { baseNew: 26500, refKw: 96, segment: "compact", retention: 0.97, generations: { T9: 0.97, P5: 1.05 } },
+    "3008": { baseNew: 32500, refKw: 96, segment: "suv-mid", retention: 1.01, generations: { P84: 1.03, P64: 1.07 } },
+    "5008": { baseNew: 37000, refKw: 110, segment: "suv-mid", retention: 0.99 },
+    "508": { baseNew: 36500, refKw: 118, segment: "midsize", retention: 0.97, generations: { "8D/8E": 0.92, R8: 1.04 } },
   },
   Opel: {
-    Corsa: { baseNew: 21000, refKw: 74, segment: "city", retention: 0.96 },
-    Astra: { baseNew: 28000, refKw: 96, segment: "compact", retention: 0.95 },
-    Insignia: { baseNew: 35500, refKw: 125, segment: "midsize", retention: 0.92 },
-    Mokka: { baseNew: 27500, refKw: 88, segment: "suv-compact", retention: 0.96 },
-    Grandland: { baseNew: 35500, refKw: 96, segment: "suv-mid", retention: 0.95 },
+    Corsa: { baseNew: 19800, refKw: 74, segment: "city", retention: 0.96 },
+    Astra: { baseNew: 25800, refKw: 96, segment: "compact", retention: 0.95 },
+    Insignia: { baseNew: 33500, refKw: 125, segment: "midsize", retention: 0.93 },
+    Mokka: { baseNew: 25500, refKw: 88, segment: "suv-compact", retention: 0.96 },
+    Grandland: { baseNew: 33000, refKw: 96, segment: "suv-mid", retention: 0.95 },
   },
   Ford: {
-    Fiesta: { baseNew: 20500, refKw: 70, segment: "city", retention: 0.96 },
-    Focus: { baseNew: 28500, refKw: 92, segment: "compact", retention: 0.97 },
-    Mondeo: { baseNew: 36500, refKw: 110, segment: "midsize", retention: 0.93 },
-    Puma: { baseNew: 27500, refKw: 92, segment: "suv-compact", retention: 0.99 },
-    Kuga: { baseNew: 36500, refKw: 110, segment: "suv-mid", retention: 0.97 },
+    Fiesta: { baseNew: 19500, refKw: 70, segment: "city", retention: 0.96 },
+    Focus: { baseNew: 26500, refKw: 92, segment: "compact", retention: 0.98, generations: { Mk3: 0.93, Mk4: 1.03 } },
+    Mondeo: { baseNew: 34500, refKw: 110, segment: "midsize", retention: 0.93 },
+    Puma: { baseNew: 25500, refKw: 92, segment: "suv-compact", retention: 0.99 },
+    Kuga: { baseNew: 32500, refKw: 110, segment: "suv-mid", retention: 0.97 },
   },
   Mazda: {
-    Mazda2: { baseNew: 21500, refKw: 66, segment: "city", retention: 1.0 },
-    Mazda3: { baseNew: 28500, refKw: 90, segment: "compact", retention: 1.03 },
-    Mazda6: { baseNew: 37500, refKw: 121, segment: "midsize", retention: 1.01 },
-    "CX-30": { baseNew: 31500, refKw: 90, segment: "suv-compact", retention: 1.03 },
-    "CX-5": { baseNew: 39500, refKw: 121, segment: "suv-mid", retention: 1.04 },
-    "CX-60": { baseNew: 53000, refKw: 187, segment: "suv-large", retention: 0.98 },
+    Mazda2: { baseNew: 20500, refKw: 66, segment: "city", retention: 1.0 },
+    Mazda3: { baseNew: 26500, refKw: 90, segment: "compact", retention: 1.03 },
+    Mazda6: { baseNew: 35500, refKw: 121, segment: "midsize", retention: 1.01 },
+    "CX-30": { baseNew: 29500, refKw: 90, segment: "suv-compact", retention: 1.03 },
+    "CX-5": { baseNew: 36500, refKw: 121, segment: "suv-mid", retention: 1.04 },
+    "CX-60": { baseNew: 49500, refKw: 187, segment: "suv-large", retention: 0.98 },
   },
   Volvo: {
-    V40: { baseNew: 31500, refKw: 88, segment: "compact", retention: 0.98 },
-    V60: { baseNew: 49500, refKw: 140, segment: "midsize", retention: 1.0 },
-    XC40: { baseNew: 42500, refKw: 115, segment: "suv-compact", retention: 1.02 },
-    XC60: { baseNew: 59500, refKw: 145, segment: "suv-mid", retention: 1.03 },
-    XC90: { baseNew: 82000, refKw: 173, segment: "suv-large", retention: 1.01 },
+    V40: { baseNew: 29500, refKw: 88, segment: "compact", retention: 0.98 },
+    V60: { baseNew: 46500, refKw: 140, segment: "midsize", retention: 1.0 },
+    XC40: { baseNew: 39500, refKw: 115, segment: "suv-compact", retention: 1.02 },
+    XC60: { baseNew: 53500, refKw: 145, segment: "suv-mid", retention: 1.03 },
+    XC90: { baseNew: 76000, refKw: 173, segment: "suv-large", retention: 1.01 },
   },
   Dacia: {
-    Sandero: { baseNew: 16200, refKw: 67, segment: "city", retention: 1.05 },
-    Duster: { baseNew: 22500, refKw: 85, segment: "suv-compact", retention: 1.07 },
-    Jogger: { baseNew: 21500, refKw: 81, segment: "mpv", retention: 1.04 },
-    Spring: { baseNew: 19500, refKw: 48, segment: "city", retention: 0.88 },
+    Sandero: { baseNew: 15800, refKw: 67, segment: "city", retention: 1.05 },
+    Duster: { baseNew: 21500, refKw: 85, segment: "suv-compact", retention: 1.07 },
+    Jogger: { baseNew: 20500, refKw: 81, segment: "mpv", retention: 1.04 },
+    Spring: { baseNew: 18500, refKw: 48, segment: "city", retention: 0.88 },
   },
   Tesla: {
-    "Model 3": { baseNew: 43500, refKw: 208, segment: "midsize", retention: 0.92, generations: { I: 0.95, Highland: 1.05 } },
-    "Model Y": { baseNew: 47500, refKw: 220, segment: "suv-mid", retention: 0.94, generations: { I: 0.97, Juniper: 1.06 } },
-    "Model S": { baseNew: 94000, refKw: 380, segment: "executive", retention: 0.87 },
-    "Model X": { baseNew: 102000, refKw: 380, segment: "suv-large", retention: 0.87 },
+    "Model 3": { baseNew: 39500, refKw: 208, segment: "midsize", retention: 0.92, generations: { I: 0.96, Highland: 1.05 } },
+    "Model Y": { baseNew: 42500, refKw: 220, segment: "suv-mid", retention: 0.94, generations: { I: 0.98, Juniper: 1.06 } },
+    "Model S": { baseNew: 88000, refKw: 380, segment: "executive", retention: 0.87 },
+    "Model X": { baseNew: 96000, refKw: 380, segment: "suv-large", retention: 0.87 },
+  },
+  "Alfa Romeo": {
+    Giulia: { baseNew: 38000, refKw: 140, segment: "midsize", retention: 0.96, generations: { "952": 1.03 } },
+    Stelvio: { baseNew: 42500, refKw: 147, segment: "suv-mid", retention: 0.97, generations: { "949": 1.03 } },
+  },
+  Cupra: {
+    Formentor: { baseNew: 36500, refKw: 175, segment: "suv-compact", retention: 1.03, generations: { KM: 1.03 } },
+  },
+  Honda: {
+    Civic: { baseNew: 26800, refKw: 105, segment: "compact", retention: 1.07, generations: { "FC/FK (X)": 1.05, "FL (XI)": 1.08 } },
+  },
+  "Land Rover": {
+    "Range Rover Evoque": { baseNew: 52500, refKw: 132, segment: "suv-compact", retention: 1.0, generations: { L538: 0.92, L551: 1.03 } },
   },
 };
 
@@ -448,26 +484,34 @@ function generationFactor(make: string, modelName: string, generation: string | 
   return 0.9 + pos * 0.16;
 }
 
-function extractAgeYears(input: MarketValuationInput, refDate: Date): number {
+function resolveClampedRegYear(input: MarketValuationInput, generation: string | undefined, refDate: Date): { year: number; month: number } {
+  const refYear = refDate.getFullYear();
+  const parsedYear =
+    input.date && /^\d{4}/.test(input.date)
+      ? Number(input.date.slice(0, 4))
+      : input.year && input.year >= 1955 && input.year <= refYear + 1
+      ? input.year
+      : undefined;
+  const parsedMonth = input.date && /^\d{4}-\d{2}/.test(input.date) ? Number(input.date.slice(5, 7)) || 6 : 6;
+  const genSpan = generation ? generationRange(input.make, input.model, generation) : undefined;
+  if (parsedYear !== undefined) {
+    return {
+      year: genSpan ? clampYearToRange(parsedYear, genSpan) : parsedYear,
+      month: parsedMonth,
+    };
+  }
+  if (genSpan) {
+    const mid = Math.min(refYear, Math.round((genSpan.yearFrom + Math.min(refYear, genSpan.yearTo)) / 2));
+    return { year: mid, month: 6 };
+  }
+  return { year: refYear - 5, month: 6 };
+}
+
+function extractAgeYears(input: MarketValuationInput, generation: string | undefined, refDate: Date): number {
   const refYear = refDate.getFullYear();
   const refMonth = refDate.getMonth() + 1;
-  if (input.date && /^\d{4}/.test(input.date)) {
-    const year = Number(input.date.slice(0, 4));
-    const month = Number(input.date.slice(5, 7)) || 6;
-    return Math.max(0.2, Math.min(35, refYear - year + (refMonth - month) / 12));
-  }
-  if (input.year && input.year >= 1985 && input.year <= refYear + 1) {
-    return Math.max(0.2, Math.min(35, refYear - input.year + (refMonth - 6) / 12));
-  }
-  const families = modelFor(input.make, input.model)?.generations;
-  const gen = input.generation?.trim();
-  const matched = families?.find(f => gen && (f.codes.includes(gen) || f.codes.join("/") === gen));
-  const yearMatch = matched?.description.match(/\b((?:19|20)\d{2})\b/);
-  if (yearMatch) {
-    const approx = Number(yearMatch[1]) + 2;
-    return Math.max(0.5, Math.min(30, refYear - approx));
-  }
-  return 5;
+  const { year, month } = resolveClampedRegYear(input, generation, refDate);
+  return Math.max(0.2, Math.min(45, refYear - year + (refMonth - month) / 12));
 }
 
 function ageRetentionMultiplier(ageYears: number, segment: Segment, retention: number): number {
@@ -554,14 +598,53 @@ const EQUIPMENT_RULES: EquipRule[] = [
   { slot: "cam-360", label: "360° kamera", value: 350, pattern: /360°|area[\s-]*view|parking assistant plus|around view/i },
   { slot: "hud", label: "Head-Up Display", value: 350, pattern: /head-up|\bhud\b|projekcijski zaslon/i },
   { slot: "seats-vent", label: "Grijanje i ventilacija sjedala", value: 350, pattern: /ventilacija sjedala|hlađenje sjedala|ventilirana/i },
-  { slot: "seats-heat", label: "Grijana sjedala", value: 180, pattern: /grijan[ae]\s+sjedala|grijanje volana/i },
+  { slot: "seats-heat", label: "Grijana sjedala", value: 180, pattern: /grijan[ae]\s+sjedala/i },
+  { slot: "wheel-heat", label: "Grijanje volana", value: 160, pattern: /grijanje volana|grijani upravljač/i },
   { slot: "tow-elec", label: "Električna kuka", value: 300, pattern: /električna kuka|kuka na izvlačenje/i },
   { slot: "tow-std", label: "Kuka za vuču", value: 180, pattern: /kuka za vuču/i },
   { slot: "acc", label: "Adaptivni tempomat (ACC)", value: 260, pattern: /adaptivni tempomat|\bacc\b|distronic|travel assist|pilot assist|autopilot/i },
   { slot: "leather-sport", label: "Kožna / sportska sjedala", value: 280, pattern: /kožna sjedala|nappa|m sport sjedala|sportska sjedala|bmw-sport-seats|ergoactive/i },
   { slot: "keyless", label: "Keyless / Pristup bez ključa", value: 200, pattern: /keyless|kessy|pristup bez ključa/i },
   { slot: "tailgate", label: "Električna vrata prtljažnika", value: 200, pattern: /električna vrata prtljažnika/i },
+  { slot: "cam-rear", label: "Kamera za vožnju unatrag", value: 180, pattern: /kamera za vožnju unatrag|stražnja kamera/i },
+  { slot: "navi", label: "Navigacija / CarPlay / Android Auto", value: 170, pattern: /navigacij|apple carplay|android auto/i },
+  { slot: "alloys", label: "Aluminijski naplatci", value: 180, pattern: /aluminijski naplatci|alu naplatci|alu felge/i },
 ];
+
+function parseRemainingRegMonths(registrationUntil: string | undefined, refDate: Date): number {
+  if (!registrationUntil) return 0;
+  const match = /^(0[1-9]|1[0-2])\/(\d{4})$/.exec(registrationUntil.trim());
+  if (!match) return 0;
+  const regMonth = Number(match[1]);
+  const regYear = Number(match[2]);
+  const diff = (regYear - refDate.getFullYear()) * 12 + (regMonth - (refDate.getMonth() + 1));
+  return Math.max(0, Math.min(14, diff));
+}
+
+function regionalDemandMeta(city: string | undefined, county: string | undefined): { pct: number; label: string; note: string } {
+  const loc = `${city ?? ""} ${county ?? ""}`.toLowerCase();
+  if (/zagreb|velika gorica|samobor/.test(loc)) {
+    return { pct: 0.015, label: city || "Zagreb i okolica", note: "Najveća likvidnost i potražnja na tržištu RH (+1,5%)" };
+  }
+  if (/split|dubrovnik|zadar|pula|istra|rijeka|primor|istars|splitsk/.test(loc)) {
+    return { pct: 0.01, label: city || county || "Jadran", note: "Stabilna obalna potražnja i manja ponuda na tržištu (+1,0%)" };
+  }
+  if (/osijek|vinkov|slavon|sisak|bjelovar|karlovac|koprivn|varažd|čakov/.test(loc)) {
+    return { pct: -0.005, label: city || county || "Kontinentalna RH", note: "Kontinentalno tržište s umjerenijom cjenovnom elastičnošću (-0,5%)" };
+  }
+  return { pct: 0, label: city || county || "Prosjek RH", note: "Nacionalni prosjek potražnje u RH" };
+}
+
+function specialtyTrimFactor(make: string, modelName: string, tokens: string): { mult: number; label: string } {
+  const full = `${make} ${modelName} ${tokens}`.toLowerCase();
+  if (/m[eé]gane[\s\S]*r\.?s\.?\s*trophy|r\.?s\.?\s*trophy/.test(full)) return { mult: 1.24, label: "Limitirana R.S. Trophy izvedba" };
+  if (/m[eé]gane[\s\S]*\br\.?s\.?\b/.test(full)) return { mult: 1.16, label: "Renault Sport (R.S.) izvedba" };
+  if (/focus[\s\S]*\bst\b/.test(full)) return { mult: 1.1, label: "Ford Performance ST izvedba" };
+  if (/formentor[\s\S]*\bvz\b/.test(full)) return { mult: 1.04, label: "Cupra VZ 310 KS izvedba" };
+  if (/giulia[\s\S]*veloce/.test(full)) return { mult: 1.03, label: "Giulia Veloce Q4 sportska izvedba" };
+  if (/civic[\s\S]*(1\.5\s*vtec|1\.5\s*turbo).*sport|\bcivic\b[\s\S]*\bsport\b/.test(full)) return { mult: 1.11, label: "Civic 1.5 Turbo Sport izvedba" };
+  return { mult: 1.0, label: "" };
+}
 
 export function evaluateMarketPrice(input: MarketValuationInput): MarketValuationResult {
   const refDate = input.referenceDate ?? new Date();
@@ -569,74 +652,134 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
   const km = Math.max(0, Number.isFinite(input.km) ? input.km : 100000);
   const generation = input.generation || chassisFromTitle(input.make, input.model, input.title ?? "");
   const spec = resolveModelSpec(input.make, input.model, kw, input.bodyType);
-  const ageYears = extractAgeYears(input, refDate);
+  const clampedReg = resolveClampedRegYear(input, generation, refDate);
+  const ageYears = extractAgeYears(input, generation, refDate);
+  const ageMonths = Math.max(2, Math.round(ageYears * 12));
   const fuelKind = normalizeFuel(input.fuel, input.variant, input.title);
   const tokens = collectTokens(input);
 
   // 1. Base Reference & Chassis Generation Curves
   const genMult = generationFactor(input.make, input.model, generation, spec);
+  const specialty = specialtyTrimFactor(input.make, input.model, tokens);
   const powerRatio = Math.max(0.55, Math.min(2.2, kw / spec.refKw));
-  const powerScale = Math.pow(powerRatio, 0.44);
+  const powerScale = Math.pow(powerRatio, 0.42);
 
   let fuelNewScale = 1.0;
   let fuelAgeScale = 1.0;
+  let fuelExplain = "Standardno zadržavanje vrijednosti za benzinski pogon";
   if (fuelKind === "diesel") {
     fuelNewScale = 1.035;
     fuelAgeScale = spec.segment === "city" ? 0.98 : ageYears > 2 ? 1.03 : 1.01;
+    fuelExplain = spec.segment === "city"
+      ? "Gradski dizel: nešto niža potražnja nego u višoj klasi"
+      : "Dizelski pogon: snažno zadržavanje vrijednosti na rabljenom tržištu u RH";
   } else if (fuelKind === "phev") {
     fuelNewScale = 1.05;
     fuelAgeScale = ageYears > 3 ? 0.86 : 0.94;
+    fuelExplain = "Plug-in hibrid: brži pad cijene nakon isteka tvorničkog jamstva baterije";
   } else if (fuelKind === "hybrid") {
     fuelNewScale = 1.05;
     fuelAgeScale = input.make === "Toyota" || input.make === "Lexus" ? 1.06 : 1.0;
+    fuelExplain = input.make === "Toyota" || input.make === "Lexus"
+      ? "Samopunjivi hibrid s dokazanom trajnošću (+6% zadržavanje vrijednosti)"
+      : "Hibridni pogon: uravnotežena potrošnja i potražnja";
   } else if (fuelKind === "lpg") {
     fuelNewScale = 1.01;
     fuelAgeScale = ageYears > 5 ? 1.02 : 0.99;
+    fuelExplain = "Tvornički / atestirani LPG smanjuje trošak goriva u starijim godištima";
   } else if (fuelKind === "ev") {
     fuelNewScale = 1.12;
-    fuelAgeScale = ageYears > 2 ? Math.max(0.74, 0.92 - (ageYears - 2) * 0.028) : 0.95;
+    fuelAgeScale = ageYears > 2 ? Math.max(0.72, 0.92 - (ageYears - 2) * 0.03) : 0.95;
+    fuelExplain = "Električno vozilo: izraženija deprecijacija zbog degradacije i tehnološkog napretka baterija";
   }
 
   const round50 = (n: number) => Math.max(500, Math.round(n / 50) * 50);
 
-  const estimatedNewPriceHr = Math.round((spec.baseNew * genMult * powerScale * fuelNewScale) / 100) * 100;
+  const estimatedNewPriceHr = Math.round((spec.baseNew * genMult * specialty.mult * powerScale * fuelNewScale) / 100) * 100;
   const retention = spec.retention ?? BRAND_PROFILES[input.make]?.retention ?? 1.0;
   const curveFactor = ageRetentionMultiplier(ageYears, spec.segment, retention);
   const segFloor = Math.max(550, SEGMENT_DEFAULTS[spec.segment].floor * (BRAND_PROFILES[input.make]?.tier ?? 1) * (ageYears > 22 ? 0.65 : 0.9));
 
+  const baseAtRefKw = round50(Math.max(segFloor, spec.baseNew * genMult * specialty.mult * curveFactor));
   const baseModelValueEur = round50(Math.max(segFloor, estimatedNewPriceHr * curveFactor * fuelAgeScale));
+  const baseWithPower = round50(Math.max(segFloor, spec.baseNew * genMult * specialty.mult * powerScale * curveFactor));
+  const powerDeltaEur = baseWithPower - baseAtRefKw;
+  const fuelDeltaEur = baseModelValueEur - baseWithPower;
 
   const factors: ValuationFactor[] = [];
+  const auditFactors: AuditFactor[] = [
+    {
+      id: "audit-base",
+      category: "Vozilo i starost",
+      parameterLabel: "Osnovna krivulja starosti i generacije",
+      userValue: `${clampedReg.year}. (${String(clampedReg.month).padStart(2, "0")}/${clampedReg.year}, ${ageMonths} mj.)`,
+      benchmarkValue: `Nova cijena osnove: ${Math.round(spec.baseNew * genMult).toLocaleString("hr-HR")} €`,
+      impactEur: baseAtRefKw,
+      explanation: `Mjesečna amortizacijska krivulja za segment (${spec.segment}) i marku ${input.make || "vozila"} uz indeks zadržavanja ${Math.round(retention * 100)}%.`,
+    },
+  ];
+
+  if (Math.abs(powerDeltaEur) >= 50) {
+    auditFactors.push({
+      id: "audit-power",
+      category: "Pogon i snaga",
+      parameterLabel: "Snaga motora (kW)",
+      userValue: `${kw} kW (${Math.round(kw * 1.35962)} KS)`,
+      benchmarkValue: `Referentna snaga modela: ${spec.refKw} kW`,
+      impactEur: powerDeltaEur,
+      explanation: powerDeltaEur >= 0
+        ? `Jača motorizacija (+${kw - spec.refKw} kW iznad bazne izvedbe) podiže tržišnu vrijednost u klasi.`
+        : `Slabija ulazna motorizacija (${kw - spec.refKw} kW u odnosu na referentni model) snižava cijenu.`,
+    });
+  }
+
+  if (Math.abs(fuelDeltaEur) >= 50) {
+    auditFactors.push({
+      id: "audit-fuel",
+      category: "Pogon i snaga",
+      parameterLabel: "Vrsta pogona i tržišna potražnja",
+      userValue: input.fuel || "Benzin",
+      benchmarkValue: "Standardna benzinska krivulja",
+      impactEur: fuelDeltaEur,
+      explanation: fuelExplain,
+    });
+  }
 
   // 2. Non-Linear Mileage Elasticity Curve
-  const kmPerYear = fuelKind === "diesel" ? 18500 : 13500;
+  const segKmAdjust = spec.segment === "executive" || spec.segment === "suv-mid" || spec.segment === "suv-large" ? 1500 : 0;
+  const kmPerYear =
+    fuelKind === "diesel"
+      ? 18500 + segKmAdjust
+      : fuelKind === "hybrid" || fuelKind === "phev" || fuelKind === "ev"
+      ? 15000
+      : fuelKind === "lpg"
+      ? 16500
+      : 13500;
   const expectedKm = Math.round(Math.max(12000, ageYears * kmPerYear));
   const kmDiff = km - expectedKm;
 
   let mileagePct = 0;
   // Mid-band relative adjustment
   if (kmDiff < 0) {
-    // Under expected km: reward up to +9%
     mileagePct += Math.min(0.095, (-kmDiff / 1000) * 0.00085);
   } else {
-    // Over expected km: penalize linearly in mid-band
     mileagePct -= Math.min(0.16, (kmDiff / 1000) * 0.0007);
   }
-  // Low-mileage threshold bonus (< 75.000 km)
-  if (km < 75000 && ageYears >= 2) {
-    const lowKmStrength = (75000 - km) / 75000;
+  // Low-mileage threshold bonus (< 70.000 km)
+  if (km < 70000 && ageYears >= 2) {
+    const lowKmStrength = (70000 - km) / 70000;
     mileagePct += lowKmStrength * Math.min(0.06, 0.02 + ageYears * 0.006);
   }
-  // Steeper depreciation thresholds above 180.000 km and 240.000 km
+  // Steeper depreciation thresholds above 180.000 km and 250.000 km
   if (km > 180000) {
-    const band1 = Math.min(km - 180000, 60000) / 1000;
+    const band1 = Math.min(km - 180000, 70000) / 1000;
     mileagePct -= band1 * 0.00085;
   }
-  if (km > 240000) {
-    const band2 = Math.min(km - 240000, 140000) / 1000;
-    mileagePct -= band2 * 0.0012;
+  if (km > 250000) {
+    const band2 = Math.min(km - 250000, 140000) / 1000;
+    mileagePct -= band2 * 0.00125;
   }
-  mileagePct = Math.max(-0.34, Math.min(0.14, mileagePct));
+  mileagePct = Math.max(-0.35, Math.min(0.145, mileagePct));
 
   const mileageImpactEur = Math.round((baseModelValueEur * mileagePct) / 50) * 50;
   const postMileageValue = Math.max(500, baseModelValueEur + mileageImpactEur);
@@ -645,9 +788,11 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
       id: "mileage",
       label:
         mileageImpactEur > 0
-          ? km < 75000
-            ? "Niska kilometraža (< 75.000 km)"
+          ? km < 70000
+            ? "Niska kilometraža (< 70.000 km)"
             : "Kilometraža ispod prosjeka za godište"
+          : km > 250000
+          ? "Kilometraža iznad 250.000 km"
           : km > 180000
           ? "Kilometraža iznad 180.000 km"
           : "Kilometraža iznad prosjeka za godište",
@@ -655,16 +800,55 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
     });
   }
 
+  auditFactors.push({
+    id: "audit-mileage",
+    category: "Kilometraža",
+    parameterLabel: "Elastičnost kilometraže",
+    userValue: `${km.toLocaleString("hr-HR")} km`,
+    benchmarkValue: `Očekivano za ${Math.round(ageYears * 10) / 10} god. (${input.fuel}): ${expectedKm.toLocaleString("hr-HR")} km`,
+    impactEur: mileageImpactEur,
+    explanation:
+      mileageImpactEur > 0
+        ? km < 70000
+          ? `Kilometraža ispod 70.000 km i ${Math.abs(kmDiff).toLocaleString("hr-HR")} km ispod godišnjeg prosjeka daje premiju očuvanosti.`
+          : `Vozilo ima ${Math.abs(kmDiff).toLocaleString("hr-HR")} km manje od hrvatskog prosjeka za ovu starost i gorivo.`
+        : mileageImpactEur < 0
+        ? km > 250000
+          ? `Visoka kilometraža (>250.000 km) nosi ubrzanu korekciju zbog troškova održavanja vitalnih sklopova.`
+          : km > 180000
+          ? `Kilometraža iznad praga od 180.000 km aktivira dodatni faktor amortizacije za velike servise.`
+          : `Vozilo ima ${Math.abs(kmDiff).toLocaleString("hr-HR")} km više od prosjeka za godište (${kmPerYear.toLocaleString("hr-HR")} km/god).`
+        : "Kilometraža točno prati očekivani hrvatski prosjek za odabrano gorivo i starost.",
+  });
+
   // 3. Equipment & Drivetrain Valuation Matrix
   const eqWeight = ageEquipmentWeight(ageYears);
   let rawEquipmentValue = 0;
   const matchedLabels: string[] = [];
   const matchedSlots = new Set<string>();
+  const rawMatchedItems: Array<{ id: string; category: AuditCategory; label: string; rawEur: number; explanation: string }> = [];
 
   const isAuto = /automat/i.test(input.gear) || /\b(dsg|pdk|steptronic|tiptronic|s tronic|multitronic|7g|9g|8hp)\b/i.test(tokens);
   if (isAuto) {
     rawEquipmentValue += 1250;
     matchedLabels.push("Automatski mjenjač");
+    rawMatchedItems.push({
+      id: "gear-auto",
+      category: "Pogon i snaga",
+      label: "Automatski mjenjač",
+      rawEur: 1250,
+      explanation: `Automatski mjenjač na tržištu rabljenih vozila u RH zadržava ${Math.round(eqWeight * 100)}% vrijednosti doplate za starost vozila.`,
+    });
+  } else {
+    auditFactors.push({
+      id: "audit-gear-manual",
+      category: "Pogon i snaga",
+      parameterLabel: "Mjenjač",
+      userValue: "Ručni mjenjač",
+      benchmarkValue: "Bazni mjenjač",
+      impactEur: 0,
+      explanation: "Ručni mjenjač čini osnovnu referencu modela bez doplate za automatik.",
+    });
   }
 
   const isAwd =
@@ -673,11 +857,17 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
   if (isAwd) {
     rawEquipmentValue += 1350;
     matchedLabels.push("4×4 pogon");
+    rawMatchedItems.push({
+      id: "drive-awd",
+      category: "Pogon i snaga",
+      label: "Pogon na sve kotače (4×4 / AWD)",
+      rawEur: 1350,
+      explanation: `Sustav pogona na sve kotače ponderiran faktorom starosti (${Math.round(eqWeight * 100)}%).`,
+    });
   }
 
   for (const rule of EQUIPMENT_RULES) {
     if (matchedSlots.has(rule.slot)) continue;
-    // Avoid double-counting base LED if Matrix/Laser already matched, or base seats if ventilated matched, or base tow if electric tow matched
     if (rule.slot === "lights-led" && matchedSlots.has("lights-top")) continue;
     if (rule.slot === "seats-heat" && matchedSlots.has("seats-vent")) continue;
     if (rule.slot === "tow-std" && matchedSlots.has("tow-elec")) continue;
@@ -685,10 +875,30 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
       matchedSlots.add(rule.slot);
       rawEquipmentValue += rule.value;
       matchedLabels.push(rule.label);
+      rawMatchedItems.push({
+        id: `eq-${rule.slot}`,
+        category: "Oprema",
+        label: rule.label,
+        rawEur: rule.value,
+        explanation: `Dodatna oprema (${rule.value.toLocaleString("hr-HR")} € bazne vrijednosti) skalirana težinskim faktorom starosti (${Math.round(eqWeight * 100)}%).`,
+      });
     }
   }
 
   const equipmentValueEur = Math.round((rawEquipmentValue * eqWeight) / 50) * 50;
+  for (const item of rawMatchedItems) {
+    const weightedItemEur = Math.round(item.rawEur * eqWeight);
+    auditFactors.push({
+      id: `audit-${item.id}`,
+      category: item.category,
+      parameterLabel: item.label,
+      userValue: "Ugrađeno",
+      benchmarkValue: `Starosni ponder: ${Math.round(eqWeight * 100)}%`,
+      impactEur: weightedItemEur,
+      explanation: item.explanation,
+    });
+  }
+
   if (equipmentValueEur >= 150) {
     const head = matchedLabels.slice(0, 2).join(", ");
     const rest = matchedLabels.length > 2 ? ` + ${matchedLabels.length - 2} stavki` : "";
@@ -701,7 +911,7 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
 
   const preTrustValue = postMileageValue + equipmentValueEur;
 
-  // 4. Croatian Market, Tax & Trust Factors
+  // 4. Croatian Market, Tax, Registration & Regional Factors
   const flagSet = new Set(input.flags ?? []);
   const historyText = (input.history ?? []).join(" | ");
   const hasCvh = flagSet.has("cvh");
@@ -711,33 +921,78 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
   const isArriving = flagSet.has("dolazak");
   const hasPdv = flagSet.has("pdv");
   const hasKupac = flagSet.has("kupac");
+  const remRegMonths = parseRemainingRegMonths(input.registrationUntil, refDate);
+  const regional = regionalDemandMeta(input.city, input.county);
 
   let trustImpactSum = 0;
   const trustTags: string[] = [];
-  const addTrustFactor = (id: string, label: string, pct: number, shortTag: string) => {
+  const addTrustFactor = (id: string, label: string, pct: number, shortTag: string, userVal: string, benchVal: string, explanation: string) => {
     const eur = Math.round((preTrustValue * pct) / 50) * 50;
     if (eur !== 0) {
       trustImpactSum += eur;
       trustTags.push(shortTag);
       factors.push({ id, label, impactEur: eur });
+      auditFactors.push({
+        id: `audit-${id}`,
+        category: "Povijest, porez i tržište",
+        parameterLabel: label,
+        userValue: userVal,
+        benchmarkValue: benchVal,
+        impactEur: eur,
+        explanation,
+      });
     }
   };
 
-  if (hasCvh) addTrustFactor("cvh", "Potvrđeni kilometri (CVH)", 0.035, "CVH");
-  if (isFirstOwner) addTrustFactor("owner", "1. vlasnik", 0.03, "1. vlasnik");
-  if (hasServiceBook) addTrustFactor("service", "Servisna knjiga", 0.025, "Servisna");
-  if (isVerifiedDealer) addTrustFactor("dealer", "Verificirana autokuća (jamstvo)", 0.025, "Autokuća");
-  if (isArriving) addTrustFactor("arriving", "Vozilo u dolasku (čekanje isporuke)", -0.04, "U dolasku");
-  if (hasPdv) addTrustFactor("pdv", "Sustav PDV-a (R1 račun)", 0.02, "PDV (R1)");
-  else if (hasKupac) addTrustFactor("kupac", "Na ime kupca (bez pristojbe)", 0.015, "Na ime kupca");
+  if (hasCvh) addTrustFactor("cvh", "Potvrđeni kilometri (CVH)", 0.035, "CVH", "Potvrda CVH", "Bez potvrde", "Službena potvrda stanja brojila kilometara u RH povećava povjerenje kupaca (+3,5%).");
+  if (isFirstOwner) addTrustFactor("owner", "1. vlasnik", 0.03, "1. vlasnik", "Prvi vlasnik", "Više vlasnika", "Vozilo od prvog vlasnika s jasnim podrijetlom ostvaruje veću prodajnu cijenu (+3,0%).");
+  if (hasServiceBook) addTrustFactor("service", "Servisna knjiga", 0.025, "Servisna", "Priložena", "Nepoznata", "Dokumentirano redovno održavanje smanjuje rizik skrivenih troškova (+2,5%).");
+  if (isVerifiedDealer) addTrustFactor("dealer", "Verificirana autokuća (jamstvo)", 0.025, "Autokuća", "Verificirani salon", "Privatna prodaja", "Poslovni prodavač osigurava pravnu sigurnost i zakonsko jamstvo (+2,5%).");
+  if (isArriving) addTrustFactor("arriving", "Vozilo u dolasku (čekanje isporuke)", -0.04, "U dolasku", "U dolasku", "Odmah dostupno", "Čekanje na isporuku i nemogućnost neposrednog pregleda snižavaju traženu cijenu (-4,0%).");
+  if (hasPdv) addTrustFactor("pdv", "Sustav PDV-a (R1 račun)", 0.02, "PDV (R1)", "R1 račun", "Bez R1", "Mogućnost odbitka pretporeza za pravne osobe i obrtnike (+2,0%).");
+  else if (hasKupac) addTrustFactor("kupac", "Na ime kupca (bez pristojbe)", 0.015, "Na ime kupca", "Oslobođeno pristojbe", "Upravna pristojba", "Kupac ne plaća upravnu pristojbu na prijenos vlasništva (+1,5%).");
 
-  const clampedTrust = Math.max(-preTrustValue * 0.08, Math.min(preTrustValue * 0.09, trustImpactSum));
+  if (remRegMonths > 2) {
+    const regBonus = Math.min(350, Math.round(((remRegMonths - 1) * 32) / 50) * 50);
+    if (regBonus >= 50) {
+      trustImpactSum += regBonus;
+      trustTags.push(`Reg. ${input.registrationUntil}`);
+      factors.push({ id: "registration", label: `Važeća registracija (${remRegMonths} mj.)`, impactEur: regBonus });
+      auditFactors.push({
+        id: "audit-reg",
+        category: "Povijest, porez i tržište",
+        parameterLabel: "Preostala registracija u RH",
+        userValue: `Do ${input.registrationUntil} (${remRegMonths} mj.)`,
+        benchmarkValue: "Neregistrirano / pred istek",
+        impactEur: regBonus,
+        explanation: "Važeći tehnički pregled i polica AO štede kupcu neposredne troškove registracije.",
+      });
+    }
+  }
+
+  if (regional.pct !== 0) {
+    const regDemandEur = Math.round((preTrustValue * regional.pct) / 50) * 50;
+    if (regDemandEur !== 0) {
+      trustImpactSum += regDemandEur;
+      auditFactors.push({
+        id: "audit-region",
+        category: "Povijest, porez i tržište",
+        parameterLabel: "Regionalna potražnja (RH)",
+        userValue: regional.label,
+        benchmarkValue: "Prosjek RH",
+        impactEur: regDemandEur,
+        explanation: regional.note,
+      });
+    }
+  }
+
+  const clampedTrust = Math.max(-preTrustValue * 0.08, Math.min(preTrustValue * 0.095, trustImpactSum));
   const historyBonusEur = Math.round(clampedTrust / 50) * 50;
   const medianMarketPrice = Math.max(500, preTrustValue + historyBonusEur);
-  const excellentMax = round50(medianMarketPrice * 0.94);
-  const goodMax = round50(medianMarketPrice * 0.99);
-  const fairMin = round50(medianMarketPrice * 0.945);
-  const fairMax = round50(medianMarketPrice * 1.055);
+  const excellentMax = round50(medianMarketPrice * 0.935);
+  const goodMax = round50(medianMarketPrice * 0.965);
+  const fairMin = round50(medianMarketPrice * 0.965);
+  const fairMax = round50(medianMarketPrice * 1.035);
   const highMax = round50(medianMarketPrice * 1.13);
 
   const asking = input.askingPrice && input.askingPrice > 0 ? input.askingPrice : medianMarketPrice;
@@ -752,23 +1007,21 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
     .slice(0, 5);
 
   // Estimate PPMV & German import landed cost comparison
+  const regYear = clampedReg.year;
+  const regMonth = String(clampedReg.month).padStart(2, "0");
   const approxCo2 = Number.isFinite(input.co2) && (input.co2 ?? 0) > 0
     ? Number(input.co2)
     : calculateCo2({
         fuel: fuelKind === "ev" ? "Električni" : fuelKind === "phev" ? "Plug-in hibrid" : fuelKind === "hybrid" ? "Hibrid" : fuelKind === "lpg" ? "LPG" : fuelKind === "diesel" ? "Dizel" : "Benzin",
         kw,
-        year: input.year,
-        date: input.date,
+        year: regYear,
+        date: `${regYear}-${regMonth}`,
         gear: input.gear,
         drive: input.drive,
         bodyType: input.bodyType,
         variant: input.variant,
         title: input.title,
       });
-  const regYear = input.date && /^\d{4}/.test(input.date)
-    ? Number(input.date.slice(0, 4))
-    : input.year ?? Math.round(refDate.getFullYear() - ageYears);
-  const regMonth = input.date && /^\d{4}-\d{2}/.test(input.date) ? input.date.slice(5, 7) : "06";
   const ppmv =
     estimateTax(
       {
@@ -838,6 +1091,7 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
     deltaPercent,
     rating,
     factors: topFactors,
+    auditFactors,
     baseModelValueEur,
     mileageImpactEur,
     equipmentValueEur,
@@ -846,6 +1100,7 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
     sampleCount,
     breakdown,
     ageYears: Math.round(ageYears * 10) / 10,
+    ageMonths,
     expectedKm,
     estimatedNewPriceHr,
     deEstimatedPriceEur,
@@ -901,6 +1156,9 @@ export function valuationInputFromVehicle(vehicle: Partial<Vehicle> & Pick<Vehic
     gear: vehicle.gear,
     drive: vehicle.drive,
     bodyType: vehicle.bodyType,
+    registrationUntil: vehicle.registrationUntil,
+    city: vehicle.city,
+    county: vehicle.county,
     askingPrice: vehicle.price,
     equipment: vehicle.equipment,
     makeEquipment: [...(vehicle.makeEquipment ?? []), ...makeEquip],

@@ -1,8 +1,15 @@
 node_modules/
 .next/
+.vercel/
 out/
 *.tsbuildinfo
+.env
+.env.local
+.env.*.local
 .env*
+!.env.example
+*.pem
 dist/
 .wrangler/
 .local-data/
+public/uploads/imported/

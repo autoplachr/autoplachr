@@ -1,7 +1,9 @@
 "use client";
+import { Checkbox } from "../src/components/Checkbox";
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "./account-api";
 import { Dialog, Select } from "./ui";
+import { vehicleListingPath } from "../src/lib/seo";
 
 export const legalLinks = {
   "/uvjeti-koristenja":"Opći uvjeti poslovanja",
@@ -70,13 +72,13 @@ export function ReportDialog({ listing, onClose }: { listing?:string; onClose:()
   return <Dialog title="Prijavi oglas" variant="form-dialog" onClose={onClose}>
     {result ? <div className="dialog-content form-stack"><p role="status">Prijava je zaprimljena. Sačuvajte broj predmeta <strong className="tabular">{result}</strong>.</p><a className="legal-link" href="/dsa-prijava">Provjera statusa prijave</a></div> :
       <form className="dialog-content form-stack" onSubmit={submit}>
-        <label className="field"><span>Poveznica oglasa</span><input type="url" name="url" required readOnly={!!listing} defaultValue={listing ? window.location.origin+"/?oglas="+encodeURIComponent(listing) : ""}/></label>
+        <label className="field"><span>Poveznica oglasa</span><input type="url" name="url" required readOnly={!!listing} defaultValue={listing ? window.location.origin + vehicleListingPath(listing) : ""}/></label>
         <Select label="Razlog prijave" name="reason" required defaultValue=""><option value="">Odaberite razlog</option>{["Sumnja na skidanje kilometara","Lažni oglas / prevara","Vozilo je već prodano","Krivi podaci / cijena","Drugi nezakonit sadržaj"].map(reason => <option key={reason}>{reason}</option>)}</Select>
         <label className="field"><span>Obrazloženje i dokazne poveznice</span><textarea rows={4} name="details" required minLength={15} maxLength={2500}/></label>
         {!anonymous && <div className="form-grid"><label className="field"><span>Ime i prezime</span><input name="name" required maxLength={120}/></label><label className="field"><span>E-pošta</span><input type="email" name="email" required maxLength={254}/></label></div>}
         <div className="account-checks">
-          <label><input type="checkbox" checked={anonymous} onChange={event => setAnonymous(event.target.checked)}/>Primjenjuje se zakonska iznimka za prijavu seksualnog zlostavljanja djece.</label>
-          <label><input type="checkbox" name="goodFaith" required/>U dobroj vjeri potvrđujem da su navodi točni i potpuni.</label>
+          <label><Checkbox checked={anonymous} onChange={event => setAnonymous(event.target.checked)}/>Primjenjuje se zakonska iznimka za prijavu seksualnog zlostavljanja djece.</label>
+          <label><Checkbox name="goodFaith" required/>U dobroj vjeri potvrđujem da su navodi točni i potpuni.</label>
         </div>
         {problem && <p role="alert" className="form-error">{problem}</p>}
         <button className="btn primary" disabled={busy}>Pošalji prijavu</button>
@@ -99,15 +101,19 @@ export function CookieConsent({ settings, close }: { settings:boolean; close:()=
   },[]);
   const open = settings || configure;
   function save(next:CookieChoice) {
-    try { localStorage.setItem(consentKey,JSON.stringify(next)); } catch {}
+    try {
+      localStorage.setItem(consentKey,JSON.stringify(next));
+      localStorage.setItem("autoplac_cookie_consent",JSON.stringify(next));
+      window.dispatchEvent(new Event("autoplac:cookies-updated"));
+    } catch {}
     setChoice(next);setAnalytics(next.analytics);setMarketing(next.marketing);setConfigure(false);close();
   }
   if (choice !== null && !open) return null;
   return <aside className="cookie-banner" aria-label="Privatnost i kolačići">
     <div><h2>{open ? "Postavke kolačića" : "Kolačići i privatnost"}</h2><p>Nužna pohrana omogućuje prijavu i pamti postavke. Opcionalne skupine možete odabrati zasebno. <a href="/kolacici">Politika kolačića</a></p>
-      {open && <div className="account-checks"><label><input type="checkbox" checked disabled/>Nužni</label>
-        <label><input type="checkbox" checked={analytics} onChange={event => setAnalytics(event.target.checked)}/>Analitički</label>
-        <label><input type="checkbox" checked={marketing} onChange={event => setMarketing(event.target.checked)}/>Marketinški</label></div>}
+      {open && <div className="account-checks"><label><Checkbox checked disabled/>Nužni</label>
+        <label><Checkbox checked={analytics} onChange={event => setAnalytics(event.target.checked)}/>Analitički</label>
+        <label><Checkbox checked={marketing} onChange={event => setMarketing(event.target.checked)}/>Marketinški</label></div>}
     </div>
     <div className="account-actions">
       <button className="btn secondary" type="button" onClick={() => save({analytics:true,marketing:true})}>Prihvati sve</button>

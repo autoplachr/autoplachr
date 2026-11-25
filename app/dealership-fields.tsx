@@ -1,4 +1,5 @@
 "use client";
+import { Checkbox } from "../src/components/Checkbox";
 import { useId, useState } from "react";
 import { croatianCounties, croatianLocations, normalizeLocation, type CroatiaLocation } from "../src/data/croatia-locations";
 import { appointmentLabel, formatHours, parseLegacyHours, presetHours, times, weekdayLabels, type DayHours, type WorkingHours } from "../src/data/working-hours";
@@ -65,7 +66,7 @@ export function HoursFields({ initial, legacy }: { initial?: WorkingHours; legac
       <Select label={weekdayLabels[index] + " · Od"} className="numeric-select" disabled={hours.appointmentOnly || !day.open} value={day.from} onChange={event => updateDay(index,{from:event.target.value})}>{times.filter(time => time < day.to || time === day.from).map(time => <option key={time}>{time}</option>)}</Select>
       <Select label={weekdayLabels[index] + " · Do"} className="numeric-select" disabled={hours.appointmentOnly || !day.open} value={day.to} onChange={event => updateDay(index,{to:event.target.value})}>{times.filter(time => time > day.from || time === day.to).map(time => <option key={time}>{time}</option>)}</Select>
     </div>)}
-    <label className="hours-switch"><input type="checkbox" checked={hours.afterHours} onChange={event => update({...hours,afterHours:event.target.checked})}/>{appointmentLabel}</label>
+    <label className="hours-switch"><Checkbox checked={hours.afterHours} onChange={event => update({...hours,afterHours:event.target.checked})}/>{appointmentLabel}</label>
     <output className="fine-print">{formatHours(hours)}</output>
   </fieldset>;
 }

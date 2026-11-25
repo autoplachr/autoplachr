@@ -1,9 +1,10 @@
 "use client";
 
+import { Checkbox } from "../src/components/Checkbox";
 import { ChevronDown, X } from "lucide-react";
-import { useEffect, useRef, type ReactNode, type SelectHTMLAttributes } from "react";
-import { flags, quick, rating, type Flag, type Vehicle } from "./catalog";
-import type { PriceRatingTier } from "../src/lib/price-engine";
+import { useEffect, useId, useRef, useState, type ReactNode, type SelectHTMLAttributes } from "react";
+import { euro, flags, marketValuation, quick, rating, type Flag, type Vehicle } from "./catalog";
+import type { MarketValuationResult, PriceRatingTier } from "../src/lib/price-engine";
 import { makeOptions } from "./make-equipment";
 
 export function MakeEquipmentOptions({ make, model, selected, onChange }: {
@@ -14,7 +15,7 @@ export function MakeEquipmentOptions({ make, model, selected, onChange }: {
   return <section className="make-options" aria-label="Oprema po marki">
     <h3>{make} oprema</h3>
     <div>{options.map(option => <label key={option.id}>
-      <input type="checkbox" checked={selected.includes(option.id)} onChange={event => {
+      <Checkbox checked={selected.includes(option.id)} onChange={event => {
         onChange(event.target.checked ? [...selected, option.id] : selected.filter(id => id !== option.id));
       }} />
       {option.label}
@@ -26,7 +27,7 @@ export function ListingOptions({ selected, onChange }: { selected: Flag[]; onCha
   return <fieldset className="filter-options">
     <legend>Dodatni uvjeti</legend>
     {flags.map(flag => <label key={flag}>
-      <input type="checkbox" checked={selected.includes(flag)} onChange={event => {
+      <Checkbox checked={selected.includes(flag)} onChange={event => {
         onChange(event.target.checked ? [...selected, flag] : selected.filter(value => value !== flag));
       }} />
       {quick[flag]}
@@ -74,8 +75,8 @@ function lockPage() {
   };
 }
 
-export function Dialog({ title, children, onClose, variant = "", eyebrow }: {
-  title: string; children: ReactNode; onClose: () => void; variant?: string; eyebrow?: string;
+export function Dialog({ title, children, onClose, variant = "", eyebrow, progress }: {
+  title: string; children: ReactNode; onClose: () => void; variant?: string; eyebrow?: string; progress?: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -122,10 +123,13 @@ export function Dialog({ title, children, onClose, variant = "", eyebrow }: {
     const bounds = event.currentTarget.getBoundingClientRect();
     if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) onClose();
   }}>
+    <header className={progress ? "dialog-progress" : "contents"}>
     <div className="dialog-heading">
       <div>{eyebrow && <span className="eyebrow">{eyebrow}</span>}<h2>{title}</h2></div>
       <button className="icon-btn" type="button" aria-label="Zatvori" onClick={onClose}><X size={20} /></button>
     </div>
+    {progress}
+    </header>
     {children}
   </dialog>;
 }
@@ -137,14 +141,145 @@ export function PhotoCount({ index, total }: { index: number; total: number }) {
   return <span className="photo-count tabular" aria-label={`Fotografija ${index + 1} od ${total}`}>{index + 1}/{total}</span>;
 }
 
-export function Rating({ vehicle, tier }: { vehicle?: Vehicle; tier?: PriceRatingTier }) {
-  const result = tier ?? (vehicle ? rating(vehicle) : null);
+const ratingStyles = {
+  pill: "bg-[var(--hover)] text-[var(--text)] border border-[var(--border)]",
+  barFilled: "bg-[var(--spec)]",
+  barEmpty: "bg-[var(--border)]",
+};
+
+export function ratingSavingsLabel(val: MarketValuationResult): string {
+  const absEur = Math.abs(val.deltaEur);
+  if (val.rating.rank === 0) {
+    return val.deltaEur < -50 ? `↓ ${euro(absEur)} ispod prosjeka RH` : "Odlična prilika na tržištu";
+  }
+  if (val.rating.rank === 1) {
+    return val.deltaEur < -50 ? `↓ ${euro(absEur)} ispod prosjeka RH` : "Ispod prosjeka tržišta RH";
+  }
+  if (val.rating.rank === 2) {
+    return "U okviru prosjeka RH";
+  }
+  return val.deltaEur > 50 ? `↑ ${euro(absEur)} iznad prosjeka RH` : "Iznad prosjeka RH";
+}
+
+export function Rating({
+  vehicle,
+  tier,
+  valuation,
+  showSavings = false,
+  interactive = true,
+  align = "right",
+}: {
+  vehicle?: Vehicle;
+  tier?: PriceRatingTier;
+  valuation?: MarketValuationResult;
+  showSavings?: boolean;
+  interactive?: boolean;
+  align?: "left" | "right";
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const tooltipId = useId();
+
+  const resolvedVal = valuation ?? (vehicle ? marketValuation(vehicle) : undefined);
+  const result = tier ?? resolvedVal?.rating ?? (vehicle ? rating(vehicle) : null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(event: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) setOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    function onScroll() {
+      setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [open]);
+
   if (!result) return null;
-  return <span className={"rating " + result.type}>
-    <span className="rating-bars" aria-hidden="true">{Array.from({ length: 5 }, (_, index) =>
-      <span className={index < result.bars ? "filled" : undefined} key={index}/>
-    )}</span>
-    <span>{result.label}</span>
-  </span>;
+  const style = ratingStyles;
+  const canPopover = Boolean(interactive && resolvedVal);
+
+  const absPct = resolvedVal
+    ? Math.abs(resolvedVal.deltaPercent).toLocaleString("hr-HR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+    : "";
+  const popoverText = resolvedVal
+    ? resolvedVal.deltaEur < -50
+      ? `Tržišni prosjek u RH za ovaj model i km: ${euro(resolvedVal.medianMarketPrice)} • Ova cijena je ${euro(Math.abs(resolvedVal.deltaEur))} (${absPct}%) niža od prosjeka.`
+      : resolvedVal.deltaEur > 50
+      ? `Tržišni prosjek u RH za ovaj model i km: ${euro(resolvedVal.medianMarketPrice)} • Ova cijena je ${euro(Math.abs(resolvedVal.deltaEur))} (${absPct}%) viša od prosjeka.`
+      : `Tržišni prosjek u RH za ovaj model i km: ${euro(resolvedVal.medianMarketPrice)} • Ova cijena je u okviru tržišnog prosjeka.`
+    : "";
+
+  const pillContent = (
+    <>
+      <span className="inline-grid grid-cols-5 gap-[2px] w-[36px] shrink-0" aria-hidden="true">
+        {Array.from({ length: 5 }, (_, index) => (
+          <span
+            key={index}
+            className={`h-[5px] rounded-[1px] ${index < result.bars ? style.barFilled : style.barEmpty}`}
+          />
+        ))}
+      </span>
+      <span className="whitespace-nowrap">{result.label}</span>
+    </>
+  );
+
+  return (
+    <div
+      ref={wrapRef}
+      className={`rating-wrap relative inline-flex flex-col ${align === "right" ? "items-end" : "items-start"} z-[3]`}
+      onMouseEnter={canPopover ? () => setOpen(true) : undefined}
+      onMouseLeave={canPopover ? () => setOpen(false) : undefined}
+    >
+      {canPopover ? (
+        <button
+          type="button"
+          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-semibold text-[11.5px] leading-[1.35] transition-opacity hover:opacity-95 ${style.pill}`}
+          aria-expanded={open}
+          aria-describedby={open ? tooltipId : undefined}
+          onClick={event => {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpen(v => !v);
+          }}
+        >
+          {pillContent}
+        </button>
+      ) : (
+        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-semibold text-[11.5px] leading-[1.35] ${style.pill}`}>
+          {pillContent}
+        </span>
+      )}
+
+      {showSavings && resolvedVal && (
+        <span className={`text-[11.5px] font-medium tabular-nums mt-1 leading-tight truncate max-w-full ${resolvedVal.deltaEur < -50 ? "verified-price-savings" : "text-[var(--spec)]"}`}>
+          {ratingSavingsLabel(resolvedVal)}
+        </span>
+      )}
+
+      {canPopover && open && (
+        <div
+          id={tooltipId}
+          role="tooltip"
+          onClick={event => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          className={`absolute bottom-full mb-1.5 ${align === "right" ? "right-0" : "left-0"} z-30 w-[250px] max-w-[calc(100vw-32px)] rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-2.5 text-[11.5px] leading-[1.45] text-slate-700 dark:text-zinc-200 shadow-lg pointer-events-auto`}
+        >
+          {popoverText}
+        </div>
+      )}
+    </div>
+  );
 }
 

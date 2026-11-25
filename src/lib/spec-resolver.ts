@@ -12,6 +12,16 @@ export function ksToKw(ks: number): number {
 
 export type SpecFuel = "Dizel" | "Benzin" | "Hibrid" | "Plug-in hibrid" | "Električni" | "LPG";
 export type CatalogFuel = "Dizel" | "Benzin" | "Hibrid" | "Struja";
+export type ResolvedBodyType =
+  | "Hatchback / Kompakt"
+  | "Limuzina"
+  | "Karavan"
+  | "SUV / Terenac"
+  | "Coupé"
+  | "Cabrio / Roadster"
+  | "Monovolumen (MPV)"
+  | "Kombi / Dostavno"
+  | "Pick-up";
 
 export type SpecResolverInput = {
   make?: string;
@@ -32,6 +42,7 @@ export type SpecResolverInput = {
 export type ResolvedVehicleSpecs = {
   fuel: SpecFuel;
   catalogFuel: CatalogFuel;
+  bodyType: ResolvedBodyType;
   kw: number;
   ks: number;
   cc: number;
@@ -453,10 +464,81 @@ function parseExplicitKw(text: string): number | undefined {
   return undefined;
 }
 
+export function inferBodyType(params: {
+  make?: string;
+  model?: string;
+  generation?: string;
+  variant?: string;
+  title?: string;
+}): ResolvedBodyType {
+  const gen = (params.generation ?? "").trim().toUpperCase();
+  const model = (params.model ?? "").trim();
+  const make = (params.make ?? "").trim();
+  const combined = `${make} ${model} ${params.generation ?? ""} ${params.variant ?? ""} ${params.title ?? ""}`.toLowerCase();
+  const detail = `${params.generation ?? ""} ${params.variant ?? ""} ${params.title ?? ""}`.toLowerCase();
+
+  // 1. Explicit chassis / trim body-style overrides
+  if (/^(e91|f31|g21|e61|f11|g31|g61|s202|s203|s204|s205|s206|s210|s211|s212|s213|s214|x117|x118|y1b|y1c)$/i.test(gen)) {
+    return "Karavan";
+  }
+  if (/^(e88|e93|f23|f33|g23|f83|g83|a205|a236|r52|r57|f57|f67)$/i.test(gen)) {
+    return "Cabrio / Roadster";
+  }
+  if (/^(e82|e92|f22|f32|g22|g42|f82|g82|c204|c205|c236)$/i.test(gen)) {
+    return "Coupé";
+  }
+  if (/^(f45|f46|u06)$/i.test(gen)) {
+    return "Monovolumen (MPV)";
+  }
+  if (/^(f34|f36|g26|f44|f74)$/i.test(gen)) {
+    return gen === "f34" ? "Hatchback / Kompakt" : "Limuzina";
+  }
+  if (/^(x294|x296|xab)$/i.test(gen)) {
+    return "SUV / Terenac";
+  }
+  if (/^(v295|v297|y1a)$/i.test(gen)) {
+    return "Limuzina";
+  }
+  if (/\b(touring|avant|variant|sportwagon|shooting brake|sports tourer|sport tourer|alltrack|combi|karavan|\bsw\b)\b/i.test(detail)) {
+    return "Karavan";
+  }
+  if (/\b(cabrio|cabriolet|roadster|spider|spyder|targa)\b/i.test(detail)) {
+    return "Cabrio / Roadster";
+  }
+
+  // 2. Model-level body classes
+  if (/\b(hilux|ranger|amarok|navara|l200|d-max|musso|gladiator|cybertruck|quartermaster|t90|goa|xenon|sierra|pik-up|pick-up)\b|\bram\s*(1500|2500|3500)\b/i.test(combined)) {
+    return "Pick-up";
+  }
+  if (/\b(sprinter|ducato|daily|crafter|master|boxer|jumper|transporter|trafic|vivaro|movano|vito|scudo|expert|traveller|jumpy|transit|edeliver|proace|citan|kangoo|partner|doblo|doblò|combo|dokker|nv200|townstar|caddy)\b/i.test(combined)) {
+    return "Kombi / Dostavno";
+  }
+  if (/\b(touran|sharan|multivan|caravelle|california|v-klasa|b-klasa|zafira|meriva|scénic|scenic|modus|rifter|picasso|s-max|galaxy|c-max|b-max|alhambra|altea|jogger|lodgy|carens|venga|ix20|mazda5|fr-v|orlando|voyager|musa|phedra|u-tour|euniq|pregio|previa|multipla|ulysse|806|807|c8|roomster|grandis|space wagon|matrix|trajet)\b/i.test(combined)) {
+    return "Monovolumen (MPV)";
+  }
+  if (/\b(cabrio|roadster|spider|spyder|boxster|z3|z4|slk|slc|\bsl\b|mx-5|s2000|cascada|eos|124 spider|wraith|dawn)\b/i.test(combined)) {
+    return "Cabrio / Roadster";
+  }
+  if (/\b(911|cayman|a110|gt86|gr86|supra|brz|350z|370z|gt-r|\btt\b|\br8\b|rcz|scirocco|corrado|calibra|tigra|celica|mr2|prelude|cr-z|f-type|vantage|db9|dbs|db11|db12|continental gt|granturismo|mc20|360|f430|458|488|\bf8\b|296|sf90|roma|huracán|huracan|aventador|revuelto|570s|720s|artura|camaro|challenger|mustang(?!\s*mach-e)|corvette|crossfire|cyberster|944|968|clk|serija 4|serija 8|elise|exige|evora|emira|coupe|coupé|probe|cougar|brera|\bgt\b)\b/i.test(combined)) {
+    return "Coupé";
+  }
+  if (/\b(x1|x2|x3|x4|x5|x6|x7|xm|ix\b|ix1|ix2|ix3|q2|q3|q4|q5|q6|q7|q8|gla|glb|glk|glc|gle|gls|g-klasa|eqa|eqb|eqc|tiguan|t-roc|t-cross|taigo|tayron|touareg|id\.4|id\.5|id\. buzz|karoq|kamiq|kodiaq|yeti|enyaq|elroq|arona|ateca|tarraco|formentor|tavascan|terramar|mokka|crossland|grandland|frontera|antara|macan|cayenne|captur|kadjar|austral|arkana|symbioz|rafale|koleos|2008|3008|5008|4007|4008|c3 aircross|c4 cactus|c5 aircross|c-crosser|ds 3|ds 7|duster|bigster|500x|600|freemont|sedici|stelvio|tonale|junior|grecale|levante|purosangue|urus|yaris cross|corolla cross|c-hr|rav4|highlander|land cruiser|urban cruiser|bz4x|cx-3|cx-30|mx-30|cx-5|cx-60|cx-80|cx-7|hr-v|zr-v|cr-v|juke|qashqai|x-trail|murano|pathfinder|patrol|terrano|ariya|ignis|sx4|s-cross|vitara|grand vitara|jimny|across|asx|eclipse cross|outlander|pajero|outback|forester|xv|crosstrek|solterra|ux|lbx|nx|rx|rz|qx30|fx|qx70|ex|qx50|terios|feroza|trooper|tucson|kona|bayon|santa fe|terracan|ioniq 5|stonic|xceed|soul|niro|sportage|sorento|ev3|ev6|ev9|tivoli|korando|torres|actyon|kyron|rexton|gv60|gv70|gv80|xc40|xc60|xc90|ex30|ex90|c40|ec40|defender|freelander|discovery|range rover|e-pace|f-pace|i-pace|dbx|bentayga|cullinan|countryman|paceman|aceman|#1|#3|#5|ecosport|kuga|edge|explorer|mach-e|avenger|renegade|compass|patriot|cherokee|grand cherokee|wrangler|model y|model x|trax|captiva|tahoe|journey|nitro|durango|xt4|xt5|escalade|lyriq|hummer|yukon|atto|seal u|sealion|tang|coolray|cityray|starray|atlas pro|ex5|omoda|jaecoo|t5 evo|friday|glory|fengon|mage|huge|lynk & co|el6|el7|el8|g6|g9|c10|b10|tiggo|free|courage|seres|7x|eletre|niva|safari|xuv500|kuv100|thar)\b/i.test(combined)) {
+    return "SUV / Terenac";
+  }
+  if (/ford.*puma/i.test(combined)) {
+    return /199\d|200[0-2]|^i$/i.test(detail) ? "Coupé" : "SUV / Terenac";
+  }
+  if (/\b(golf|polo|up!|lupo|fox|id\.3|serija 1|i3|a1|a2|a3|a-klasa|corsa|astra|adam|agila|karl|fabia|scala|citigo|ibiza|leon|mii|born|hatch|fortwo|forfour|twingo|clio|mégane|megane|zoe|5 e-tech|106|107|108|206|207|208|306|307|308|ax\b|zx\b|saxo|c1|c2|c3|c4|c-zero|ds 4|sandero|spring|a290|panda|grande panda|uno|seicento|cinquecento|punto|bravo|stilo|tipo|500\b|500e|595|695|145|146|147|mito|giulietta|ypsilon|delta|starlet|iq|aygo|yaris|corolla|auris|mazda2|mazda3|323|jazz|civic|honda e|micra|note|pulsar|almera|pixo|tiida|leaf|alto|splash|swift|baleno|liana|wagon r\+|space star|colt|justy|impreza|ct\b|q30|cuore|sirion|materia|atos|i10|getz|i20|i30|veloster|picanto|rio|ceed|proceed|sephia|shuma|v40|c30|25\s*\/\s*200|mg3|mg4|mg5|fiesta|ka\b|focus|fusion|spark|aveo|cruze|caliber|dolphin|t03|samara|yugo|koral|skala|750|indica)\b/i.test(combined)) {
+    return "Hatchback / Kompakt";
+  }
+  return "Limuzina";
+}
+
 export function resolveVehicleSpecs(params: SpecResolverInput): ResolvedVehicleSpecs {
   const text = `${params.make ?? ""} ${params.model ?? ""} ${params.generation ?? ""} ${params.variant ?? ""} ${params.title ?? ""}`.trim();
   const variantOrModel = `${params.model ?? ""} ${params.variant ?? ""}`.trim();
   const year = extractYear(params.year, params.date);
+  const bodyType = inferBodyType(params);
 
   // 1. Check rich catalog presets first (matching variant/model against preset)
   let matched: EnginePreset | undefined;
@@ -516,6 +598,7 @@ export function resolveVehicleSpecs(params: SpecResolverInput): ResolvedVehicleS
   return {
     fuel: parsedFuel,
     catalogFuel: toCatalogFuel(parsedFuel),
+    bodyType,
     kw: inferredKw,
     ks: kwToKs(inferredKw),
     cc: parsedCc,

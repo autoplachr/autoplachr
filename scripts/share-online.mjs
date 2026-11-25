@@ -5,7 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 const root = fileURLToPath(new URL("../",import.meta.url));
 const windows = process.platform === "win32";
-const candidates = [4323,3000,4324,4325,4326];
+const candidates = [4323,4324,4325,4326];
 const children = new Set();
 const host = "127.0.0.1";
 const origin = port => "http://"+host+":"+port;
@@ -36,7 +36,11 @@ process.once("exit",stop);
 async function sharePreview(port) {
   try {
     const response=await fetch(origin(port)+"/__autoplac_share",{signal:AbortSignal.timeout(600),redirect:"error"});
-    return response.ok && (await response.text())==="autoplac-share-preview-v1";
+    if(response.ok && (await response.text())==="autoplac-share-preview-v1") return true;
+  } catch {}
+  try {
+    const rootRes=await fetch(origin(port)+"/",{signal:AbortSignal.timeout(600)});
+    return rootRes.ok && (await rootRes.text()).includes("AUTOPLAC");
   } catch { return false; }
 }
 function availablePort(port) {
@@ -73,7 +77,7 @@ try {
     if(!ready) throw new Error("Lokalni pregled nije pokrenut.");
   }
   console.log("Lokalni pregled: "+origin(port));
-  const args=["--yes","cloudflared","tunnel","--url",origin(port)];
+  const args=["--yes","cloudflared","tunnel","--url",origin(port),"--edge-ip-version","4"];
   const tunnel=windows ? start("cmd.exe",["/d","/c","npx.cmd",...args],{stdio:["ignore","pipe","pipe"]}) :
     start("npx",args,{stdio:["ignore","pipe","pipe"]});
   let printed=false, pending="";

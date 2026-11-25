@@ -2,6 +2,7 @@ import { evaluateVehiclePrice, type MarketValuationResult, type PriceRatingTier 
 import type { WorkingHours } from "../src/data/working-hours";
 import { buildMockVehicles } from "../src/data/mock-vehicles";
 import photoData from "./photos.json";
+import importedListings from "../data/imported-listings.json";
 
 export const cities = [
   "Zagreb",
@@ -85,9 +86,9 @@ export type Vehicle = {
   date: string; km: number; kw: number; cc: number; co2: number; fuel: Fuel;
   gear: typeof gears[number]; drive: string; vin: string; city: string; seller: string;
   dealer: boolean; verified: boolean; phone: string; email?: string; flags: Flag[];
-  doors?: number; seats?: number; color?: string; registrationUntil?: string;
+  doors?: number; seats?: number; cylinders?: number; color?: string; colorFinish?: string; registrationUntil?: string;
   postalCode?: string; county?: string; sellerWorkingHours?: WorkingHours; dealershipId?: string; sellerAddress?: string; sellerHours?: string; sellerRating?: { score: number; reviews: number };
-  photos: Photo[]; equipment: Equipment; makeEquipment?: string[]; catalogEquipment?: string[]; contactAvailable?: boolean; boostedUntil?: number | null; range?: [number, number]; demo?: boolean; history?: string[]; sellerNote?: string;
+  photos: Photo[]; photoCount?: number; previousPriceEur?: number; isFeatured?: boolean; equipment: Equipment; makeEquipment?: string[]; catalogEquipment?: string[]; contactAvailable?: boolean; boostedUntil?: number | null; range?: [number, number]; demo?: boolean; history?: string[]; sellerNote?: string;
 };
 
 const photos = photoData as Record<string, Photo[]>;
@@ -114,7 +115,7 @@ export function rating(vehicle: Vehicle): PriceRatingTier {
   return evaluateVehiclePrice(vehicle).rating;
 }
 
-export const vehicles: Vehicle[] = buildMockVehicles(modelPhotos);
+export const vehicles: Vehicle[] = [...buildMockVehicles(modelPhotos), ...(importedListings as Vehicle[])];
 
 export function taxStatus(vehicle: Vehicle) {
   return [vehicle.flags.includes("kupac") && quick.kupac, vehicle.flags.includes("pdv") && quick.pdv].filter(Boolean).join(" · ") || "Prema dokumentaciji";

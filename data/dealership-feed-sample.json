@@ -1,0 +1,5 @@
+[
+  {"externalId":"sample-os-001","Marka":"Škoda","Model":"Octavia","Generacija":"NX","Naslov":"Škoda Octavia 2.0 TDI DSG Style","Godište":2021,"Kilometraža":"93.400 km","kW":110,"Gorivo":"Dizel","Mjenjač":"Automatski","Pogon":"Prednji","Cijena EUR":"18.490,00","PDV":true,"Oprema":["Adaptivni tempomat","Grijanje sjedala"]},
+  {"externalId":"sample-os-002","Marka":"Volkswagen","Model":"Golf","Naslov":"Volkswagen Golf 8 1.5 TSI Life","Godište":2022,"Kilometraža":"47.800 km","KS":131,"Gorivo":"Benzin","Mjenjač":"Ručni","Pogon":"Prednji","Cijena EUR":"19.900","Oprema":["Parkirni senzori","Apple CarPlay"]},
+  {"externalId":"sample-os-003","Marka":"Toyota","Model":"Corolla","Naslov":"Toyota Corolla 1.8 Hybrid Luna","Godište":2023,"Kilometraža":"36.100 km","kW":90,"Gorivo":"Hibrid","Mjenjač":"Automatski","Pogon":"Prednji","Cijena EUR":"22.700","Oprema":["Kamera za vožnju unatrag","Automatska klima"]}
+]

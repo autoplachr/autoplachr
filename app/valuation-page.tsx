@@ -1,31 +1,30 @@
 "use client";
 
-import { ArrowRight, Calculator, Info } from "lucide-react";
-import { useMemo, useState, type MouseEvent } from "react";
+import { Checkbox } from "../src/components/Checkbox";
+import { Calculator, ChevronRight, Info } from "lucide-react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { bodyTypes, euro, gears, number, registered, type Vehicle } from "./catalog";
 import { CatalogFields, customVariant, VariantField } from "./catalog-fields";
 import { EquipmentSelector } from "./equipment-selector";
-import { selectedMakeOptions } from "./make-equipment";
-import { MakeEquipmentOptions, Rating, Select, VehiclePhoto } from "./ui";
-import { OTHER_MODEL } from "../src/data/car-catalog";
+import { Rating, Select, VehiclePhoto } from "./ui";
+import { ValuationAuditPanel } from "./valuation-audit";
+import { FaqAccordion } from "./faq-accordion";
+import {
+  CAR_MAKES,
+  clampYearToRange,
+  effectiveYearRange,
+  generationRange,
+  modelsFor,
+  OTHER_GENERATION,
+  OTHER_MODEL,
+  validGeneration,
+  variantsForSelection,
+} from "../src/data/car-catalog";
 import { describeMarketDelta, evaluateMarketPrice } from "../src/lib/price-engine";
 import { calculateCo2, ksToKw, kwToKs, resolveVehicleSpecs, type SpecFuel } from "../src/lib/spec-resolver";
+import { vehicleListingPath } from "../src/lib/seo";
 
 const valuationFuels: readonly SpecFuel[] = ["Dizel", "Benzin", "Hibrid", "Plug-in hibrid", "Električni", "LPG"];
-const valuationYears = Array.from({ length: 37 }, (_, index) => 2026 - index);
-const extraOptions = [
-  "Panorama stakleni krov",
-  "Matrix / Laser LED",
-  "Harman Kardon / Burmester / B&O",
-  "Virtual / Live Cockpit Pro",
-  "Webasto",
-  "Zračni ovjes / DCC",
-  "360° kamera",
-  "Head-Up Display",
-  "Grijanje i ventilacija sjedala",
-  "Električna kuka",
-  "Adaptivni tempomat (ACC)",
-] as const;
 
 export function ValuationPage({
   inventory,
@@ -42,7 +41,7 @@ export function ValuationPage({
   const [generation, setGeneration] = useState("G20");
   const [variant, setVariant] = useState("320d xDrive");
   const [customVersion, setCustomVersion] = useState("");
-  const [bodyType, setBodyType] = useState("");
+  const [bodyType, setBodyType] = useState<string>("Limuzina");
   const [year, setYear] = useState(2021);
   const [km, setKm] = useState(115000);
   const [kw, setKw] = useState(140);
@@ -51,44 +50,127 @@ export function ValuationPage({
   const [gear, setGear] = useState<(typeof gears)[number]>("Automatski");
   const [drive, setDrive] = useState("4×4");
   const [askingPrice, setAskingPrice] = useState("");
-  const [makeEquipment, setMakeEquipment] = useState<string[]>(["bmw-m-sport", "bmw-adaptive-led", "bmw-live-cockpit"]);
-  const [catalogEquipment, setCatalogEquipment] = useState<string[]>([]);
-  const [selectedExtras, setSelectedExtras] = useState<string[]>(["Adaptivni tempomat (ACC)"]);
+  const [catalogEquipment, setCatalogEquipment] = useState<string[]>([
+    "eq:adaptivna led svjetla",
+    "eq:bmw live cockpit professional",
+    "eq:adaptivni tempomat",
+  ]);
   const [cvh, setCvh] = useState(true);
   const [firstOwner, setFirstOwner] = useState(true);
   const [serviceBook, setServiceBook] = useState(true);
   const [pdv, setPdv] = useState(false);
   const [dealer, setDealer] = useState(true);
+  const [showAllParameters, setShowAllParameters] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const qMake = params.get("make")?.trim();
+    if (!qMake || !CAR_MAKES.includes(qMake)) return;
+
+    const qModelRaw = params.get("model")?.trim() ?? "";
+    const catalogModels = modelsFor(qMake, false);
+    const matchedModel = catalogModels.includes(qModelRaw) ? qModelRaw : (qModelRaw ? OTHER_MODEL : "");
+    const effectiveM = matchedModel === OTHER_MODEL ? qModelRaw : matchedModel;
+
+    const qGenRaw = params.get("gen")?.trim() ?? "";
+    const matchedGen = effectiveM && validGeneration(qMake, effectiveM, qGenRaw) ? qGenRaw : "";
+
+    const qYear = Number(params.get("year"));
+    const span = effectiveYearRange(qMake, effectiveM, matchedGen, "", 1990);
+    const resolvedYear = Number.isFinite(qYear) && qYear >= 1955 ? clampYearToRange(qYear, span) : span.yearTo;
+
+    const qKm = Number(params.get("km"));
+    const qKw = Number(params.get("kw"));
+    const qFuelRaw = params.get("fuel")?.trim() ?? "";
+    const matchedFuel = valuationFuels.includes(qFuelRaw as SpecFuel) ? (qFuelRaw as SpecFuel) : undefined;
+    const qPrice = Number(params.get("price"));
+
+    setMake(qMake);
+    setModel(matchedModel);
+    if (matchedModel === OTHER_MODEL) setCustomModel(qModelRaw);
+    setGeneration(matchedGen);
+    setVariant("");
+    setCustomVersion("");
+    setYear(resolvedYear);
+    if (Number.isFinite(qKm) && qKm >= 0) setKm(qKm);
+    if (Number.isFinite(qPrice) && qPrice > 0) setAskingPrice(String(qPrice));
+    setCatalogEquipment([]);
+
+    const resolved = resolveVehicleSpecs({
+      make: qMake,
+      model: effectiveM,
+      generation: matchedGen,
+      year: resolvedYear,
+      fuel: matchedFuel,
+      kw: Number.isFinite(qKw) && qKw > 0 ? qKw : undefined,
+    });
+    setBodyType(resolved.bodyType);
+    setFuel(matchedFuel ?? resolved.fuel);
+    setKw(Number.isFinite(qKw) && qKw > 0 ? qKw : resolved.kw);
+    if (resolved.gear) setGear(resolved.gear);
+    if (resolved.drive) setDrive(resolved.drive);
+    setCo2("");
+  }, []);
 
   const effectiveModel = model === OTHER_MODEL ? customModel.trim() || model : model;
   const activeVariant = variant === customVariant ? customVersion : variant;
   const parsedAsking = Number(askingPrice);
+
+  const activeGenSpan = useMemo(
+    () => (generation && generation !== OTHER_GENERATION ? generationRange(make, effectiveModel, generation) : undefined),
+    [make, effectiveModel, generation],
+  );
+  const yearRange = useMemo(
+    () => effectiveYearRange(make, effectiveModel, generation, variant === customVariant ? "" : variant, 1990),
+    [make, effectiveModel, generation, variant],
+  );
+  const availableYears = useMemo(
+    () => Array.from({ length: Math.max(1, yearRange.yearTo - yearRange.yearFrom + 1) }, (_, index) => yearRange.yearTo - index),
+    [yearRange],
+  );
+  const effectiveYear = clampYearToRange(year, yearRange);
 
   const autoCo2 = useMemo(
     () =>
       calculateCo2({
         fuel,
         kw: Math.max(25, kw || 90),
-        year,
-        date: `${year}-06`,
+        year: effectiveYear,
+        date: `${effectiveYear}-06`,
         gear,
         drive,
         bodyType,
         variant: activeVariant,
       }),
-    [fuel, kw, year, gear, drive, bodyType, activeVariant],
+    [fuel, kw, effectiveYear, gear, drive, bodyType, activeVariant],
   );
 
-  function applySpecs(nextMake: string, nextModel: string, nextGen: string, nextVariant: string, nextYear = year, nextBody = bodyType) {
+  function applySpecs(
+    nextMake: string,
+    nextModel: string,
+    nextGen: string,
+    nextVariant: string,
+    nextYear = year,
+    inferBody = true,
+  ) {
     if (!nextMake || (!nextModel && !nextVariant)) return;
+    const nextRange = effectiveYearRange(nextMake, nextModel, nextGen, nextVariant === customVariant ? "" : nextVariant, 1990);
+    const snappedYear =
+      (nextGen && nextGen !== OTHER_GENERATION) || nextVariant
+        ? clampYearToRange(nextYear, nextRange)
+        : nextYear;
+    if (snappedYear !== year) setYear(snappedYear);
+
     const resolved = resolveVehicleSpecs({
       make: nextMake,
       model: nextModel,
       generation: nextGen,
       variant: nextVariant,
-      year: nextYear,
-      bodyType: nextBody,
+      year: snappedYear,
+      bodyType: inferBody ? undefined : bodyType,
     });
+    if (inferBody) setBodyType(resolved.bodyType);
     setFuel(resolved.fuel);
     setKw(resolved.kw);
     if (resolved.gear) setGear(resolved.gear);
@@ -106,8 +188,8 @@ export function ValuationPage({
       generation,
       variant: activeVariant,
       bodyType,
-      year,
-      date: `${year}-06`,
+      year: effectiveYear,
+      date: `${effectiveYear}-06`,
       km: Math.max(0, km || 0),
       kw: Math.max(25, kw || 90),
       co2: co2 !== "" ? Number(co2) : autoCo2,
@@ -115,8 +197,6 @@ export function ValuationPage({
       gear,
       drive,
       askingPrice: parsedAsking > 0 ? parsedAsking : undefined,
-      equipment: selectedExtras,
-      makeEquipment,
       catalogEquipment,
       flags,
       firstOwner,
@@ -125,8 +205,8 @@ export function ValuationPage({
       verified: dealer,
     });
   }, [
-    make, effectiveModel, generation, activeVariant, bodyType, year, km, kw, co2, autoCo2, fuel, gear, drive,
-    parsedAsking, selectedExtras, makeEquipment, catalogEquipment, cvh, pdv, firstOwner, serviceBook, dealer,
+    make, effectiveModel, generation, activeVariant, bodyType, effectiveYear, km, kw, co2, autoCo2, fuel, gear, drive,
+    parsedAsking, catalogEquipment, cvh, pdv, firstOwner, serviceBook, dealer,
   ]);
 
   const markerTarget = parsedAsking > 0 ? parsedAsking : result.medianMarketPrice;
@@ -178,14 +258,10 @@ export function ValuationPage({
       .map(entry => entry.item);
   }, [inventory, make, effectiveModel, result.fairMin, result.fairMax, result.medianMarketPrice]);
 
-  function toggleExtra(option: string) {
-    setSelectedExtras(old => (old.includes(option) ? old.filter(item => item !== option) : [...old, option]));
-  }
-
   const ksValue = kw > 0 ? kwToKs(kw) : 0;
 
   return (
-    <main className="shell valuation-shell">
+    <main className="shell valuation-shell max-w-[1380px] mx-auto px-4 sm:px-6 overflow-x-clip">
       <header className="valuation-hero">
         <div>
           <span className="eyebrow">Hrvatski tržišni kalkulator</span>
@@ -197,12 +273,13 @@ export function ValuationPage({
         </button>
       </header>
 
-      <div className="valuation-grid">
-        <section className="detail-panel valuation-form-card" aria-label="Parametri vozila za procjenu">
+      <div className="valuation-grid grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_410px] gap-6 items-start">
+        <section className="detail-panel valuation-form-card min-w-0" aria-label="Parametri vozila za procjenu">
           <h2>Podaci o vozilu</h2>
           <div className="form-grid">
             <CatalogFields
               allowCustom
+              filterYear={effectiveYear}
               customModel={customModel}
               onCustomModelChange={nextCustom => {
                 setCustomModel(nextCustom);
@@ -217,15 +294,15 @@ export function ValuationPage({
                 setGeneration(selection.generation);
                 setVariant("");
                 setCustomVersion("");
-                setMakeEquipment(selectedMakeOptions(selection.make, selection.model, makeEquipment));
                 setCatalogEquipment([]);
                 const modelName = selection.model === OTHER_MODEL ? customModel.trim() : selection.model;
                 applySpecs(selection.make, modelName, selection.generation, "");
               }}
             />
             <VariantField
-              selection={{ make, model, generation }}
+              selection={{ make, model: effectiveModel, generation }}
               value={variant}
+              filterYear={effectiveYear}
               onChange={nextVariant => {
                 setVariant(nextVariant);
                 if (nextVariant && nextVariant !== customVariant) {
@@ -250,12 +327,30 @@ export function ValuationPage({
               </label>
             )}
             <Select label="Karoserija" value={bodyType} onChange={e => setBodyType(e.target.value)}>
-              <option value="">Automatski (prema modelu)</option>
-              {bodyTypes.map(bt => <option key={bt}>{bt}</option>)}
+              {bodyTypes.map(bt => <option key={bt} value={bt}>{bt}</option>)}
             </Select>
-            <Select label="Godište" className="numeric-select" value={String(year)} onChange={e => setYear(Number(e.target.value))}>
-              {valuationYears.map(y => <option key={y} value={y}>{y}.</option>)}
-            </Select>
+            <div className="field-stack">
+              <Select
+                label="Godište"
+                className="numeric-select"
+                value={String(effectiveYear)}
+                onChange={e => {
+                  const nextYear = Number(e.target.value);
+                  setYear(nextYear);
+                  const allowed = variantsForSelection(make, effectiveModel, generation, nextYear);
+                  if (variant && variant !== customVariant && !allowed.includes(variant)) {
+                    setVariant("");
+                  }
+                }}
+              >
+                {availableYears.map(y => <option key={y} value={y}>{y}.</option>)}
+              </Select>
+              {activeGenSpan && (
+                <small className="field-hint tabular">
+                  Raspon proizvodnje za odabranu generaciju: {yearRange.yearFrom}.–{yearRange.yearTo}.
+                </small>
+              )}
+            </div>
             <label className="field">
               <span>Kilometraža (km)</span>
               <input className="tabular" type="number" min={0} max={999999} step={1000} value={km} onChange={e => setKm(Number(e.target.value))} />
@@ -297,15 +392,13 @@ export function ValuationPage({
           <fieldset className="filter-options valuation-checks">
             <legend>Povijest, porez i prodavač</legend>
             <div className="valuation-check-grid">
-              <label><input type="checkbox" checked={cvh} onChange={e => setCvh(e.target.checked)} /> Potvrđeni km (CVH)</label>
-              <label><input type="checkbox" checked={firstOwner} onChange={e => setFirstOwner(e.target.checked)} /> 1. vlasnik</label>
-              <label><input type="checkbox" checked={serviceBook} onChange={e => setServiceBook(e.target.checked)} /> Servisna knjiga</label>
-              <label><input type="checkbox" checked={dealer} onChange={e => setDealer(e.target.checked)} /> Verificirana autokuća</label>
-              <label><input type="checkbox" checked={pdv} onChange={e => setPdv(e.target.checked)} /> Sustav PDV-a (R1)</label>
+              <label><Checkbox checked={cvh} onChange={e => setCvh(e.target.checked)} /> Potvrđeni km (CVH)</label>
+              <label><Checkbox checked={firstOwner} onChange={e => setFirstOwner(e.target.checked)} /> 1. vlasnik</label>
+              <label><Checkbox checked={serviceBook} onChange={e => setServiceBook(e.target.checked)} /> Servisna knjiga</label>
+              <label><Checkbox checked={dealer} onChange={e => setDealer(e.target.checked)} /> Verificirana autokuća</label>
+              <label><Checkbox checked={pdv} onChange={e => setPdv(e.target.checked)} /> Sustav PDV-a (R1)</label>
             </div>
           </fieldset>
-
-          <MakeEquipmentOptions make={make} model={effectiveModel} selected={makeEquipment} onChange={setMakeEquipment} />
 
           {make && (
             <EquipmentSelector
@@ -316,34 +409,22 @@ export function ValuationPage({
                 bodyType,
                 fuel,
                 variant: activeVariant,
-                date: `${year}-06`,
+                date: `${effectiveYear}-06`,
                 catalogEquipment,
               }}
               onChange={setCatalogEquipment}
             />
           )}
-
-          <fieldset className="filter-options valuation-checks">
-            <legend>Ključna oprema za procjenu</legend>
-            <div className="valuation-check-grid">
-              {extraOptions.map(option => (
-                <label key={option}>
-                  <input type="checkbox" checked={selectedExtras.includes(option)} onChange={() => toggleExtra(option)} />
-                  {option}
-                </label>
-              ))}
-            </div>
-          </fieldset>
         </section>
 
-        <aside className="valuation-results-col">
-          <section className="detail-panel valuation-summary-card" aria-live="polite">
+        <aside className="valuation-results-col min-w-0">
+          <section className="detail-panel valuation-summary-card min-w-0" aria-live="polite">
             <div className="valuation-head">
               <div>
                 <span className="eyebrow">{[make || "Odabrano vozilo", effectiveModel, generation, activeVariant].filter(Boolean).join(" · ")}</span>
                 <h2>Realna tržišna cijena u RH</h2>
               </div>
-              {parsedAsking > 0 && <Rating tier={result.rating} />}
+              {parsedAsking > 0 && <Rating valuation={result} align="right" />}
             </div>
 
             <div className="valuation-median">
@@ -395,9 +476,9 @@ export function ValuationPage({
 
             {result.factors.length > 0 && (
               <div className="valuation-factors-static">
-                <h3>Ključni faktori procjene</h3>
+                <h3>Glavni faktori procjene</h3>
                 <ul>
-                  {result.factors.map(factor => (
+                  {(showAllParameters ? result.factors : result.factors.slice(0, 4)).map(factor => (
                     <li key={factor.id}>
                       <span>{factor.label}</span>
                       <strong className={"tabular " + (factor.impactEur >= 0 ? "pos" : "neg")}>
@@ -406,6 +487,16 @@ export function ValuationPage({
                     </li>
                   ))}
                 </ul>
+                {(result.factors.length > 4 || result.auditFactors.length > 0) && (
+                  <button
+                    type="button"
+                    className="valuation-factors-toggle"
+                    aria-expanded={showAllParameters}
+                    onClick={() => setShowAllParameters(value => !value)}
+                  >
+                    {showAllParameters ? "Sakrij dodatne parametre ↑" : "Prikaži sve parametre ↓"}
+                  </button>
+                )}
               </div>
             )}
           </section>
@@ -414,22 +505,22 @@ export function ValuationPage({
             <div className="import-head">
               <h3><Info size={16} aria-hidden="true" /> Usporedba: Uvoz iz Njemačke + PPMV</h3>
             </div>
-            <div className="valuation-metrics">
-              <div>
-                <span>Okvirna cijena na DE oglasnicima</span>
-                <strong className="tabular">{euro(result.deEstimatedPriceEur)}</strong>
+            <div className="rounded-md border border-[var(--border)] bg-[var(--hover)] px-3 py-1">
+              <div className="flex items-center justify-between gap-3 py-1.5 border-b border-slate-100 dark:border-zinc-800/70 last:border-b-0">
+                <span className="text-left text-[12px] text-[var(--muted)]">Okvirna cijena na DE oglasnicima</span>
+                <strong className="shrink-0 text-right font-semibold tabular-nums text-[13px] text-[var(--text)]">{euro(result.deEstimatedPriceEur)}</strong>
               </div>
-              <div>
-                <span>Procijenjeni PPMV (trošarina u RH)</span>
-                <strong className="tabular">{euro(result.estimatedPpmvEur)}</strong>
+              <div className="flex items-center justify-between gap-3 py-1.5 border-b border-slate-100 dark:border-zinc-800/70 last:border-b-0">
+                <span className="text-left text-[12px] text-[var(--muted)]">Procijenjeni PPMV (trošarina u RH)</span>
+                <strong className="shrink-0 text-right font-semibold tabular-nums text-[13px] text-[var(--text)]">{euro(result.estimatedPpmvEur)}</strong>
               </div>
-              <div>
-                <span>Okvirna ukupna cijena s uvozom (DE + PPMV + unos)</span>
-                <strong className="tabular">{euro(result.estimatedImportTotalEur)}</strong>
+              <div className="flex items-center justify-between gap-3 py-1.5 border-b border-slate-100 dark:border-zinc-800/70 last:border-b-0">
+                <span className="text-left text-[12px] text-[var(--muted)]">Ukupno s uvozom (DE + PPMV)</span>
+                <strong className="shrink-0 text-right font-semibold tabular-nums text-[13px] text-[var(--text)]">{euro(result.estimatedImportTotalEur)}</strong>
               </div>
-              <div>
-                <span>Očekivana kilometraža za godište i gorivo</span>
-                <strong className="tabular">{number(result.expectedKm)} km</strong>
+              <div className="flex items-center justify-between gap-3 py-1.5 border-b border-slate-100 dark:border-zinc-800/70 last:border-b-0">
+                <span className="text-left text-[12px] text-[var(--muted)]">Očekivana kilometraža za godište i gorivo</span>
+                <strong className="shrink-0 text-right font-semibold tabular-nums text-[13px] text-[var(--text)]">{number(result.expectedKm)} km</strong>
               </div>
             </div>
             <p className="import-note">
@@ -445,16 +536,27 @@ export function ValuationPage({
               <span className="tabular">{matchingVehicles.length} prijedloga</span>
             </div>
             {matchingVehicles.length > 0 ? (
-              <div className="similar-list">
+              <div className="flex flex-col gap-2">
                 {matchingVehicles.map(item => (
-                  <a key={item.id} className="similar-car" href={"?oglas=" + encodeURIComponent(item.id)} onClick={e => onOpenListing(e, item.id)}>
-                    <VehiclePhoto photo={item.photos[0]} alt="" thumbnail />
-                    <div>
-                      <h4>{item.title}</h4>
-                      <span className="tabular">{registered(item.date)} • {number(item.km)} km • {item.city}</span>
-                      <strong className="tabular">{euro(item.price)}</strong>
+                  <a
+                    key={item.id}
+                    className="group flex items-center gap-3 p-2.5 rounded-lg border border-slate-200/80 dark:border-zinc-800/90 bg-slate-50/60 dark:bg-zinc-900/50 hover:border-blue-500/50 transition-colors"
+                    href={vehicleListingPath(item.id)}
+                    onClick={e => onOpenListing(e, item.id)}
+                  >
+                    <div className="w-[96px] h-[64px] aspect-[3/2] shrink-0 rounded-md overflow-hidden">
+                      <VehiclePhoto photo={item.photos[0]} alt="" sizes="96px" />
                     </div>
-                    <ArrowRight size={15} aria-hidden="true" />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-[13px] font-semibold truncate text-[var(--text)]">{item.title}</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate mt-0.5 tabular">
+                        {registered(item.date)} • {number(item.km)} km • {item.city}
+                      </p>
+                      <div className="flex items-center justify-between mt-1.5">
+                        <strong className="text-[14px] font-bold tabular-nums text-[var(--text)]">{euro(item.price)}</strong>
+                        <ChevronRight size={14} className="text-slate-400 group-hover:text-blue-500 shrink-0 transition-colors" aria-hidden="true" />
+                      </div>
+                    </div>
                   </a>
                 ))}
               </div>
@@ -464,6 +566,9 @@ export function ValuationPage({
           </section>
         </aside>
       </div>
+
+      {showAllParameters && <ValuationAuditPanel result={result} id="analiza-parametara" />}
+      <FaqAccordion title="Česta pitanja o procjeni cijene i PPMV-u" />
     </main>
   );
 }
