@@ -2,9 +2,10 @@
 import { useId, useState } from "react";
 import { croatianCounties, croatianLocations, normalizeLocation, type CroatiaLocation } from "../src/data/croatia-locations";
 import { appointmentLabel, formatHours, parseLegacyHours, presetHours, times, weekdayLabels, type DayHours, type WorkingHours } from "../src/data/working-hours";
+import type { FieldErrors } from "../src/data/profile-validation";
 import { Select } from "./ui";
 
-export function LocationFields({ initial, onChange }: { initial?: Partial<CroatiaLocation>; onChange?: (location:CroatiaLocation) => void }) {
+export function LocationFields({ initial, onChange, errors = {} }: { initial?: Partial<CroatiaLocation>; onChange?: (location:CroatiaLocation) => void; errors?: FieldErrors }) {
   const byCity = (city:string) => croatianLocations.find(place => normalizeLocation(place.city) === normalizeLocation(city));
   const known = byCity(initial?.city ?? "");
   const [location,setLocation] = useState<CroatiaLocation>({ city:initial?.city ?? "", postalCode:initial?.postalCode || known?.postalCode || "", county:initial?.county || known?.county || "" });
@@ -28,7 +29,7 @@ export function LocationFields({ initial, onChange }: { initial?: Partial<Croati
         }} onKeyDown={event => {
           if (event.key === "Escape" && suggest) {event.stopPropagation();setSuggest(false);}
           if (event.key === "ArrowDown" && suggest && matches.length) {event.preventDefault();document.getElementById(id)?.querySelector("button")?.focus();}
-        }}/></label>
+        }} aria-invalid={!!errors.city}/>{errors.city && <small className="field-issue" role="alert">{errors.city}</small>}</label>
       {suggest && matches.length > 0 && <ul id={id} className="location-suggestions" aria-label="Prijedlozi gradova">{matches.map(place => <li key={place.city}><button type="button" onClick={() => {update(place);setSuggest(false);}}>{place.city} · {place.postalCode} · {place.county}</button></li>)}</ul>}
     </div>
     <label className="field"><span>Poštanski broj</span><input className="tabular" name="postalCode" autoComplete="postal-code" inputMode="numeric" pattern="[0-9]{5}" required maxLength={5} value={location.postalCode}
@@ -36,10 +37,10 @@ export function LocationFields({ initial, onChange }: { initial?: Partial<Croati
         const postalCode = event.target.value.replace(/\D/g,"").slice(0,5);
         const match = postalCode.length === 5 && (croatianLocations.find(place => place.postalCode === postalCode && place.city === location.city) || croatianLocations.find(place => place.postalCode === postalCode));
         update(match || {...location,postalCode});
-      }}/></label>
-    <Select label="Županija" name="county" value={location.county} onFocus={() => setSuggest(false)} onChange={event => update({...location,county:event.target.value})} required>
+      }} aria-invalid={!!errors.postalCode}/>{errors.postalCode && <small className="field-issue" role="alert">{errors.postalCode}</small>}</label>
+    <div><Select label="Županija" name="county" value={location.county} onFocus={() => setSuggest(false)} onChange={event => update({...location,county:event.target.value})} required>
       <option value="">Odaberite županiju</option>{croatianCounties.map(county => <option key={county}>{county}</option>)}
-    </Select>
+    </Select>{errors.county && <small className="field-issue" role="alert">{errors.county}</small>}</div>
   </div>;
 }
 

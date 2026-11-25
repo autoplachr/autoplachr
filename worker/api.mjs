@@ -1,3 +1,4 @@
+import { normalizePhone, profileErrors } from "../src/data/profile-validation.ts";
 import { croatianCounties, croatianLocations, normalizeLocation } from "../src/data/croatia-locations.ts";
 import { formatHours, validHours } from "../src/data/working-hours.ts";
 export const LEGAL_VERSION = "2026-11-25";
@@ -9,7 +10,6 @@ const hex = data => Array.from(new Uint8Array(data), b => b.toString(16).padStar
 const unhex = value => Uint8Array.from(value.match(/../g), b => parseInt(b, 16));
 const digest = async value => hex(await crypto.subtle.digest("SHA-256", encoder.encode(value)));
 const value = (obj, key, size) => typeof obj[key] === "string" ? obj[key].trim().slice(0, size) : "";
-const normalizePhone = phone => phone.replace(/[^\d+]/g, "");
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const uuidPattern = /^[\da-f-]{36}$/i;
 const reasons = ["Sumnja na skidanje kilometara", "Lažni oglas / prevara", "Vozilo je već prodano", "Krivi podaci / cijena", "Drugi nezakonit sadržaj"];
@@ -57,13 +57,6 @@ async function rate(env, key, limit, seconds) {
   requireValue(hits.hits <= limit, "Previše pokušaja. Pokušajte kasnije.", 429);
 }
 
-function oibValid(oib) {
-  if (!/^\d{11}$/.test(oib)) return false;
-  let remainder = 10;
-  for (const digit of oib.slice(0, -1)) remainder = (((Number(digit) + remainder) % 10 || 10) * 2) % 11;
-  return (11 - remainder) % 10 === Number(oib[10]);
-}
-
 function locationFrom(body) {
   const city = value(body,"city",100);
   const known = croatianLocations.find(place => normalizeLocation(place.city) === normalizeLocation(city));
@@ -91,14 +84,16 @@ function profileFrom(body, type) {
     type, name: value(body, "name", 100), ...locationFrom(body),
     phone: normalizePhone(value(body, "phone", 40)), alerts: body.alerts === true, analytics: body.analytics === true,
   };
-  requireValue(profile.name && profile.city && profile.county && /^\+385[1-9]\d{6,8}$/.test(profile.phone), "Unesite ime, grad, županiju i hrvatski broj +385.");
+  const errors = profileErrors({...body,...profile},type === "dealer");
+  if (!body.postalCode && !profile.postalCode && body.accepted) delete errors.postalCode;
+  if (Object.keys(errors).length) throw Object.assign(new ApiError(400,"Provjerite označena polja."),{fields:errors});
   if (type === "dealer") {
     Object.assign(profile, { oib: value(body, "oib", 11), address: value(body, "address", 200), hours: value(body, "hours", 260), importUrl: value(body, "importUrl", 500) });
     if (body.workingHours) {
       profile.workingHours = readHours(body.workingHours);
       profile.hours = formatHours(profile.workingHours);
     }
-    requireValue(oibValid(profile.oib) && profile.address && profile.hours, "Unesite valjan OIB, adresu i radno vrijeme.");
+    requireValue(profile.hours, "Odaberite radno vrijeme.");
     if (profile.importUrl) {
       let url;
       try { url = new URL(profile.importUrl); } catch {}
@@ -349,7 +344,7 @@ export async function api(request, env) {
     }
     return json({ ok: true });
   } catch (error) {
-    if (error instanceof ApiError) return json({ error: error.message }, error.status);
+    if (error instanceof ApiError) return json({ error: error.message, fields: error.fields }, error.status);
     console.error("Marketplace request failed", endpoint, error?.name);
     return json({ error: "Zahtjev trenutačno nije moguće obraditi." }, 500);
   }

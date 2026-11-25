@@ -6,7 +6,7 @@ await subprocess(process.execPath, ["node_modules/next/dist/bin/next", "build"])
 await rm("dist/client", { recursive: true, force: true });
 await mkdir("dist/server", { recursive: true });
 await cp("out", "dist/client", { recursive: true });
-for (const name of ["croatia-locations", "working-hours"]) {
+for (const name of ["croatia-locations", "working-hours", "profile-validation"]) {
   const source = await readFile("src/data/" + name + ".ts", "utf8");
   const { outputText } = ts.transpileModule(source, {compilerOptions:{ target:ts.ScriptTarget.ES2022, module:ts.ModuleKind.ESNext }});
   await writeFile("dist/server/" + name + ".mjs",outputText);

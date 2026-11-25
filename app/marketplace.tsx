@@ -189,7 +189,8 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
       setDetailId(id);
       if (event && (wasDetail || id)) requestAnimationFrame(() => window.scrollTo(0, id ? 0 : resultsScroll.current));
     };
-    const sync = () => {
+    const sync = (event?:StorageEvent) => {
+      if (event?.key === "sasija.local-demo.v1") void refresh().catch(() => undefined);
       setSaved(readStored<string>(storageKeys.saved));
       setPublished(readStored<Vehicle>(storageKeys.inventory).map(restoreListingPhotos));
 

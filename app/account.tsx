@@ -1,6 +1,8 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { api, type Account, type ListingStatus, type OwnedListing, type Profile, type Report } from "./account-api";
+import { demoCredentials, localDemo } from "./local-demo";
+import { profileErrors, type FieldErrors } from "../src/data/profile-validation";
 import { euro, type Vehicle } from "./catalog";
 import { LocationFields, HoursFields } from "./dealership-fields";
 import { Select, Dialog, VehiclePhoto } from "./ui";
@@ -9,16 +11,20 @@ const accountTabs = ["Moji oglasi", "Spremljena vozila", "Postavke profila i sig
 const formData = (event: FormEvent<HTMLFormElement>) => Object.fromEntries(new FormData(event.currentTarget));
 function errorText(error: unknown) { return error instanceof Error ? error.message : "Zahtjev nije dovršen."; }
 
-function ProfileFields({ type, profile, registration = false }: { type: Profile["type"]; profile?: Profile; registration?: boolean }) {
+function FieldIssue({ message }: {message?:string}) {
+  return message ? <small className="field-issue" role="alert">{message}</small> : null;
+}
+
+function ProfileFields({ type, profile, registration = false, errors = {} }: { type: Profile["type"]; profile?: Partial<Profile>; registration?: boolean; errors?: FieldErrors }) {
   const [name, setName] = useState(profile?.name ?? "");
   const subdomain = name.normalize("NFD").replace(/\p{M}/gu,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,55);
   return <div className="form-grid">
-    <label className="field span-all"><span>{type === "dealer" ? "Naziv tvrtke" : "Ime i prezime"}</span><input name="name" value={name} onChange={event => setName(event.target.value)} required maxLength={100} autoComplete={type === "dealer" ? "organization" : "name"}/></label>
-    <LocationFields initial={profile}/>
-    <label className="field"><span>Telefon (+385)</span><input type="tel" name="phone" defaultValue={profile?.phone ?? "+385 "} required maxLength={24} autoComplete="tel"/></label>
+    <label className="field span-all"><span>{type === "dealer" ? "Naziv tvrtke" : "Ime i prezime"}</span><input name="name" value={name} onChange={event => setName(event.target.value)} required maxLength={100} autoComplete={type === "dealer" ? "organization" : "name"}/><FieldIssue message={errors.name}/></label>
+    <LocationFields initial={profile} errors={errors}/>
+    <label className="field"><span>Telefon (+385)</span><input type="tel" name="phone" defaultValue={profile?.phone ?? "+385 "} required maxLength={24} autoComplete="tel" aria-invalid={!!errors.phone}/><FieldIssue message={errors.phone}/></label>
     {type === "dealer" && <>
-      <label className="field"><span>OIB</span><input name="oib" inputMode="numeric" pattern="[0-9]{11}" maxLength={11} required defaultValue={profile?.oib}/></label>
-      <label className="field"><span>Adresa sjedišta / salona</span><input name="address" defaultValue={profile?.address} maxLength={200} required autoComplete="street-address"/></label>
+      <label className="field"><span>OIB</span><input name="oib" inputMode="numeric" pattern="[0-9]{11}" maxLength={11} required defaultValue={profile?.oib} aria-invalid={!!errors.oib}/><FieldIssue message={errors.oib}/></label>
+      <label className="field"><span>Adresa sjedišta / salona</span><input name="address" defaultValue={profile?.address} maxLength={200} required autoComplete="street-address" aria-invalid={!!errors.address}/><FieldIssue message={errors.address}/></label>
       <HoursFields initial={profile?.workingHours} legacy={profile?.hours}/>
       <p className="fine-print span-all">Pregled poddomene <strong>{subdomain || "vasasalon"}.sasija.hr</strong></p>
       {!registration && <label className="field span-all"><span>HTTPS adresa XML izvora</span><input type="url" name="importUrl" maxLength={500} defaultValue={profile?.importUrl}/><small>Postavka izvora za dogovoreni uvoz.</small></label>}
@@ -30,29 +36,54 @@ export function AuthPage({ registration, defaultType, onDone }: { registration: 
   const [type, setType] = useState<Profile["type"]>(defaultType);
   const [error,setError] = useState("");
   const [busy,setBusy] = useState(false);
+  const [errors,setErrors] = useState<FieldErrors>({});
+  const [demo,setDemo] = useState(false);
+  const [sample,setSample] = useState<ReturnType<typeof demoCredentials>>();
+  useEffect(() => setDemo(localDemo()),[]);
+  async function quickLogin(type:Profile["type"]) {
+    setBusy(true);setError("");setErrors({});
+    try { await api("auth/demo",{type});await onDone(); }
+    catch (problem) {setError(errorText(problem));}
+    finally {setBusy(false);}
+  }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = formData(event);
-    setBusy(true);setError("");
+    const fields = registration ? profileErrors(data,type === "dealer") : {};
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(data.email).trim())) fields.email = "Unesite valjanu e-poštu.";
+    if (String(data.password).length < (registration ? 12 : 1)) fields.password = registration ? "Lozinka mora imati najmanje 12 znakova." : "Unesite lozinku.";
+    if (registration && !data.terms) fields.terms = "Potvrdite uvjete i politiku privatnosti.";
+    if (registration && !data.declaration) fields.declaration = "Potvrdite izjavu o statusu prodavača.";
+    setErrors(fields);setError("");
+    if (Object.keys(fields).length) return;
+    setBusy(true);
     try {
       await api(registration ? "auth/register" : "auth/login", { ...data, type, terms: !!data.terms, declaration: !!data.declaration, alerts: !!data.alerts });
       await onDone();
-    } catch (problem) { setError(errorText(problem)); }
+    } catch (problem) {
+      const fieldIssues = (problem as {fields?:FieldErrors}).fields;
+      if (fieldIssues && Object.keys(fieldIssues).length) setErrors(fieldIssues); else setError(errorText(problem));
+    }
     finally { setBusy(false); }
   }
   return <main className="shell account-shell"><section className="detail-panel auth-card">
     <h1>{registration ? "Registracija" : "Prijava"}</h1>
-    <form className="form-stack" onSubmit={submit}>
+    {registration ? <div className="demo-auth"><button className="btn secondary" type="button" onClick={() => {setSample(demoCredentials(type,true));setErrors({});setError("");}}>Popuni testnim podacima</button></div> :
+      demo && <div className="account-actions demo-auth">
+        <button className="btn secondary" type="button" disabled={busy} onClick={() => void quickLogin("dealer")}>Brza prijava: Test Autokuća B2B</button>
+        <button className="btn secondary" type="button" disabled={busy} onClick={() => void quickLogin("private")}>Brza prijava: Privatni prodavač</button>
+      </div>}
+    <form key={sample?.email ?? "auth"} className="form-stack" onSubmit={submit} noValidate>
       {registration && <>
-        <Select label="Vrsta računa" value={type} onChange={event => setType(event.target.value as Profile["type"])}><option value="private">Privatni prodavač / kupac</option><option value="dealer">Autokuća / trgovac vozilima (B2B)</option></Select>
+        <Select label="Vrsta računa" value={type} onChange={event => {setType(event.target.value as Profile["type"]);setSample(undefined);setErrors({});}}><option value="private">Privatni prodavač / kupac</option><option value="dealer">Autokuća / trgovac vozilima (B2B)</option></Select>
         {type === "private" && <p className="fine-print">2 besplatna aktivna oglasa godišnje. Prije objave potvrdite broj +385.</p>}
-        <ProfileFields key={type} type={type} registration/>
+        <ProfileFields key={type} type={type} profile={sample} errors={errors} registration/>
       </>}
-      <label className="field"><span>E-pošta</span><input type="email" name="email" autoComplete="username" required maxLength={254}/></label>
-      <label className="field"><span>Lozinka</span><input type="password" name="password" required minLength={registration ? 12 : undefined} maxLength={128} autoComplete={registration ? "new-password" : "current-password"}/></label>
+      <label className="field"><span>E-pošta</span><input type="email" name="email" autoComplete="username" required maxLength={254} defaultValue={sample?.email} aria-invalid={!!errors.email}/><FieldIssue message={errors.email}/></label>
+      <label className="field"><span>Lozinka</span><input type="password" name="password" required minLength={registration ? 12 : undefined} maxLength={128} autoComplete={registration ? "new-password" : "current-password"} defaultValue={sample?.password} aria-invalid={!!errors.password}/><FieldIssue message={errors.password}/></label>
       {registration && <fieldset className="account-checks"><legend>Uvjeti registracije</legend>
-        <label><input type="checkbox" name="terms" required/><span>Prihvaćam <a href="/uvjeti-koristenja" target="_blank" rel="noreferrer">Opće uvjete poslovanja</a> i potvrđujem da sam pročitao/la <a href="/privatnost" target="_blank" rel="noreferrer">Politiku privatnosti (GDPR)</a>.</span></label>
-        <label><input type="checkbox" name="declaration" required/><span>Izjavljujem da nastupam kao {type === "dealer" ? "registrirani trgovac" : "privatna osoba"} i da su podaci o vozilima točni.</span></label>
+        <label><input type="checkbox" name="terms" required/><span>Prihvaćam <a href="/uvjeti-koristenja" target="_blank" rel="noreferrer">Opće uvjete poslovanja</a> i potvrđujem da sam pročitao/la <a href="/privatnost" target="_blank" rel="noreferrer">Politiku privatnosti (GDPR)</a>.<FieldIssue message={errors.terms}/></span></label>
+        <label><input type="checkbox" name="declaration" required/><span>Izjavljujem da nastupam kao {type === "dealer" ? "registrirani trgovac" : "privatna osoba"} i da su podaci o vozilima točni.<FieldIssue message={errors.declaration}/></span></label>
         <label><input type="checkbox" name="alerts"/><span>Želim primati obavijesti o spremljenim pretragama i padu cijena.</span></label>
       </fieldset>}
       {error && <p className="form-error" role="alert">{error}</p>}
@@ -67,14 +98,14 @@ export function Verification({ account, onVerified }: { account: Account; onVeri
   const [demo, setDemo] = useState("");
   const [error, setError] = useState("");
   const [busy,setBusy] = useState(false);
-  async function doRequest(action: "start" | "verify") {
+  async function doRequest(action: "start" | "verify", verificationCode = code) {
     setError(""); setBusy(true);
     try {
       if (action === "start") {
         const response = await api<{demoCode: string}>("otp/start", {});
         setDemo(response.demoCode);
       } else {
-        await api("otp/verify",{code});setDemo("");setCode("");await onVerified();
+        await api("otp/verify",{code:verificationCode});setDemo("");setCode("");await onVerified();
       }
     } catch (problem) { setError(errorText(problem)); }
     finally { setBusy(false); }
@@ -84,7 +115,7 @@ export function Verification({ account, onVerified }: { account: Account; onVeri
     <p>Potvrdite telefon {account.profile.phone}. SMS je simuliran.</p>
     <button className="btn secondary" type="button" disabled={busy} onClick={() => void doRequest("start")}>{demo ? "Zatraži novi kod" : "Zatraži SMS kod"}</button>
     {demo && <form className="form-stack" onSubmit={event => {event.preventDefault();void doRequest("verify");}}>
-      <p className="calculation">Ogledni SMS kod <strong className="tabular">{demo}</strong></p>
+      <p className="calculation">Lokalni testni kod: <strong className="tabular">{demo}</strong><button className="btn secondary" type="button" disabled={busy} onClick={() => {setCode(demo);void doRequest("verify",demo);}}>Unesi testni kod</button></p>
       <label className="field"><span>Šesteroznamenkasti kod</span><input value={code} onChange={event => setCode(event.target.value)} inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required autoComplete="one-time-code"/></label>
       <button className="btn primary" disabled={busy}>Potvrdi broj</button>
     </form>}
@@ -102,16 +133,20 @@ export function AccountPage({ account, inventory, refresh, onPublish, signOut, o
   const [message,setMessage] = useState("");
   const [error,setError] = useState("");
   const [confirm,setConfirm] = useState<Confirm>();
+  const [profileIssues,setProfileIssues] = useState<FieldErrors>({});
   const [reports,setReports] = useState<Report[]>([]);
   const [decision,setDecision] = useState("");
   const statusLabels = { draft:"Nacrt", active:"Aktivan", sold:"Prodan" };
   async function mutate(endpoint: string, data: object, success: string) {
-    setBusy(true);setMessage("");setError("");
+    setBusy(true);setMessage("");setError("");setProfileIssues({});
     try {
       await api(endpoint,data); await refresh();
       if (endpoint === "moderation") setReports(await api<Report[]>("moderation"));
       setMessage(success);setConfirm(undefined);
-    } catch (problem) { setError(errorText(problem)); }
+    } catch (problem) {
+      const fields = (problem as {fields?:FieldErrors}).fields;
+      if (endpoint === "profile" && fields && Object.keys(fields).length) setProfileIssues(fields); else setError(errorText(problem));
+    }
     finally { setBusy(false); }
   }
   function changeStatus(listing: OwnedListing, status: ListingStatus) {
@@ -162,8 +197,13 @@ export function AccountPage({ account, inventory, refresh, onPublish, signOut, o
     </section>}
     {tab === 2 && <div className="form-stack">
       <section className="detail-panel form-stack"><h2>Profil</h2>
-        <form className="form-stack" onSubmit={event => {event.preventDefault();void mutate("profile",formData(event),"Profil je spremljen.");}}>
-          <ProfileFields type={account.profile.type} profile={account.profile}/><button className="btn primary" disabled={busy}>Spremi profil</button>
+        <form className="form-stack" noValidate onSubmit={event => {
+          event.preventDefault();
+          const data = formData(event), fields = profileErrors(data,account.profile.type === "dealer");
+          setProfileIssues(fields);
+          if (!Object.keys(fields).length) void mutate("profile",data,"Profil je spremljen.");
+        }}>
+          <ProfileFields type={account.profile.type} profile={account.profile} errors={profileIssues}/><button className="btn primary" disabled={busy}>Spremi profil</button>
         </form>
         <Verification account={account} onVerified={refresh}/>
       </section>

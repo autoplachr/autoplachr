@@ -517,3 +517,6 @@ html[data-theme="dark"] .hours-builder { background:#191E2B; }
 }
 .dealership-profile { margin-bottom:12px; }
 .dealership-profile h1 { font-size:22px; font-weight:740; margin-bottom:5px; }
+.field-issue { display:block; color:var(--error); font-size:13px; font-weight:550; }
+.field [aria-invalid="true"] { border-color:var(--error); }
+.demo-auth { margin-block:8px 14px; padding-block:8px; border-bottom:1px solid var(--border); }
