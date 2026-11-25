@@ -1,0 +1,10 @@
+/.next/
+/out/
+/dist/
+/.local-data/
+/.vercel/
+/.openai/
+/public/uploads/imported/
+.env
+.env.*
+node_modules/
