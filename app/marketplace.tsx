@@ -1,12 +1,12 @@
 "use client";
 
-import { ArrowRight, CarFront, Check, Grid2X2, Heart, List, Plus, SlidersHorizontal, Store, X } from "lucide-react";
+import { ArrowRight, CarFront, Check, Grid2X2, Heart, List, Moon, Sun, Plus, SlidersHorizontal, Store, X } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { cities, countyByCity, euro, fuels, gears, number, power, quick, registered, vehicles, type Vehicle } from "./catalog";
+import { restoreListingPhotos, cities, countyByCity, euro, fuels, gears, number, power, quick, registered, vehicles, type Vehicle } from "./catalog";
 import { distances, initialSearch, matchVehicles, prices, readSearch, sorts, writeSearch, years, type Search } from "./search";
 import { CatalogFields } from "./catalog-fields";
 import { Dialog, ListingOptions, MakeEquipmentOptions, PhotoCount, Rating, Select, VehiclePhoto } from "./ui";
-import { selectedMakeOptions } from "./make-equipment";
+import { selectedMakeOptions, vehicleMakeOptions } from "./make-equipment";
 import { TaxCalculator } from "./buyer-tools";
 import Detail from "./detail";
 import PublishForm from "./publish";
@@ -66,6 +66,11 @@ function Listing({ vehicle, saved, onOpen, onSave, eager }: {
   const vat = vehicle.flags.includes("pdv");
   const arriving = vehicle.flags.includes("dolazak");
   const specs = [registered(vehicle.date), number(vehicle.km) + " km", power(vehicle.kw), vehicle.gear === "Automatski" ? "Automatik" : vehicle.gear, vehicle.fuel];
+  const featured = vehicle.trim.split(/[·•]/).map(item => item.trim()).filter(Boolean);
+  const equipment = featured.length ? featured : [...new Set([
+    ...vehicleMakeOptions(vehicle).map(item => item.label), ...Object.values(vehicle.equipment).flat(),
+  ])].slice(0, 5);
+  const history = [...(vehicle.history ?? []), ...vehicle.flags.filter(flag => Object.hasOwn(quick, flag)).map(flag => quick[flag])];
   return <article className="listing">
     <div className="listing-media">
       <VehiclePhoto photo={vehicle.photos[0]} alt={vehicle.title} eager={eager}/>
@@ -78,7 +83,10 @@ function Listing({ vehicle, saved, onOpen, onSave, eager }: {
       <ul className="listing-specs" aria-label="Osnovni podaci">{specs.map((spec, index) =>
         <li key={spec} className={index < 3 ? "tabular" : undefined}>{spec}</li>
       )}</ul>
-      {vehicle.sellerNote && <p className="seller-note">{vehicle.sellerNote}</p>}
+      <div className="listing-facts">
+        <p title={equipment.join(" • ")}><b>Oprema</b> {equipment.join(" • ") || "Nije navedena"}</p>
+        <p title={history.join(" • ")}><b>Povijest i porez</b> {history.join(" • ") || "Nema podataka"}</p>
+      </div>
       <div className="listing-seller">
         <span>{vehicle.seller || (vehicle.dealer ? "Autokuća" : "Privatni prodavač")} <span aria-hidden="true">·</span> {vehicle.city}</span>
         {vehicle.verified && <span className="verified-label"><Check size={14} aria-hidden="true" />Verificirana autokuća</span>}
@@ -113,6 +121,13 @@ function DealerForm({ onClose, onRegister }: { onClose: () => void; onRegister: 
 }
 
 export default function Marketplace() {
+  const [dark, setDark] = useState(false);
+  function changeTheme() {
+    const next = document.documentElement.dataset.theme !== "dark";
+    document.documentElement.dataset.theme = next ? "dark" : "light";
+    setDark(next);
+    try { localStorage.setItem("sasija.theme", next ? "dark" : "light"); } catch {}
+  }
   const [search, setSearch] = useState(initialSearch);
   const [saved, setSaved] = useState<string[]>([]);
   const [published, setPublished] = useState<Vehicle[]>([]);
@@ -123,17 +138,25 @@ export default function Marketplace() {
   const [detail, setDetail] = useState<Vehicle | null>(null);
   const [notice, setNotice] = useState("");
   useEffect(() => {
+    setDark(document.documentElement.dataset.theme === "dark");
+    const themeChanged = (event: StorageEvent) => {
+      if (event.key !== "sasija.theme" && event.key !== null) return;
+      const selected = event.newValue === "dark";
+      document.documentElement.dataset.theme = selected ? "dark" : "light";
+      setDark(selected);
+    };
+    window.addEventListener("storage", themeChanged);
     const locationChanged = () => setSearch(readSearch(window.location.search));
     const sync = () => {
       setSaved(readStored<string>(storageKeys.saved));
-      setPublished(readStored<Vehicle>(storageKeys.inventory));
+      setPublished(readStored<Vehicle>(storageKeys.inventory).map(restoreListingPhotos));
       setDealers(readStored<Dealer>(storageKeys.dealers));
     };
     locationChanged();
     sync();
     window.addEventListener("popstate", locationChanged);
     window.addEventListener("storage", sync);
-    return () => { window.removeEventListener("popstate", locationChanged); window.removeEventListener("storage", sync); };
+    return () => { window.removeEventListener("storage", themeChanged); window.removeEventListener("popstate", locationChanged); window.removeEventListener("storage", sync); };
   }, []);
   useEffect(() => {
     if (!notice) return;
@@ -161,7 +184,7 @@ export default function Marketplace() {
     window.scrollTo({ top: 0 });
   }
   function publish(vehicle: Vehicle) {
-    const next = [vehicle, ...readStored<Vehicle>(storageKeys.inventory)];
+    const next = [vehicle, ...readStored<Vehicle>(storageKeys.inventory).map(restoreListingPhotos)];
     localStorage.setItem(storageKeys.inventory, JSON.stringify(next));
     setPublished(next);
     setPanel(null);
@@ -194,6 +217,7 @@ export default function Marketplace() {
           <button type="button" onClick={() => setPanel("tax")}>PPMV Kalkulator</button>
         </nav>
         <div className="header-actions">
+          <button type="button" className="icon-btn theme-toggle" aria-label="Tamna tema" aria-pressed={dark} title={dark ? "Uključi svijetlu temu" : "Uključi tamnu temu"} onClick={changeTheme}>{dark ? <Sun size={17}/> : <Moon size={17}/>}</button>
           <button type="button" className="btn quiet save-nav" aria-label={"Spremljeno " + savedCount} aria-pressed={savedOnly} onClick={() => { setSavedOnly(!savedOnly); setDealerOnly(false); scrollResults(); }}><Heart size={16}/><span className="saved-text">Spremljeno</span><span className="saved-count tabular">{savedCount}</span></button>
           <button type="button" className="btn primary publish-nav" onClick={() => setPanel("publish")}><Plus size={17}/><span>Predaj oglas</span><span className="free tabular">0 €</span></button>
         </div>

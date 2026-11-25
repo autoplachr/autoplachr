@@ -18,7 +18,7 @@ const steps = ["Vozilo", "Oprema i fotografije", "Cijena i kontakt"];
 const example: Publish = {
   ...vehicles[1], generation: "B9", variant: "35 TDI S line", title: "Audi A4 B9 35 TDI S line", trim: "S-Line · LED · Virtual Cockpit", price: 18800,
   date: "2019-10", km: 142300, kw: 110, co2: 109, vin: "EXAMPLE0000112345", city: "Zagreb",
-  seller: "Primjer Auto", sellerNote: "Audi A4 s urednom servisnom poviješću. Vozilo se može pogledati u Zagrebu uz najavu.",
+  seller: "Primjer Auto",
   phone: "+385 00 000 000", email: "", range: [18400, 19200], demo: true, verified: false,
   photos: modelPhotos("audi-a4"),
   makeEquipment: ["audi-s-line", "audi-virtual-cockpit"],

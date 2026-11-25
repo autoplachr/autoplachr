@@ -36,18 +36,27 @@ export function emptyEquipment(): Equipment {
   return { Sigurnost: [], Udobnost: [], Multimedija: [], Eksterijer: [] };
 }
 
-export type Photo = { src: string; credit?: string; link?: string };
+export type Photo = { src: string; backup?: string; credit?: string; link?: string; license?: string; licenseUrl?: string };
 export type Vehicle = {
   id: string; make: string; model: string; title: string; trim: string; price: number;
   generation?: string; variant?: string;
   date: string; km: number; kw: number; cc: number; co2: number; fuel: Fuel;
   gear: typeof gears[number]; drive: string; vin: string; city: string; seller: string;
   dealer: boolean; verified: boolean; phone: string; email?: string; flags: Flag[];
-  photos: Photo[]; equipment: Equipment; makeEquipment?: string[]; range?: [number, number]; demo?: boolean; sellerNote?: string;
+  photos: Photo[]; equipment: Equipment; makeEquipment?: string[]; range?: [number, number]; demo?: boolean; history?: string[]; sellerNote?: string;
 };
 
 const photos = photoData as Record<string, Photo[]>;
 export function modelPhotos(key: string) { return photos[key] ?? []; }
+export function restoreListingPhotos(vehicle: Vehicle): Vehicle {
+  const restored = (vehicle.photos ?? []).flatMap(photo => {
+    const match = /^\/cars\/([a-z0-9-]+)-(\d+)\.webp$/.exec(photo.src);
+    if (!match || !photos[match[1]]) return [photo];
+    const replacement = photos[match[1]][Number(match[2]) - 1];
+    return replacement ? [replacement] : [];
+  });
+  return { ...vehicle, photos: restored };
+}
 const num = new Intl.NumberFormat("hr-HR", { useGrouping: "always" });
 const decimals = new Intl.NumberFormat("hr-HR", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: "always" });
 export const number = (value: number) => num.format(value);
@@ -78,21 +87,21 @@ const seedMakeEquipment: Record<string, string[]> = {
   passatgte: [],
 };
 
-const sellerNotes: Record<string, string> = {
-  g20: "Vozilo je u sustavu PDV-a i redovno je održavano u ovlaštenom servisu. Moguća provjera po broju šasije.",
-  a4: "Iz uvoza, na ime kupca. Servisnu povijest možemo poslati prije dolaska, a pregled vozila je moguć u Rijeci.",
-  golf: "Vozilo je u dolasku. Kilometraža je potvrđena i možemo vam javiti čim bude spremno za pregled u Osijeku.",
-  c220: "Vozilo se može pogledati u Splitu uz prethodnu najavu. Račun s iskazanim PDV-om izdajemo pri kupnji.",
-  macan: "Macan S s panoramskim krovom i dva ključa. Za pregled servisnih računa i probnu vožnju javite se unaprijed.",
-  octavia: "Octavia RS na ime kupca, s evidentiranom kilometražom. Vozilo možete pregledati kod nas u Varaždinu.",
-  a6: "Audi A6 s quattro pogonom i računom s iskazanim PDV-om. Za pregled i probnu vožnju dogovorite termin.",
-  passat: "Prodajem svoj Passat jer mi više ne treba drugi auto. Kilometraža je potvrđena, a pregled je moguć u Slavonskom Brodu.",
-  tiguan: "Tiguan je u dolasku u Varaždin. Možemo poslati dodatne fotografije i dogovoriti pregled kad stigne.",
-  f30: "BMW je još u svakodnevnoj vožnji pa se kilometraža može malo promijeniti. Pregled u Slavonskom Brodu po dogovoru.",
-  "118": "Auto je kod mene nekoliko godina i vozim ga uglavnom po gradu. Može se pogledati u Osijeku nakon posla.",
-  e220: "Vozilo je na ime kupca, s mogućnošću izdavanja računa s iskazanim PDV-om. Dostupno je za pregled u Rijeci.",
-  touring: "Karavan je u dolasku i prodaje se na ime kupca. Nazovite za termin pregleda u Splitu.",
-  passatgte: "Kućni kabel za punjenje dolazi uz auto. Možemo se dogovoriti za pregled i probnu vožnju u Zagrebu.",
+const seedHistory: Record<string, string[]> = {
+  g20: ["1. vlasnik", "Servisna knjiga"],
+  a4: ["Servisna knjiga"],
+  golf: ["1. vlasnik"],
+  c220: ["Servisna knjiga", "Garancija 12 mj."],
+  macan: ["Servisni računi", "Dva ključa"],
+  octavia: ["Servisna knjiga"],
+  a6: ["Servisna knjiga"],
+  passat: ["Drugi vlasnik"],
+  tiguan: ["Servisna knjiga"],
+  f30: ["Servisni računi"],
+  "118": ["Servisna knjiga", "Dva ključa"],
+  e220: ["Servisna knjiga"],
+  touring: ["1. vlasnik"],
+  passatgte: ["Kabel za punjenje"],
 };
 
 type Seed = [id: string, key: string, make: keyof typeof CAR_CATALOG, model: string, generation: string, variant: string, title: string, trim: string, price: number,
@@ -112,14 +121,14 @@ const seed: Seed[] = [
   ["118", "bmw-1-series", "BMW", "Serija 1", "F20", "118d M Sport", "BMW 118d F20 M-Sport", "M Sport · Aluminijski naplatci · LED", 14850, "2018-03", 139400, 110, 1995, 111, 1, "", [], [14900,16100], "Stražnji", "Ručni"],
   ["e220", "mercedes-e-class", "Mercedes-Benz", "E-klasa", "W213", "220 d Avantgarde", "Mercedes-Benz E 220 d W213 Avantgarde", "Avantgarde · Widescreen · LED", 25900, "2019-08", 156900, 143, 1950, 129, 4, "Kvarner Motors", ["pdv","kupac"], [24700,26900], "Stražnji"],
   ["touring", "bmw-touring", "BMW", "Serija 3", "G21", "320d", "BMW 320d G21 Touring", "Sport Line · Live Cockpit · LED", 23900, "2020-02", 129650, 140, 1995, 125, 3, "Jadran Auto", ["dolazak","kupac"], [23100,24800], "Stražnji"],
-  ["passatgte", "volkswagen-passat", "Volkswagen", "Passat", "B8", "GTE", "Volkswagen Passat B8 GTE Variant", "GTE · Adaptivni tempomat · CarPlay", 22400, "2021-12", 95400, 160, 1395, 32, 0, "", ["cvh"], [20900,22200], "Prednji", "Automatski", "Hibrid"],
+  ["passatgte", "passat-gte", "Volkswagen", "Passat", "B8", "GTE", "Volkswagen Passat B8 GTE Variant", "GTE · Adaptivni tempomat · CarPlay", 22400, "2021-12", 95400, 160, 1395, 32, 0, "", ["cvh"], [20900,22200], "Prednji", "Automatski", "Hibrid"],
 ];
 export const vehicles: Vehicle[] = seed.map(([
   id, key, make, model, generation, variant, title, trim, price, date, km, kw, cc, co2, city, seller, flags, range,
   drive = "Prednji", gear = "Automatski", fuel = "Dizel",
 ], index) => ({
   id, make, model, generation, variant, title, trim, price, date, km, kw, cc, co2, city: cities[city], drive, gear, fuel,
-  sellerNote: sellerNotes[id], makeEquipment: seedMakeEquipment[id],
+  history: seedHistory[id], makeEquipment: seedMakeEquipment[id],
   vin: "EXAMPLE0000" + String(100001 + index), seller, dealer: Boolean(seller), verified: Boolean(seller),
   phone: "+385 00 000 000", flags, range, demo: true, photos: modelPhotos(key),
   equipment: {

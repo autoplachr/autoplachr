@@ -8,5 +8,7 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="hr"><body>{children}</body></html>;
+  return <html lang="hr" suppressHydrationWarning><head>
+    <script dangerouslySetInnerHTML={{ __html: `try { if (localStorage.getItem("sasija.theme") === "dark") document.documentElement.dataset.theme = "dark"; } catch {}` }} />
+  </head><body>{children}</body></html>;
 }

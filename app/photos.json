@@ -1,288 +1,302 @@
 {
   "bmw-g20": [
     {
-      "src": "/cars/bmw-g20-1.webp",
-      "credit": "Barath Sundar",
-      "link": "https://unsplash.com/photos/a-car-parked-in-a-parking-lot-bVHBUZL11vA"
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ed/2020_BMW_330i_xDrive_in_Mineral_White%2C_Front_Right%2C_07-19-2022.jpg/960px-2020_BMW_330i_xDrive_in_Mineral_White%2C_Front_Right%2C_07-19-2022.jpg",
+      "backup": "/cars/commons/bmw-g20-1.webp",
+      "credit": "Elise240SX",
+      "link": "https://commons.wikimedia.org/wiki/File:2020_BMW_330i_xDrive_in_Mineral_White,_Front_Right,_07-19-2022.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
     },
     {
-      "src": "/cars/bmw-g20-2.webp",
-      "credit": "Александр Бендус",
-      "link": "https://unsplash.com/photos/a-car-parked-in-a-parking-lot-next-to-a-tree-jsIOSMnh7E4"
-    },
-    {
-      "src": "/cars/bmw-g20-3.webp",
-      "credit": "Luke Oslizlo",
-      "link": "https://unsplash.com/photos/a-black-car-parked-in-front-of-a-building-J9qEPN8-glI"
-    },
-    {
-      "src": "/cars/bmw-g20-4.webp",
-      "credit": "Luke Oslizlo",
-      "link": "https://unsplash.com/photos/a-grey-car-parked-in-front-of-a-building-EqaAEsRUzBU"
-    }
-  ],
-  "audi-a4": [
-    {
-      "src": "/cars/audi-a4-1.webp",
-      "credit": "David Moffatt",
-      "link": "https://unsplash.com/photos/a-car-parked-in-a-parking-lot-E8OVFlvFTZo"
-    },
-    {
-      "src": "/cars/audi-a4-2.webp",
-      "credit": "Brian Kungu",
-      "link": "https://unsplash.com/photos/a-white-car-parked-on-a-dirt-road-R0su4p5Vx-8"
-    },
-    {
-      "src": "/cars/audi-a4-3.webp",
-      "credit": "Александр Бендус",
-      "link": "https://unsplash.com/photos/the-interior-of-a-car-with-a-steering-wheel-and-dashboard-FS_xLSg8lKI"
-    },
-    {
-      "src": "/cars/audi-a4-4.webp",
-      "credit": "Zakaria Issaad",
-      "link": "https://unsplash.com/photos/a-black-car-parked-in-front-of-a-building-YAG6P8Fu3oc"
-    }
-  ],
-  "golf-mk8": [
-    {
-      "src": "/cars/golf-mk8-1.webp",
-      "credit": "David Moffatt",
-      "link": "https://unsplash.com/photos/a-white-car-parked-on-a-road-70xhvIR7WpI"
-    },
-    {
-      "src": "/cars/golf-mk8-2.webp",
-      "credit": "David Moffatt",
-      "link": "https://unsplash.com/photos/a-white-car-parked-on-a-road-KD7harWQ_uo"
-    },
-    {
-      "src": "/cars/golf-mk8-3.webp",
-      "credit": "David Moffatt",
-      "link": "https://unsplash.com/photos/a-car-dashboard-with-red-lights-W0IOh2ns-hI"
-    },
-    {
-      "src": "/cars/golf-mk8-4.webp",
-      "credit": "David Moffatt",
-      "link": "https://unsplash.com/photos/a-white-car-parked-on-a-road-cFnz7FRD21g"
-    }
-  ],
-  "mercedes-c-class": [
-    {
-      "src": "/cars/mercedes-c-class-1.webp",
-      "credit": "Brice Cooper",
-      "link": "https://unsplash.com/photos/a-black-car-parked-on-the-side-of-the-road-33jyO4XRtOY"
-    },
-    {
-      "src": "/cars/mercedes-c-class-2.webp",
-      "credit": "Rana Singh",
-      "link": "https://unsplash.com/photos/a-white-car-driving-down-a-street-next-to-a-parking-meter-f55jjjO0rX4"
-    },
-    {
-      "src": "/cars/mercedes-c-class-3.webp",
-      "credit": "Benjamin Zhao",
-      "link": "https://unsplash.com/photos/black-mercedes-benz-car-interior-5DremXTTKE0"
-    },
-    {
-      "src": "/cars/mercedes-c-class-4.webp",
-      "credit": "Alexis AMZ DA CRUZ",
-      "link": "https://unsplash.com/photos/silver-mercedes-coupe-on-road-during-night-time-GfA_3_hLUNA"
-    }
-  ],
-  "porsche-macan": [
-    {
-      "src": "/cars/porsche-macan-1.webp",
-      "credit": "Austin Rucker",
-      "link": "https://unsplash.com/photos/white-porsche-suv-parked-inside-a-modern-showroom-Oz5oosu5FeA"
-    },
-    {
-      "src": "/cars/porsche-macan-2.webp",
-      "credit": "NAM CZ",
-      "link": "https://unsplash.com/photos/a-black-car-parked-in-a-parking-lot-P11bcs0CfDU"
-    },
-    {
-      "src": "/cars/porsche-macan-3.webp",
-      "credit": "Deniz Demirci",
-      "link": "https://unsplash.com/photos/the-interior-of-a-car-with-a-steering-wheel-and-dashboard-24cMh87nkAU"
-    },
-    {
-      "src": "/cars/porsche-macan-4.webp",
-      "credit": "Paolo Resteghini",
-      "link": "https://unsplash.com/photos/a-white-car-parked-on-a-beach-WYzaewQOGdY"
-    }
-  ],
-  "skoda-octavia": [
-    {
-      "src": "/cars/skoda-octavia-1.webp",
-      "credit": "Simon Rathgeb",
-      "link": "https://unsplash.com/photos/a-silver-car-parked-in-front-of-a-wooden-building-gJb_AJhONsE"
-    },
-    {
-      "src": "/cars/skoda-octavia-2.webp",
-      "credit": "Simon Rathgeb",
-      "link": "https://unsplash.com/photos/a-silver-car-parked-on-the-side-of-a-road-k0cJkIRPAU4"
-    },
-    {
-      "src": "/cars/skoda-octavia-3.webp",
-      "credit": "Viktor Theo",
-      "link": "https://unsplash.com/photos/parked-gray-skoda-car-ypColXB7uYw"
-    },
-    {
-      "src": "/cars/skoda-octavia-4.webp",
-      "credit": "Ruben Theunis",
-      "link": "https://unsplash.com/photos/black-audi-a-4-on-road-7OlPKvyAhsA"
-    }
-  ],
-  "audi-a6": [
-    {
-      "src": "/cars/audi-a6-1.webp",
-      "credit": "Vlad Grebenyev",
-      "link": "https://unsplash.com/photos/a-car-driving-on-a-road-E2hj4Q712Hs"
-    },
-    {
-      "src": "/cars/audi-a6-2.webp",
-      "credit": "serjan midili",
-      "link": "https://unsplash.com/photos/black-bmw-m-3-on-road-NWNXIUOWAkU"
-    },
-    {
-      "src": "/cars/audi-a6-3.webp",
-      "credit": "Jean-Philippe Delberghe",
-      "link": "https://unsplash.com/photos/black-audi-vehicle-steering-wheel-FxSe9U-PqI4"
-    },
-    {
-      "src": "/cars/audi-a6-4.webp",
-      "credit": "Lucho Renolfi",
-      "link": "https://unsplash.com/photos/car-front-grille-and-headlights-9pW_u2wynx0"
-    }
-  ],
-  "volkswagen-passat": [
-    {
-      "src": "/cars/volkswagen-passat-1.webp",
-      "credit": "Александр Бендус",
-      "link": "https://unsplash.com/photos/a-black-car-parked-on-a-brick-road-un084u3Oqno"
-    },
-    {
-      "src": "/cars/volkswagen-passat-2.webp",
-      "credit": "Александр Бендус",
-      "link": "https://unsplash.com/photos/a-black-car-is-parked-in-a-driveway-sRBUfs_qv-o"
-    },
-    {
-      "src": "/cars/volkswagen-passat-3.webp",
-      "credit": "Александр Бендус",
-      "link": "https://unsplash.com/photos/a-car-dashboard-with-a-gps-and-a-steering-wheel-OsP-fSVA34s"
-    },
-    {
-      "src": "/cars/volkswagen-passat-4.webp",
-      "credit": "Jerry Kavan",
-      "link": "https://unsplash.com/photos/black-volkswagen-sedan-on-the-street-DK2iI_WFFDo"
-    }
-  ],
-  "volkswagen-tiguan": [
-    {
-      "src": "/cars/volkswagen-tiguan-1.webp",
-      "credit": "David Moffatt",
-      "link": "https://unsplash.com/photos/a-white-car-parked-in-a-driveway-eP78SV-lWPE"
-    },
-    {
-      "src": "/cars/volkswagen-tiguan-2.webp",
-      "credit": "David Moffatt",
-      "link": "https://unsplash.com/photos/a-white-car-parked-on-a-road-pcedN1fHvOg"
-    },
-    {
-      "src": "/cars/volkswagen-tiguan-3.webp",
-      "credit": "David Moffatt",
-      "link": "https://unsplash.com/photos/the-steering-wheel-and-dashboard-of-a-car-PRWfqQvNZZg"
-    },
-    {
-      "src": "/cars/volkswagen-tiguan-4.webp",
-      "credit": "David Moffatt",
-      "link": "https://unsplash.com/photos/the-back-of-a-white-car-Pwf7Ik1LiKQ"
-    }
-  ],
-  "bmw-f30": [
-    {
-      "src": "/cars/bmw-f30-1.webp",
-      "credit": "Александр Бендус",
-      "link": "https://unsplash.com/photos/a-black-car-parked-in-a-parking-lot-e5-IZROAAx0"
-    },
-    {
-      "src": "/cars/bmw-f30-2.webp",
-      "credit": "Ömer Haktan Bulut",
-      "link": "https://unsplash.com/photos/a-car-parked-on-the-side-of-a-road-vi23rXv5Lis"
-    },
-    {
-      "src": "/cars/bmw-f30-3.webp",
-      "credit": "Sahil Patel",
-      "link": "https://unsplash.com/photos/silver-bmw-m-3-coupe-LFQ7quQ7GFs"
-    },
-    {
-      "src": "/cars/bmw-f30-4.webp",
-      "credit": "Christian Wiediger",
-      "link": "https://unsplash.com/photos/black-bmw-car-steering-wheel-O84_bYe3idQ"
-    }
-  ],
-  "bmw-1-series": [
-    {
-      "src": "/cars/bmw-1-series-1.webp",
-      "credit": "Maximilian Hille",
-      "link": "https://unsplash.com/photos/a-black-car-parked-in-a-parking-garage-dDRSCLj4asU"
-    },
-    {
-      "src": "/cars/bmw-1-series-2.webp",
-      "credit": "Stephan Louis",
-      "link": "https://unsplash.com/photos/white-bmw-m-3-coupe-parked-near-brown-trees-during-daytime-mN8H_fe040Y"
-    },
-    {
-      "src": "/cars/bmw-1-series-3.webp",
-      "credit": "Michael Lock",
-      "link": "https://unsplash.com/photos/the-inside-of-a-car-with-a-dashboard-and-steering-wheel-dL86tYSN1_M"
-    },
-    {
-      "src": "/cars/bmw-1-series-4.webp",
-      "credit": "ERIK SETH",
-      "link": "https://unsplash.com/photos/a-white-car-parked-on-top-of-a-lush-green-field-5tQs4fJm4Jg"
-    }
-  ],
-  "mercedes-e-class": [
-    {
-      "src": "/cars/mercedes-e-class-1.webp",
-      "credit": "Kai Winckler",
-      "link": "https://unsplash.com/photos/mercedes-benz-sedan-in-concrete-parking-structure-SVRpPD2p0RQ"
-    },
-    {
-      "src": "/cars/mercedes-e-class-2.webp",
-      "credit": "Andre Ouellet",
-      "link": "https://unsplash.com/photos/silver-mercedes-benz-car-xt74g8vni58"
-    },
-    {
-      "src": "/cars/mercedes-e-class-3.webp",
-      "credit": "Ivan Kazlouskij",
-      "link": "https://unsplash.com/photos/the-interior-of-a-car-U_UUElki3ZI"
-    },
-    {
-      "src": "/cars/mercedes-e-class-4.webp",
-      "credit": "Cian Leach",
-      "link": "https://unsplash.com/photos/white-mercedes-benz-car-on-road-during-daytime-JmLv6wDusD0"
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/BMW_330i_Filderstadt_1Y7A4834.jpg/960px-BMW_330i_Filderstadt_1Y7A4834.jpg",
+      "backup": "/cars/commons/bmw-g20-2.webp",
+      "credit": "Alexander Migl",
+      "link": "https://commons.wikimedia.org/wiki/File:BMW_330i_Filderstadt_1Y7A4834.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
     }
   ],
   "bmw-touring": [
     {
-      "src": "/cars/bmw-touring-1.webp",
-      "credit": "Ștefan Iancu",
-      "link": "https://unsplash.com/photos/black-audi-a-4-on-road-SXjwBsZJYeQ"
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/BMW_G21_IMG_0365.jpg/960px-BMW_G21_IMG_0365.jpg",
+      "backup": "/cars/commons/bmw-touring-1.webp",
+      "credit": "Alexander Migl",
+      "link": "https://commons.wikimedia.org/wiki/File:BMW_G21_IMG_0365.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
     },
     {
-      "src": "/cars/bmw-touring-2.webp",
-      "credit": "Александр Бендус",
-      "link": "https://unsplash.com/photos/the-interior-of-a-car-with-a-steering-wheel-and-dashboard-oJA1D_33bRU"
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/BMW_G21_M340i_xDrive_Black_Sapphire_Metallic_%283%29.jpg/960px-BMW_G21_M340i_xDrive_Black_Sapphire_Metallic_%283%29.jpg",
+      "backup": "/cars/commons/bmw-touring-2.webp",
+      "credit": "Damian B Oh",
+      "link": "https://commons.wikimedia.org/wiki/File:BMW_G21_M340i_xDrive_Black_Sapphire_Metallic_(3).jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    }
+  ],
+  "audi-a4": [
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/Audi_A4_B9_sedans_%28FL%29_1X7A2441.jpg/960px-Audi_A4_B9_sedans_%28FL%29_1X7A2441.jpg",
+      "backup": "/cars/commons/audi-a4-1.webp",
+      "credit": "Alexander-93",
+      "link": "https://commons.wikimedia.org/wiki/File:Audi_A4_B9_sedans_(FL)_1X7A2441.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
     },
     {
-      "src": "/cars/bmw-touring-3.webp",
-      "credit": "Александр Бендус",
-      "link": "https://unsplash.com/photos/the-interior-of-a-car-with-a-dashboard-and-steering-wheel-iQwkGQwMAJ8"
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/75/Audi_A4_B9_sedans_%28FL%29_1X7A6816.jpg/960px-Audi_A4_B9_sedans_%28FL%29_1X7A6816.jpg",
+      "backup": "/cars/commons/audi-a4-2.webp",
+      "credit": "Alexander-93",
+      "link": "https://commons.wikimedia.org/wiki/File:Audi_A4_B9_sedans_(FL)_1X7A6816.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
     },
     {
-      "src": "/cars/bmw-touring-4.webp",
-      "credit": "Александр Бендус",
-      "link": "https://unsplash.com/photos/a-car-parked-in-a-parking-lot-next-to-a-tree-jsIOSMnh7E4"
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/2015_Audi_A4_B9_2.0_TFSI_quattro_185_kW_S_line_Interieur_Innenraum_Cockpit.jpg/960px-2015_Audi_A4_B9_2.0_TFSI_quattro_185_kW_S_line_Interieur_Innenraum_Cockpit.jpg",
+      "backup": "/cars/commons/audi-a4-3.webp",
+      "credit": "Kickaffe (Mario von Berg)",
+      "link": "https://commons.wikimedia.org/wiki/File:2015_Audi_A4_B9_2.0_TFSI_quattro_185_kW_S_line_Interieur_Innenraum_Cockpit.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    }
+  ],
+  "golf-mk8": [
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/Volkswagen_Golf_VIII_GTD_IMG_4336.jpg/960px-Volkswagen_Golf_VIII_GTD_IMG_4336.jpg",
+      "backup": "/cars/commons/golf-mk8-1.webp",
+      "credit": "Alexander Migl",
+      "link": "https://commons.wikimedia.org/wiki/File:Volkswagen_Golf_VIII_GTD_IMG_4336.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/Volkswagen_Golf_VIII_GTD_IMG_4337.jpg/960px-Volkswagen_Golf_VIII_GTD_IMG_4337.jpg",
+      "backup": "/cars/commons/golf-mk8-2.webp",
+      "credit": "Alexander Migl",
+      "link": "https://commons.wikimedia.org/wiki/File:Volkswagen_Golf_VIII_GTD_IMG_4337.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    }
+  ],
+  "mercedes-c-class": [
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/Mercedes-Benz_W206_IMG_5796.jpg/960px-Mercedes-Benz_W206_IMG_5796.jpg",
+      "backup": "/cars/commons/mercedes-c-class-1.webp",
+      "credit": "Alexander Migl",
+      "link": "https://commons.wikimedia.org/wiki/File:Mercedes-Benz_W206_IMG_5796.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/Mercedes-Benz_W206_IMG_5793.jpg/960px-Mercedes-Benz_W206_IMG_5793.jpg",
+      "backup": "/cars/commons/mercedes-c-class-2.webp",
+      "credit": "Alexander Migl",
+      "link": "https://commons.wikimedia.org/wiki/File:Mercedes-Benz_W206_IMG_5793.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/The_interior_of_Mercedes-Benz_C_200_AVANTGARDE_%28W206%29.jpg/960px-The_interior_of_Mercedes-Benz_C_200_AVANTGARDE_%28W206%29.jpg",
+      "backup": "/cars/commons/mercedes-c-class-3.webp",
+      "credit": "Tokumeigakarinoaoshima",
+      "link": "https://commons.wikimedia.org/wiki/File:The_interior_of_Mercedes-Benz_C_200_AVANTGARDE_(W206).jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    }
+  ],
+  "porsche-macan": [
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/Porsche_Macan_S_%2851929836658%29_%28cropped%29.jpg/960px-Porsche_Macan_S_%2851929836658%29_%28cropped%29.jpg",
+      "backup": "/cars/commons/porsche-macan-1.webp",
+      "credit": "Alexandre Prevot",
+      "link": "https://commons.wikimedia.org/wiki/File:Porsche_Macan_S_(51929836658)_(cropped).jpg",
+      "license": "CC BY-SA 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7f/Macan_Interior.jpg/960px-Macan_Interior.jpg",
+      "backup": "/cars/commons/porsche-macan-2.webp",
+      "credit": "Kapursanjay",
+      "link": "https://commons.wikimedia.org/wiki/File:Macan_Interior.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    }
+  ],
+  "skoda-octavia": [
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/Skoda_Octavia_IV_RS_IMG_4250.jpg/960px-Skoda_Octavia_IV_RS_IMG_4250.jpg",
+      "backup": "/cars/commons/skoda-octavia-1.webp",
+      "credit": "Alexander Migl",
+      "link": "https://commons.wikimedia.org/wiki/File:Skoda_Octavia_IV_RS_IMG_4250.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Skoda_Octavia_IV_interior.jpg/960px-Skoda_Octavia_IV_interior.jpg",
+      "backup": "/cars/commons/skoda-octavia-2.webp",
+      "credit": "Mike-fiesta",
+      "link": "https://commons.wikimedia.org/wiki/File:Skoda_Octavia_IV_interior.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    }
+  ],
+  "audi-a6": [
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5f/2018_Audi_A6_TDi_Quattro_Front.jpg/960px-2018_Audi_A6_TDi_Quattro_Front.jpg",
+      "backup": "/cars/commons/audi-a6-1.webp",
+      "credit": "Vauxford",
+      "link": "https://commons.wikimedia.org/wiki/File:2018_Audi_A6_TDi_Quattro_Front.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/2018_Audi_A6_TDi_Quattro_Rear.jpg/960px-2018_Audi_A6_TDi_Quattro_Rear.jpg",
+      "backup": "/cars/commons/audi-a6-2.webp",
+      "credit": "Vauxford",
+      "link": "https://commons.wikimedia.org/wiki/File:2018_Audi_A6_TDi_Quattro_Rear.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/2019_Audi_A6_Avant_TDi_40_Interior.jpg/960px-2019_Audi_A6_Avant_TDi_40_Interior.jpg",
+      "backup": "/cars/commons/audi-a6-3.webp",
+      "credit": "Vauxford",
+      "link": "https://commons.wikimedia.org/wiki/File:2019_Audi_A6_Avant_TDi_40_Interior.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    }
+  ],
+  "volkswagen-passat": [
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/2019_Volkswagen_Passat_R-Line_TDi_2.0_Front.jpg/960px-2019_Volkswagen_Passat_R-Line_TDi_2.0_Front.jpg",
+      "backup": "/cars/commons/volkswagen-passat-1.webp",
+      "credit": "Vauxford",
+      "link": "https://commons.wikimedia.org/wiki/File:2019_Volkswagen_Passat_R-Line_TDi_2.0_Front.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Passat_B8_Comfortline_Innenraum.jpg/960px-Passat_B8_Comfortline_Innenraum.jpg",
+      "backup": "/cars/commons/volkswagen-passat-2.webp",
+      "credit": "JCS1981",
+      "link": "https://commons.wikimedia.org/wiki/File:Passat_B8_Comfortline_Innenraum.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    }
+  ],
+  "passat-gte": [
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/2020_Volkswagen_Passat_GTE_facelift_1.4_Front.jpg/960px-2020_Volkswagen_Passat_GTE_facelift_1.4_Front.jpg",
+      "backup": "/cars/commons/passat-gte-1.webp",
+      "credit": "Vauxford",
+      "link": "https://commons.wikimedia.org/wiki/File:2020_Volkswagen_Passat_GTE_facelift_1.4_Front.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/2020_Volkswagen_Passat_GTE_facelift_1.4_Rear.jpg/960px-2020_Volkswagen_Passat_GTE_facelift_1.4_Rear.jpg",
+      "backup": "/cars/commons/passat-gte-2.webp",
+      "credit": "Vauxford",
+      "link": "https://commons.wikimedia.org/wiki/File:2020_Volkswagen_Passat_GTE_facelift_1.4_Rear.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    }
+  ],
+  "volkswagen-tiguan": [
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Tiguan-fl-2020-frontansicht-1.jpg/960px-Tiguan-fl-2020-frontansicht-1.jpg",
+      "backup": "/cars/commons/volkswagen-tiguan-1.webp",
+      "credit": "DanielPrzygoda",
+      "link": "https://commons.wikimedia.org/wiki/File:Tiguan-fl-2020-frontansicht-1.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3e/Tiguan-fl-2020-heckansicht-1.jpg/960px-Tiguan-fl-2020-heckansicht-1.jpg",
+      "backup": "/cars/commons/volkswagen-tiguan-2.webp",
+      "credit": "DanielPrzygoda",
+      "link": "https://commons.wikimedia.org/wiki/File:Tiguan-fl-2020-heckansicht-1.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Tiguan-fl-2020-innenraum.jpg/960px-Tiguan-fl-2020-innenraum.jpg",
+      "backup": "/cars/commons/volkswagen-tiguan-3.webp",
+      "credit": "DanielPrzygoda",
+      "link": "https://commons.wikimedia.org/wiki/File:Tiguan-fl-2020-innenraum.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    }
+  ],
+  "bmw-f30": [
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/BMW_320d_Sport_Line_%28F30%29_%E2%80%93_Frontansicht%2C_26._Februar_2012%2C_W%C3%BClfrath.jpg/960px-BMW_320d_Sport_Line_%28F30%29_%E2%80%93_Frontansicht%2C_26._Februar_2012%2C_W%C3%BClfrath.jpg",
+      "backup": "/cars/commons/bmw-f30-1.webp",
+      "credit": "M 93",
+      "link": "https://commons.wikimedia.org/wiki/File:BMW_320d_Sport_Line_(F30)_%E2%80%93_Frontansicht,_26._Februar_2012,_W%C3%BClfrath.jpg",
+      "license": "CC BY-SA 3.0 de",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/de/deed.en"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/BMW_320d_Sport_Line_%28F30%29_%E2%80%93_Heckansicht%2C_26._Februar_2012%2C_W%C3%BClfrath.jpg/960px-BMW_320d_Sport_Line_%28F30%29_%E2%80%93_Heckansicht%2C_26._Februar_2012%2C_W%C3%BClfrath.jpg",
+      "backup": "/cars/commons/bmw-f30-2.webp",
+      "credit": "M 93",
+      "link": "https://commons.wikimedia.org/wiki/File:BMW_320d_Sport_Line_(F30)_%E2%80%93_Heckansicht,_26._Februar_2012,_W%C3%BClfrath.jpg",
+      "license": "CC BY-SA 3.0 de",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/de/deed.en"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/2014_BMW_320d_Luxury_Automatic_2.0_Interior.jpg/960px-2014_BMW_320d_Luxury_Automatic_2.0_Interior.jpg",
+      "backup": "/cars/commons/bmw-f30-3.webp",
+      "credit": "Vauxford",
+      "link": "https://commons.wikimedia.org/wiki/File:2014_BMW_320d_Luxury_Automatic_2.0_Interior.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    }
+  ],
+  "bmw-1-series": [
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/2019_BMW_116d_SE_Business_1.5_Front.jpg/960px-2019_BMW_116d_SE_Business_1.5_Front.jpg",
+      "backup": "/cars/commons/bmw-1-series-1.webp",
+      "credit": "Vauxford",
+      "link": "https://commons.wikimedia.org/wiki/File:2019_BMW_116d_SE_Business_1.5_Front.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/2019_BMW_116d_SE_Business_1.5_Rear.jpg/960px-2019_BMW_116d_SE_Business_1.5_Rear.jpg",
+      "backup": "/cars/commons/bmw-1-series-2.webp",
+      "credit": "Vauxford",
+      "link": "https://commons.wikimedia.org/wiki/File:2019_BMW_116d_SE_Business_1.5_Rear.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/89/BMW_120i_Sport_%28F20%29_interior.JPG/960px-BMW_120i_Sport_%28F20%29_interior.JPG",
+      "backup": "/cars/commons/bmw-1-series-3.webp",
+      "credit": "Tokumeigakarinoaoshima",
+      "link": "https://commons.wikimedia.org/wiki/File:BMW_120i_Sport_(F20)_interior.JPG",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    }
+  ],
+  "mercedes-e-class": [
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/2019_Mercedes-Benz_E220d_SE_Automatic_2.0_Front.jpg/960px-2019_Mercedes-Benz_E220d_SE_Automatic_2.0_Front.jpg",
+      "backup": "/cars/commons/mercedes-e-class-1.webp",
+      "credit": "Vauxford",
+      "link": "https://commons.wikimedia.org/wiki/File:2019_Mercedes-Benz_E220d_SE_Automatic_2.0_Front.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b3/2019_Mercedes-Benz_E220d_SE_Automatic_2.0_Rear.jpg/960px-2019_Mercedes-Benz_E220d_SE_Automatic_2.0_Rear.jpg",
+      "backup": "/cars/commons/mercedes-e-class-2.webp",
+      "credit": "Vauxford",
+      "link": "https://commons.wikimedia.org/wiki/File:2019_Mercedes-Benz_E220d_SE_Automatic_2.0_Rear.jpg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
     }
   ]
 }

@@ -57,12 +57,13 @@ export default function Detail({ vehicle, saved, onSave, onClose }: {
           </>}
         </div>
         {count > 1 && <div className="thumbnails">{vehicle.photos.map((item, index) => <button key={index} type="button" aria-label={"Fotografija " + (index + 1)} aria-pressed={photo === index} onClick={() => setPhoto(index)}><VehiclePhoto photo={item} alt=""/></button>)}</div>}
-        {active?.link && <p className="photo-credit">Ilustrativna fotografija · <a target="_blank" rel="noreferrer" href={active.link}>{active.credit} / Unsplash</a></p>}
+        {active?.link && <p className="photo-credit">Ilustrativna fotografija · <a target="_blank" rel="noreferrer" href={active.link}>{active.credit}</a>{active.license && <> · <a target="_blank" rel="noreferrer" href={active.licenseUrl || active.link}>{active.license}</a></>}</p>}
       </div>
       <div className="detail-summary">
         <div className="price-line"><strong className="tabular">{euro(vehicle.price)}</strong><Rating vehicle={vehicle}/></div>
         <button type="button" className={"icon-btn " + (saved ? "saved" : "")} aria-label={saved ? "Ukloni iz spremljenih" : "Spremi vozilo"} aria-pressed={saved} onClick={onSave}><Heart size={20} fill={saved ? "currentColor" : "none"}/></button>
       </div>
+      {vehicle.history?.length ? <p className="listing-conditions">{vehicle.history.join(" • ")}</p> : null}
       {vehicle.sellerNote && <p className="detail-seller-note">{vehicle.sellerNote}</p>}
       {listingConditions.length > 0 && <p className="listing-conditions">{listingConditions.map(flag => quick[flag]).join(" · ")}</p>}
       <section className="detail-section">
