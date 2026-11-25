@@ -887,9 +887,14 @@ export default function Marketplace({
   const cancelResultScroll = useRef<(() => void) | null>(null);
   const activeDetail = useRef<string | null>(null);
   const authExchangeStarted = useRef(false);
+  const didMount = useRef(false);
   const router = useRouter();
   const [notice, setNotice] = useState("");
 
+
+  // Skip programmatic scroll on first paint: on iOS it fights the native
+  // rubber-band and leaves the hero headline tucked under the sticky header.
+  useEffect(() => { didMount.current = true; }, []);
 
   // Confirmation emails may land on `/?code=...` (PKCE) or on any page with
   // `#access_token=...` (implicit flow). Handle both once, then go to /racun.
@@ -979,13 +984,13 @@ export default function Marketplace({
   const dealerMakes = dealerId ? [...new Set(allVehicles.filter(vehicle => vehicle.dealershipId === dealerId).map(vehicle => vehicle.make))] : [];
   const detail = allVehicles.find(vehicle => vehicle.id === detailId);
   const renderedDetail = detail?.id;
-  useLayoutEffect(scrollToTop,[path]);
-  useLayoutEffect(() => { if (detailId) scrollToTop(); },[detailId,renderedDetail]);
+  useLayoutEffect(() => { if (didMount.current) scrollToTop(); }, [path]);
+  useLayoutEffect(() => { if (didMount.current && detailId) scrollToTop(); }, [detailId, renderedDetail]);
   useEffect(() => {
-    if (!detailId) return;
+    if (!didMount.current || !detailId) return;
     const frame = requestAnimationFrame(scrollToTop);
     return () => cancelAnimationFrame(frame);
-  },[detailId,renderedDetail]);
+  }, [detailId, renderedDetail]);
   function openListing(event: MouseEvent<HTMLAnchorElement>, id: string) {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();

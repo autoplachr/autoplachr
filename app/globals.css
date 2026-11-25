@@ -52,8 +52,8 @@ html.dark {
 
 @layer base {
   * { box-sizing: border-box; }
-  html { scroll-padding-top: calc(var(--nav-height) + 12px); overflow-x: clip; }
-  body { margin: 0; background: var(--background); color: var(--text); font: 14px/1.45 "Inter Variable", sans-serif; overflow-x: clip; }
+  html { scroll-padding-top: 72px; overflow-x: clip; overscroll-behavior-y: auto; }
+  body { margin: 0; background: var(--background); color: var(--text); font: 14px/1.45 "Inter Variable", sans-serif; overflow-x: clip; overscroll-behavior-y: auto; }
   button, select { cursor: pointer; }
   button:disabled, select:disabled { cursor: default; }
   button, a, select, input, textarea { -webkit-tap-highlight-color: transparent; }
@@ -702,7 +702,8 @@ html.dark .marketplace-home {
   --module-surface: #14161A;
   --module-border: #1E2430;
 }
-.hero-search { padding-top: 12px; }
+.hero-search { padding-top: 24px; }
+@media (min-width: 768px) { .hero-search { padding-top: 40px; } }
 .market-showcase {
   position: relative;
   isolation: isolate;
@@ -711,7 +712,7 @@ html.dark .marketplace-home {
   min-height: 210px;
   overflow: hidden;
   border: 1px solid #1E2430;
-  border-radius: 16px 16px 0 0;
+  border-radius: 16px;
   background: #101319;
   color: #fff;
 }
@@ -741,7 +742,7 @@ html.dark .marketplace-home {
   .market-showcase { min-height: 260px; }
   .market-showcase-copy { padding: 24px 24px 30px; }
 }
-.search-dock { position: relative; margin-top: -8px; background: var(--module-surface); border: 1px solid var(--module-border); border-radius: 12px 12px 16px 16px; }
+.search-dock { position: relative; margin-top: 12px; background: var(--module-surface); border: 1px solid var(--module-border); border-radius: 14px; }
 .natural-search, .console-body { padding: 12px; min-width: 0; }
 .natural-search-row {
   min-height: 48px;
