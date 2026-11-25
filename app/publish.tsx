@@ -4,13 +4,14 @@ import { ArrowLeft, ArrowRight, Check, ImagePlus, Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { cities, emptyEquipment, equipmentOptions, euro, fuels, gears, groups, makes, modelPhotos, vehicles, type Photo, type Vehicle } from "./catalog";
 import { modelsFor } from "./search";
-import { Dialog, ListingOptions, Select, VehiclePhoto } from "./ui";
+import { Dialog, ListingOptions, MakeEquipmentOptions, Select, VehiclePhoto } from "./ui";
+import { selectedMakeOptions } from "./make-equipment";
 
 type Publish = Omit<Vehicle, "id">;
 const initial: Publish = {
   make: "", model: "", title: "", trim: "", price: 0, date: "", km: 0, kw: 0, cc: 0, co2: 0, fuel: "Dizel",
   gear: "Automatski", drive: "Prednji", vin: "", city: "", seller: "", dealer: false, verified: false,
-  phone: "+385 ", email: "", flags: [], photos: [], equipment: emptyEquipment(),
+  phone: "+385 ", email: "", flags: [], photos: [], equipment: emptyEquipment(), makeEquipment: [],
 };
 const steps = ["Vozilo", "Oprema i fotografije", "Cijena i kontakt"];
 const example: Publish = {
@@ -19,6 +20,7 @@ const example: Publish = {
   seller: "Primjer Auto", sellerNote: "Audi A4 s urednom servisnom poviješću. Vozilo se može pogledati u Zagrebu uz najavu.",
   phone: "+385 00 000 000", email: "", range: [18400, 19200], demo: true, verified: false,
   photos: modelPhotos("audi-a4"),
+  makeEquipment: ["audi-s-line", "audi-virtual-cockpit"],
   equipment: { Sigurnost: ["ABS / ESP", "ISOFIX", "Adaptivni tempomat"], Udobnost: ["Sportska sjedala", "Automatska klima"], Multimedija: ["Digitalni kokpit", "Apple CarPlay"], Eksterijer: ["LED svjetla", "Sportski paket"] },
 };
 
@@ -79,8 +81,11 @@ export default function PublishForm({ onClose, onPublish }: { onClose: () => voi
       {step === 0 && <button type="button" className="text-link demo-fill" disabled={busy} onClick={() => { setValues(example); setError(""); }}>Popuni primjerom</button>}
       <form className="form-stack" onSubmit={submit}>
         {step === 0 && <div className="form-grid">
-          <Select label="Marka" required value={values.make} onChange={event => setValues(old => ({ ...old, make: event.target.value, model: "" }))}><option value="">Odaberite marku</option>{Object.keys(makes).map(make => <option key={make}>{make}</option>)}</Select>
-          <Select label="Model" required value={values.model} onChange={event => set("model", event.target.value)} disabled={!options.length}><option value="">Odaberite model</option>{options.map(model => <option key={model}>{model}</option>)}</Select>
+          <Select label="Marka" required value={values.make} onChange={event => setValues(old => ({ ...old, make: event.target.value, model: "", makeEquipment: [] }))}><option value="">Odaberite marku</option>{Object.keys(makes).map(make => <option key={make}>{make}</option>)}</Select>
+          <Select label="Model" required value={values.model} onChange={event => setValues(old => ({
+            ...old, model: event.target.value,
+            makeEquipment: selectedMakeOptions(old.make, event.target.value, old.makeEquipment ?? []),
+          }))} disabled={!options.length}><option value="">Odaberite model</option>{options.map(model => <option key={model}>{model}</option>)}</Select>
           <label className="field span-all"><span>Naslov oglasa</span><input value={values.title} onChange={event => set("title", event.target.value)} maxLength={80} pattern=".*\S.*" required placeholder="npr. Audi A4 35 TDI S-Line" /></label>
           <label className="field"><span>Prva registracija</span><input className="mono" type="month" min="1990-01" max={maxMonth} value={values.date} onChange={event => set("date", event.target.value)} required /></label>
           {numeric("Kilometraža (km)", "km")}{numeric("Snaga (kW)", "kw", 1, 2000)}{numeric("Obujam (cm³)", "cc", 0, 30000)}{numeric("CO₂ (g/km)", "co2", 0, 999)}
@@ -92,6 +97,7 @@ export default function PublishForm({ onClose, onPublish }: { onClose: () => voi
         {step === 1 && <>
           <label className="field"><span>Napomena prodavača (neobavezno)</span><textarea rows={3} value={values.sellerNote ?? ""} maxLength={400} onChange={event => set("sellerNote", event.target.value)} placeholder="Navedite stanje vozila, servisnu povijest ili kada je moguć pregled." /></label>
           <label className="field"><span>Istaknuta oprema</span><input value={values.trim} maxLength={100} onChange={event => set("trim", event.target.value)} placeholder="npr. Digitalni kokpit · Matrix LED" /></label>
+          <MakeEquipmentOptions make={values.make} model={values.model} selected={values.makeEquipment ?? []} onChange={selection => set("makeEquipment", selection)} />
           <div className="equipment edit-equipment">{groups.map(group => <fieldset key={group}><legend>{group}</legend>{equipmentOptions[group].map(item => <label key={item}><input type="checkbox" checked={values.equipment[group].includes(item)} onChange={event => {
             const items = values.equipment[group];
             set("equipment", { ...values.equipment, [group]: event.target.checked ? [...items, item] : items.filter(value => value !== item) });

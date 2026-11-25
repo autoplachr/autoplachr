@@ -2,7 +2,8 @@
 
 import { Check, ChevronLeft, ChevronRight, Heart, MessageSquare, Phone } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { euro, groups, number, power, quick, registered, taxStatus, type Vehicle } from "./catalog";
+import { euro, flags, groups, number, power, quick, registered, taxStatus, type Vehicle } from "./catalog";
+import { vehicleMakeOptions } from "./make-equipment";
 import { Dialog, PhotoCount, Rating, VehiclePhoto } from "./ui";
 import { BuyerTools } from "./buyer-tools";
 
@@ -15,6 +16,8 @@ export default function Detail({ vehicle, saved, onSave, onClose }: {
   const [confirmation, setConfirmation] = useState("");
   const count = vehicle.photos.length;
   const active = vehicle.photos[photo];
+  const listingConditions = flags.filter(flag => vehicle.flags.includes(flag));
+  const makeEquipment = vehicleMakeOptions(vehicle);
   const move = (offset: number) => setPhoto(current => (current + offset + count) % count);
   const masked = vehicle.vin ? vehicle.vin.slice(0, 3) + "•".repeat(10) + vehicle.vin.slice(-4) : "—";
   const specs: [string, string, boolean?][] = [
@@ -59,14 +62,15 @@ export default function Detail({ vehicle, saved, onSave, onClose }: {
         <button type="button" className={"icon-btn " + (saved ? "saved" : "")} aria-label={saved ? "Ukloni iz spremljenih" : "Spremi vozilo"} aria-pressed={saved} onClick={onSave}><Heart size={20} fill={saved ? "currentColor" : "none"}/></button>
       </div>
       {vehicle.sellerNote && <p className="detail-seller-note">{vehicle.sellerNote}</p>}
-      {vehicle.flags.length > 0 && <p className="listing-conditions">{vehicle.flags.map(flag => quick[flag]).join(" · ")}</p>}
+      {listingConditions.length > 0 && <p className="listing-conditions">{listingConditions.map(flag => quick[flag]).join(" · ")}</p>}
       <section className="detail-section">
         <h3>Tehnički podaci</h3>
         <dl className="spec-table">{specs.map(([label, value, mono]) => <div key={label}><dt>{label}</dt><dd className={mono ? "mono" : ""}>{value}</dd></div>)}</dl>
       </section>
-      {(vehicle.trim || groups.some(group => vehicle.equipment[group].length)) && <section className="detail-section">
+      {(vehicle.trim || makeEquipment.length > 0 || groups.some(group => vehicle.equipment[group].length)) && <section className="detail-section">
         <h3>Oprema vozila</h3>
         {vehicle.trim && <p className="equipment-summary">{vehicle.trim}</p>}
+        {makeEquipment.length > 0 && <ul className="detail-make-equipment" aria-label="Oprema po marki">{makeEquipment.map(option => <li key={option.id}>{option.label}</li>)}</ul>}
         <div className="equipment">{groups.filter(group => vehicle.equipment[group].length).map(group => <section key={group}><h4>{group}</h4><ul>{vehicle.equipment[group].map(item => <li key={item}><Check size={14}/>{item}</li>)}</ul></section>)}</div>
       </section>}
       {vehicle.range && <section className="detail-section price-evaluation">

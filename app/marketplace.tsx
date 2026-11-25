@@ -4,7 +4,8 @@ import { ArrowRight, CarFront, Check, Grid2X2, Heart, List, Plus, SlidersHorizon
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { cities, countyByCity, euro, fuels, gears, makes, number, power, quick, registered, vehicles, type Vehicle } from "./catalog";
 import { distances, initialSearch, matchVehicles, modelsFor, prices, readSearch, sorts, writeSearch, years, type Search } from "./search";
-import { Dialog, ListingOptions, PhotoCount, Rating, Select, VehiclePhoto } from "./ui";
+import { Dialog, ListingOptions, MakeEquipmentOptions, PhotoCount, Rating, Select, VehiclePhoto } from "./ui";
+import { selectedMakeOptions } from "./make-equipment";
 import { TaxCalculator } from "./buyer-tools";
 import Detail from "./detail";
 import PublishForm from "./publish";
@@ -19,29 +20,40 @@ function readStored<T>(key: string): T[] {
   } catch { return []; }
 }
 
+type FilterKey = "marka" | "model" | "cijena" | "godiste" | "km" | "gorivo" | "mjenjac" | "grad";
+type FilterField = { key: FilterKey; title: string; all: string; values: readonly (string | number)[]; format?: (v: string | number) => string; mono?: boolean; disabled?: boolean };
+
 function FilterControls({ search, count, update, apply }: {
   search: Search; count: number; update: (next: Search) => void; apply: () => void;
 }) {
-  const change = (key: keyof Search, value: string) => update({ ...search, [key]: value, ...(key === "marka" ? { model: "" } : {}) });
   const active = Boolean(search.marka || search.model || search.cijena || search.godiste || search.km || search.gorivo || search.mjenjac || search.grad || search.opcije.length);
-  const fields: { key: keyof Search; title: string; all: string; values: readonly (string | number)[]; format?: (v: string | number) => string; mono?: boolean; disabled?: boolean }[] = [
+  const fields: FilterField[] = [
     { key: "marka", title: "Marka", all: "Sve marke", values: Object.keys(makes) },
     { key: "model", title: "Model", all: "Svi modeli", values: modelsFor(search.marka), disabled: !search.marka },
-    { key: "cijena", title: "Cijena do (€)", all: "Bez ograničenja", values: prices, format: value => euro(Number(value)) + (value === 50000 ? "+" : ""), mono: true },
+    { key: "cijena", title: "Cijena do (€)", all: "Bez limita", values: prices, format: value => euro(Number(value)) + (value === 50000 ? "+" : ""), mono: true },
     { key: "godiste", title: "Godište od", all: "Sva godišta", values: years, mono: true },
-    { key: "km", title: "Kilometraža do", all: "Bez ograničenja", values: distances, format: value => number(Number(value)) + " km", mono: true },
+    { key: "km", title: "Kilometraža do", all: "Bez limita", values: distances, format: value => number(Number(value)) + " km", mono: true },
     { key: "gorivo", title: "Gorivo", all: "Sva goriva", values: fuels },
     { key: "mjenjac", title: "Mjenjač", all: "Svi mjenjači", values: gears },
     { key: "grad", title: "Županija", all: "Sva Hrvatska", values: cities, format: value => countyByCity[value] ?? String(value) },
   ];
+  function renderField({ key, title, all, values, format, mono, disabled }: FilterField) {
+    return <Select key={key} label={title} className={search[key] ? (mono ? "numeric-select selected-field" : "selected-field") : ""} value={search[key]} onChange={event => {
+      const value = event.target.value;
+      const next = { ...search, [key]: value };
+      if (key === "marka") { next.model = ""; next.oprema = []; }
+      if (key === "model") next.oprema = selectedMakeOptions(next.marka, value, next.oprema);
+      update(next);
+    }} disabled={disabled}>
+      <option value="">{all}</option>
+      {values.map(value => <option key={value} value={value}>{format ? format(value) : value}</option>)}
+    </Select>;
+  }
   return <form className="filter-form" onSubmit={event => { event.preventDefault(); apply(); }}>
     <div className="filter-body">
-      <div className="search-fields">{fields.map(({ key, title, all, values, format, mono, disabled }) =>
-        <Select key={key} label={title} className={search[key] ? (mono ? "numeric-select selected-field" : "selected-field") : ""} value={String(search[key])} onChange={event => change(key, event.target.value)} disabled={disabled}>
-          <option value="">{all}</option>
-          {values.map(value => <option key={value} value={value}>{format ? format(value) : value}</option>)}
-        </Select>
-      )}</div>
+      <div className="search-fields vehicle-identity">{fields.slice(0, 2).map(renderField)}</div>
+      <MakeEquipmentOptions make={search.marka} model={search.model} selected={search.oprema} onChange={oprema => update({ ...search, oprema })}/>
+      <div className="search-fields">{fields.slice(2).map(renderField)}</div>
       <ListingOptions selected={search.opcije} onChange={opcije => update({ ...search, opcije })} />
     </div>
     <div className="search-actions">
@@ -136,7 +148,7 @@ export default function Marketplace() {
   const inventory = useMemo(() => allVehicles.filter(v => (!savedOnly || saved.includes(v.id)) && (!dealerOnly || v.dealer)), [allVehicles, saved, savedOnly, dealerOnly]);
   const results = useMemo(() => matchVehicles(inventory, search), [inventory, search]);
   const savedCount = allVehicles.filter(v => saved.includes(v.id)).length;
-  const activeCount = [search.marka, search.model, search.cijena, search.godiste, search.km, search.gorivo, search.mjenjac, search.grad].filter(Boolean).length + search.opcije.length;
+  const activeCount = [search.marka, search.model, search.cijena, search.godiste, search.km, search.gorivo, search.mjenjac, search.grad].filter(Boolean).length + search.opcije.length + search.oprema.length;
   const update = (next: Search) => { setSearch(next); writeSearch(next); };
   const scrollResults = () => requestAnimationFrame(() => document.getElementById("vozila")?.scrollIntoView());
   const apply = () => { setPanel(null); scrollResults(); };

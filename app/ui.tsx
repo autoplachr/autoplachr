@@ -3,6 +3,23 @@
 import { CarFront, ChevronDown, X } from "lucide-react";
 import { useEffect, useRef, type ReactNode, type SelectHTMLAttributes } from "react";
 import { flags, quick, rating, type Flag, type Photo, type Vehicle } from "./catalog";
+import { makeOptions } from "./make-equipment";
+
+export function MakeEquipmentOptions({ make, model, selected, onChange }: {
+  make: string; model: string; selected: string[]; onChange: (value: string[]) => void;
+}) {
+  const options = makeOptions(make, model);
+  if (!options.length) return null;
+  return <section className="make-options" aria-label="Oprema po marki">
+    <h3>{make} oprema</h3>
+    <div>{options.map(option => <label key={option.id}>
+      <input type="checkbox" checked={selected.includes(option.id)} onChange={event => {
+        onChange(event.target.checked ? [...selected, option.id] : selected.filter(id => id !== option.id));
+      }} />
+      {option.label}
+    </label>)}</div>
+  </section>;
+}
 
 export function ListingOptions({ selected, onChange }: { selected: Flag[]; onChange: (value: Flag[]) => void }) {
   return <fieldset className="filter-options">

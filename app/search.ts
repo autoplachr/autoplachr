@@ -1,4 +1,5 @@
 import { cities, flags, fuels, gears, makes, rating, type Flag, type Vehicle } from "./catalog";
+import { legacySportOption, selectedMakeOptions, vehicleMakeOptions } from "./make-equipment";
 
 export const prices = [5000, 10000, 15000, 20000, 30000, 50000];
 export const years = Array.from({ length: 12 }, (_, index) => 2026 - index);
@@ -12,11 +13,11 @@ export const sorts = {
 } as const;
 export type Search = {
   marka: string; model: string; cijena: string; godiste: string; km: string; gorivo: string;
-  mjenjac: string; grad: string; opcije: Flag[]; sortiranje: keyof typeof sorts; prikaz: "grid" | "lista";
+  mjenjac: string; grad: string; opcije: Flag[]; oprema: string[]; sortiranje: keyof typeof sorts; prikaz: "grid" | "lista";
 };
 export const initialSearch: Search = {
   marka: "", model: "", cijena: "", godiste: "", km: "", gorivo: "", mjenjac: "", grad: "",
-  opcije: [], sortiranje: "newest", prikaz: "lista",
+  opcije: [], oprema: [], sortiranje: "newest", prikaz: "lista",
 };
 export function modelsFor(make: string): readonly string[] {
   return Object.hasOwn(makes, make) ? makes[make as keyof typeof makes] : [];
@@ -28,11 +29,17 @@ export function readSearch(query: string): Search {
     return value !== null && values.includes(value) ? value : fallback;
   }
   const marka = accept("marka", Object.keys(makes));
+  const model = accept("model", modelsFor(marka));
+  const generalOptions = params.getAll("opcije");
+  const equipment = params.getAll("oprema");
+  const legacyPackage = legacySportOption[marka];
+  if (legacyPackage && generalOptions.includes("sport")) equipment.push(legacyPackage);
   return {
-    marka, model: accept("model", modelsFor(marka)), cijena: accept("cijena", prices.map(String)),
+    marka, model, cijena: accept("cijena", prices.map(String)),
     godiste: accept("godiste", years.map(String)), km: accept("km", distances.map(String)),
     gorivo: accept("gorivo", fuels), mjenjac: accept("mjenjac", gears), grad: accept("grad", cities),
-    opcije: flags.filter(flag => params.getAll("opcije").includes(flag)),
+    opcije: flags.filter(flag => generalOptions.includes(flag)),
+    oprema: selectedMakeOptions(marka, model, [...new Set(equipment)]),
     sortiranje: accept("sortiranje", Object.keys(sorts), "newest") as Search["sortiranje"],
     prikaz: accept("prikaz", ["grid", "lista"], initialSearch.prikaz) as Search["prikaz"],
   };
@@ -58,11 +65,15 @@ export function matchVehicles(vehicles: Vehicle[], s: Search) {
     (!s.mjenjac || v.gear === s.mjenjac) && (!s.grad || v.city === s.grad) &&
     s.opcije.every(flag => v.flags.includes(flag))
   );
+  const matching = s.oprema.length ? result.filter(vehicle => {
+    const equipment = new Set(vehicleMakeOptions(vehicle).map(option => option.id));
+    return s.oprema.every(id => equipment.has(id));
+  }) : result;
   switch (s.sortiranje) {
-    case "lowest": return result.sort((a, b) => a.price - b.price);
-    case "highest": return result.sort((a, b) => b.price - a.price);
-    case "mileage": return result.sort((a, b) => a.km - b.km);
-    case "rating": return result.sort((a, b) => (rating(a)?.rank ?? 3) - (rating(b)?.rank ?? 3));
-    default: return result;
+    case "lowest": return matching.sort((a, b) => a.price - b.price);
+    case "highest": return matching.sort((a, b) => b.price - a.price);
+    case "mileage": return matching.sort((a, b) => a.km - b.km);
+    case "rating": return matching.sort((a, b) => (rating(a)?.rank ?? 3) - (rating(b)?.rank ?? 3));
+    default: return matching;
   }
 }
