@@ -909,8 +909,7 @@ html[data-theme="dark"] .brand-card.active { background:rgba(37,99,235,.2); }
 
 .brand-logo { display:inline-grid; place-items:center; flex:none; position:relative; vertical-align:middle; }
 .brand-logo svg { display:block; width:100%; height:100%; }
-.brand-logo-emblem { background:#fff; border-radius:4px; color:#111827; }
-.brand-logo-fallback { display:grid; place-items:center; min-width:100%; min-height:100%; border-radius:4px; background:var(--hover); border:1px solid var(--border); color:var(--spec); font-size:.62em; font-weight:750; line-height:1; padding-inline:1px; }
+.brand-logo-emblem { color:#18181B; }
 .brand-spec-heading, .rec-card .card-link, .listing .card-link { display:flex; align-items:center; gap:7px; }
 
 

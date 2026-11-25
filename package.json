@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "typecheck": "tsc --noEmit",
     "build:site": "node scripts/build-site.mjs",
-    "preview:site": "node scripts/preview-site.mjs"
+    "preview:site": "node scripts/preview-site.mjs",
+    "start": "node scripts/preview-site.mjs",
+    "share": "node scripts/share-online.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.0",

@@ -60,12 +60,12 @@ export function BrandSelect({ value, onChange, required=false, className="" }: {
           value={query} onChange={event=>{setQuery(event.target.value);setCursor(0);}} onKeyDown={keys}/>
       </div>
       <ul id={id+"-list"} role="listbox" aria-label="Marke vozila">
-        {items.map((make,index)=><li key={make} id={id+"-"+index} role="option" aria-selected={make===value}
+        {expanded && items.map((make,index)=><li key={make} id={id+"-"+index} role="option" aria-selected={make===value}
           data-active={index===cursor} onMouseDown={event=>event.preventDefault()} onClick={()=>choose(make)}>
           {make && <BrandLogo make={make} size="xs"/>}<span>{make || placeholder}</span>
         </li>)}
       </ul>
-      {items.length===0 && <p className="brand-select-empty" role="status">Nema rezultata.</p>}
+      {expanded && items.length===0 && <p className="brand-select-empty" role="status">Nema rezultata.</p>}
     </div>
   </div>;
 }

@@ -4,8 +4,9 @@ import { resolve, extname, sep } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import worker from "../worker/index.mjs";
 
-await mkdir(".local-data", { recursive: true });
-const database = new DatabaseSync(process.env.AUTOPLAC_PREVIEW_DB || ".local-data/marketplace.sqlite");
+const publicShare = process.env.AUTOPLAC_SHARE === "1";
+if (!publicShare && !process.env.AUTOPLAC_PREVIEW_DB) await mkdir(".local-data", { recursive: true });
+const database = new DatabaseSync(publicShare ? ":memory:" : process.env.AUTOPLAC_PREVIEW_DB || ".local-data/marketplace.sqlite");
 database.exec("PRAGMA foreign_keys=ON");
 if (!database.prepare("SELECT name FROM sqlite_master WHERE name='account'").get()) {
   database.exec(await readFile("drizzle/0000_marketplace.sql", "utf8"));
@@ -50,17 +51,26 @@ const ASSETS = { async fetch(request) {
 } };
 const port = Number(process.argv[2] || 4323);
 const origin = "http://127.0.0.1:" + port;
+const bind = process.env.AUTOPLAC_PREVIEW_HOST || "0.0.0.0";
+function requestOrigin(headers) {
+  const host = headers.host || "";
+  if (publicShare && /^[a-z0-9-]+\.trycloudflare\.com$/i.test(host)) return "https://" + host;
+  return /^(localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?$/i.test(host) ? "http://" + host : origin;
+}
 createServer(async (req, res) => {
   try {
+    if (publicShare && req.url === "/__autoplac_share" && req.method === "GET") {
+      res.writeHead(200, {"content-type":"text/plain", "cache-control":"no-store"});res.end("autoplac-share-preview-v1");return;
+    }
     let chunks = [], size=0;
     for await (const chunk of req) {
       size+=chunk.length;
       if (size>1800000) { res.writeHead(413); res.end(); return; }
       chunks.push(chunk);
     }
-    const request = new Request(new URL(req.url,origin), {method:req.method, headers:req.headers, body:chunks.length ? Buffer.concat(chunks) : undefined});
-    const result = await worker.fetch(request,{ ...process.env, DB, ASSETS });
+    const request = new Request(new URL(req.url,requestOrigin(req.headers)), {method:req.method, headers:req.headers, body:chunks.length ? Buffer.concat(chunks) : undefined});
+    const result = await worker.fetch(request,publicShare ? { DB, ASSETS } : { ...process.env, DB, ASSETS });
     res.writeHead(result.status,Object.fromEntries(result.headers));
     res.end(req.method === "HEAD" ? undefined : Buffer.from(await result.arrayBuffer()));
   } catch (error) { console.error(error); res.writeHead(500); res.end(); }
-}).listen(port,"127.0.0.1",()=>console.log("Local: "+origin));
+}).listen(port,bind,()=>console.log("Local: "+origin));
