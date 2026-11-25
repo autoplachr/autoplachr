@@ -13,8 +13,8 @@ const serviceKey = () => env().SUPABASE_SERVICE_ROLE_KEY ?? "";
 const anonKey = () => env().SUPABASE_ANON_KEY ?? "";
 
 async function hash(value: string | Uint8Array) {
-  const bytes = await crypto.subtle.digest("SHA-256", typeof value === "string"
-    ? new TextEncoder().encode(value) : value);
+  const bytes = await crypto.subtle.digest("SHA-256", (typeof value === "string"
+    ? new TextEncoder().encode(value) : value) as BufferSource);
   return [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
@@ -170,8 +170,8 @@ Deno.serve(async request => {
       }));
       downloaded.push(...batch.filter((item): item is NonNullable<typeof item> => Boolean(item)));
     }
-    const unique = [...new Map(downloaded.map(item => [item.fingerprint, item])).values()]
-      .sort((a, b) => b.score - a.score).slice(0, MAX_PHOTOS);
+    // Keep the seller's original gallery order: photo 0 stays the default cover.
+    const unique = [...new Map(downloaded.map(item => [item.fingerprint, item])).values()].slice(0, MAX_PHOTOS);
 
     const photos: Array<{ src: string }> = [];
     let storageMisses = 0;
@@ -186,7 +186,7 @@ Deno.serve(async request => {
     if (photos.length > 1) {
       try {
         const analysis = await analyzeListing({ imageUrls: photos.slice(0, 6).map(photo => photo.src), rawText: String(parsed.vehicle.description ?? "") }, env());
-        if (typeof analysis.bestCoverIndex === "number" && photos[analysis.bestCoverIndex]) {
+        if (analysis.bannerOnFirst && typeof analysis.bestCoverIndex === "number" && analysis.bestCoverIndex > 0 && photos[analysis.bestCoverIndex]) {
           photos.unshift(...photos.splice(analysis.bestCoverIndex, 1));
         }
       } catch { /* Keep the locally ranked cover. */ }

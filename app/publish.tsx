@@ -266,6 +266,19 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
       }
       applyFacts(data);
       importEquipment(data.equipment);
+      const grouped = (data as ImportedFacts & { equipmentByCategory?: Record<string, string[]> }).equipmentByCategory;
+      if (grouped) {
+        const keys = [
+          ["Sigurnost i asistencije", "Sigurnost"], ["Udobnost i interijer", "Udobnost"],
+          ["Multimedija i navigacija", "Multimedija"], ["Eksterijer i ovjes", "Eksterijer"],
+        ] as const;
+        setValues(old => ({
+          ...old,
+          equipment: Object.fromEntries(keys.map(([source, target]) => [target,
+            [...new Set([...(old.equipment[target] ?? []), ...(grouped[source] ?? [])])].slice(0, 40),
+          ])) as typeof old.equipment,
+        }));
+      }
       if (result.photos?.length) {
         photoRevision.current++;
         manualCover.current = true;

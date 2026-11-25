@@ -404,9 +404,14 @@ function HeroSearch({ search, count, activeCount, update, onSubmit, onQuery }: {
       <header className="market-showcase">
         <img src="/hero-twilight.webp" alt="" fetchPriority="high" />
         <div className="market-showcase-copy">
+          <span className="showcase-eyebrow">AUTOPLAC.HR / TRŽIŠTE VOZILA</span>
           <h1>Pronađite provjereno vozilo u Hrvatskoj</h1>
           <p>Stvarne tržišne cijene, provjera CVH kilometraže i izračun troškova uvoza na jednom mjestu.</p>
           <a href="/ppmv-kalkulator">Izračunaj trošak uvoza (PPMV) <ArrowRight size={14} aria-hidden="true" /></a>
+        </div>
+        <div className="market-showcase-promo" aria-label="Aktualne ponude">
+          <span className="promo-pill"><strong className="tabular">0 €</strong> Privatni oglasi</span>
+          <a className="promo-pill promo-pill-link" href="/autokuce">Autokuće: 30 dana besplatno <ArrowRight size={14} aria-hidden="true" /></a>
         </div>
       </header>
 
@@ -437,17 +442,23 @@ function HeroSearch({ search, count, activeCount, update, onSubmit, onQuery }: {
         <div className="console-body">
           <div className="console-grid">
             <VehicleIdentityFields search={search} update={update} />
-            {numericField("godiste", "Godište od", "Sva godišta", years, String)}
-            {numericField("km", "Kilometraža do", "Bez limita", distances, value => number(value) + " km")}
-            <PurchaseMode search={search} update={update} />
-            {numericField("cijena", "Cijena do (€)", "Bez limita", prices, euro)}
-            <div className="console-location">
-              <Select label="Županija / Grad" value={search.grad} onChange={event => update({ ...search, grad: event.target.value })}>
-                <option value="">Sve županije</option>
-                <optgroup label="Županije">{croatianCounties.map(county => <option key={county}>{county}</option>)}</optgroup>
-                <optgroup label="Gradovi">{cities.map(city => <option key={city}>{city}</option>)}</optgroup>
-              </Select>
-              <Navigation size={15} strokeWidth={1.75} aria-hidden="true" />
+            <div className="console-primary-extra">{numericField("cijena", "Cijena do (€)", "Bez limita", prices, euro)}</div>
+            <div id="console-secondary" className={"console-secondary-fields" + (more ? " is-open" : "")}>
+              {numericField("godiste", "Godište od", "Sva godišta", years, String)}
+              {numericField("km", "Kilometraža do", "Bez limita", distances, value => number(value) + " km")}
+              <PurchaseMode search={search} update={update} />
+              <div className="console-location">
+                <Select label="Županija / Grad" value={search.grad} onChange={event => update({ ...search, grad: event.target.value })}>
+                  <option value="">Sve županije</option>
+                  <optgroup label="Županije">{croatianCounties.map(county => <option key={county}>{county}</option>)}</optgroup>
+                  <optgroup label="Gradovi">{cities.map(city => <option key={city}>{city}</option>)}</optgroup>
+                </Select>
+                <Navigation size={15} strokeWidth={1.75} aria-hidden="true" />
+              </div>
+              <label className="console-check console-mobile-cvh">
+                <Checkbox checked={search.opcije.includes("cvh")} onChange={event => update(toggleSearchFlag(search, "cvh", event.target.checked))} />
+                Samo s potvrđenim km (CVH)
+              </label>
             </div>
             <button type="submit" className="console-cta">Pretraži {number(count)} oglasa</button>
           </div>
@@ -473,7 +484,7 @@ function HeroSearch({ search, count, activeCount, update, onSubmit, onQuery }: {
           </div>}
 
           <div className="console-utilities">
-            <label className="console-check">
+            <label className="console-check console-desktop-cvh">
               <Checkbox checked={search.opcije.includes("cvh")} onChange={event => update(toggleSearchFlag(search, "cvh", event.target.checked))} />
               Samo s potvrđenim km (CVH)
             </label>
@@ -482,13 +493,29 @@ function HeroSearch({ search, count, activeCount, update, onSubmit, onQuery }: {
                 setQuery("");
                 update({ ...initialSearch, sortiranje: search.sortiranje, prikaz: search.prikaz });
               }}><RotateCcw size={16} aria-hidden="true" /> Poništi filtere</button>
-              <button type="button" aria-expanded={more} aria-controls={more ? "console-extra" : undefined} onClick={() => setMore(value => !value)}>
-                <SlidersHorizontal size={16} aria-hidden="true" /> {more ? "Manje filtera" : "Više filtera"}
+              <button type="button" className="console-more-toggle" aria-expanded={more} aria-controls="console-secondary console-extra" onClick={() => setMore(value => !value)}>
+                <SlidersHorizontal size={16} aria-hidden="true" />
+                <span className="more-label-desktop">{more ? "Manje filtera" : "Više filtera"}</span>
+                <span className="more-label-mobile">{more ? "Manje filtera" : "Više filtera (5)"}</span>
               </button>
             </div>
           </div>
         </div>
       </form>
+    </section>
+  );
+}
+
+function PromoBanner({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <section className="promo-banner shell" aria-label="AUTOPLAC za autokuće">
+      <span className="promo-banner-tag">ZA AUTOKUĆE</span>
+      <div className="promo-banner-copy">
+        <strong>Automatski uvoz lagera + A4 cjenik za staklo</strong>
+        <span>Besplatna predaja oglasa 0 € za privatne prodavače.</span>
+      </div>
+      <a className="promo-banner-link" href="/autokuce">Autokuće <ArrowRight size={15} aria-hidden="true" /></a>
+      <button type="button" className="promo-banner-close" aria-label="Sakrij obavijest" onClick={onDismiss}><X size={16} aria-hidden="true" /></button>
     </section>
   );
 }
@@ -929,6 +956,10 @@ export default function Marketplace({
   const authExchangeStarted = useRef(false);
   const router = useRouter();
   const [notice, setNotice] = useState("");
+  const [promoDismissed, setPromoDismissed] = useState(false);
+  useEffect(() => {
+    try { setPromoDismissed(localStorage.getItem("autoplac.promo.dismissed") === "1"); } catch { /* Ignore blocked storage. */ }
+  }, []);
 
   // Confirmation emails may land on `/?code=...` (PKCE) or on any page with
   // `#access_token=...` (implicit flow). Handle both once, then go to /racun.
@@ -1262,6 +1293,10 @@ export default function Marketplace({
               scrollResults();
             }}
           />
+          {!promoDismissed && <PromoBanner onDismiss={() => {
+            setPromoDismissed(true);
+            try { localStorage.setItem("autoplac.promo.dismissed", "1"); } catch { /* Ignore blocked storage. */ }
+          }} />}
           <AdSlot placement="hero-leaderboard" routeKey={path + search.marka} />
         </>
       )}

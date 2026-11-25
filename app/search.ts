@@ -4,6 +4,98 @@ import { cities, countyByCity, flags, fuels, gears, marketValuation, type Flag, 
 import { legacySportOption, selectedMakeOptions, vehicleMakeOptions } from "./make-equipment";
 import { CAR_MAKES, chassisFromTitle, matchesGeneration, modelsFor, validGeneration } from "../src/data/car-catalog";
 
+type CanonicalHints = { model?: string; generation?: string; bodyType?: string };
+const IMPORT_ALIASES: readonly (readonly [RegExp, string | ((match: RegExpMatchArray) => string), CanonicalHints])[] = [
+  [/\ba4\s*(?:avant|allroad|kombi|touring)\b/i, "A4", { bodyType: "Karavan" }],
+  [/\ba6\s*(?:avant|allroad|kombi)\b/i, "A6", { bodyType: "Karavan" }],
+  [/\ba3\s*(?:sportback|kombi)\b/i, "A3", { bodyType: "Hatchback / Kompakt" }],
+  [/\bq([23578])\b/i, (match) => "Q" + match[1], { bodyType: "SUV / Terenac" }],
+  [/\bc\s*(?:klasa)?\s*\d{3}\s*(?:d|cdi|i|e)\b/i, "C-klasa", {}],
+  [/\be\s*(?:klasa)?\s*\d{3}\s*(?:d|cdi|i|e)\b/i, "E-klasa", {}],
+  [/\bgolf\s*[578]\b/i, "Golf", {}],
+  [/\bpassat\s*(?:variant|combi|alltrack|sw)\b/i, "Passat", { bodyType: "Karavan" }],
+  [/\btiguan\b/i, "Tiguan", { bodyType: "SUV / Terenac" }],
+  [/\boctavia\s*(?:combi|estate|rs)\b/i, "Octavia", {}],
+  [/\bsuperb\s*(?:combi|estate)\b/i, "Superb", { bodyType: "Karavan" }],
+  [/\b308\s*(?:sw|estate|combi)\b/i, "308", { bodyType: "Karavan" }],
+  [/\bastra\s*(?:sports tourer|combi|estate|sw)\b/i, "Astra", { bodyType: "Karavan" }],
+  [/\bcorolla\s*(?:touring sports|combi|estate)\b/i, "Corolla", { bodyType: "Karavan" }],
+  [/\brav4\b/i, "RAV4", { bodyType: "SUV / Terenac" }],
+  [/\btucson\b/i, "Tucson", { bodyType: "SUV / Terenac" }],
+  [/\bsportage\b/i, "Sportage", { bodyType: "SUV / Terenac" }],
+  [/\bmacan\b|\bcayenne\b/i, (match) => match[0].charAt(0).toUpperCase() + match[0].slice(1), { bodyType: "SUV / Terenac" }],
+];
+
+export function canonicalizeImported(input: {
+  make: string; model: string; title?: string; variant?: string; year?: number;
+  bodyType?: string; cc?: number; drive?: string; text?: string;
+}) {
+  const text = normalizeLocation([input.make, input.model, input.title, input.variant, input.text].filter(Boolean).join(" "));
+  const make = /mercedes/.test(text) ? "Mercedes-Benz" : /volkswagen|\bvw\b/.test(text) ? "Volkswagen"
+    : /skoda/.test(text) ? "Škoda" : input.make;
+  const badge = text.match(/\b(430d|435d|420d|330d|320d|318d|530d|520d|220d|116d|118d|120d|3\.0tdi|2\.0tdi|[1-8][0-5]\d[die])\b/)?.[0] ?? "";
+  let model = input.model;
+  let generation = "";
+  let bodyType = input.bodyType ?? "";
+  const dropdown = make ? modelsFor(make, false) : [];
+  const pick = (candidate?: string) => candidate && dropdown.find(option => normalizeLocation(option) === normalizeLocation(candidate));
+
+  if (make === "BMW") {
+    const number = badge.match(/^([1-8])/)?.[1] ?? text.match(/\bserija\s*([1-8])\b/)?.[1];
+    const series = number ? pick(`Serija ${number}`) ?? `Serija ${number}` : "";
+    if (series) {
+      model = series;
+      const year = input.year ?? 2020;
+      if (number === "1") generation = year <= 2013 ? "E81/E87" : year < 2019 ? "F20/F21" : "F40";
+      if (number === "3") generation = year <= 2013 ? "E90/E91" : year < 2020 ? "F30/F31" : "G20/G21";
+      if (number === "4") {
+        const granCoupe = /grancoupe|gran\s*coupe/.test(text);
+        const cabrio = /cabrio/.test(text);
+        bodyType = cabrio ? "Cabrio / Roadster" : "Coupé";
+        generation = granCoupe ? (year >= 2021 ? "G26" : "F36") : cabrio ? (year >= 2021 ? "G23" : "F33") : year >= 2021 ? "G22" : "F32";
+      }
+      if (number === "5") generation = year <= 2017 ? "F10/F11" : "G30/G31";
+    }
+    const exactX = ["X1", "X3", "X5", "X6"].find(x => normalizeLocation(x) === normalizeLocation(input.model));
+    if (exactX && pick(exactX)) { model = exactX; bodyType = "SUV / Terenac"; }
+  } else {
+    for (const [pattern, mapped, hints] of IMPORT_ALIASES) {
+      const match = text.match(pattern);
+      if (!match) continue;
+      const candidate = typeof mapped === "function" ? mapped(match) : mapped;
+      const canonical = pick(candidate) ?? candidate;
+      model = canonical;
+      if (hints.bodyType) bodyType = hints.bodyType;
+      if (hints.generation) generation = hints.generation;
+      break;
+    }
+    if (/\bgolf\s*7\b/.test(text)) generation = /facelift|golf\s*7\.5/.test(text) ? "5G facelift" : "5G";
+    if (/\bgolf\s*8\b/.test(text)) generation = "CD";
+  }
+  if (/\b(?:avant|variant|combi|touring|estate|sw|sportswagon|allroad)\b/.test(text) && !/\b(?:suv|terenac|x[13567]\b)/.test(text)) bodyType = "Karavan";
+
+  const fuel = /\b(?:gte|ehybrid|plugin|phev)\b/.test(text) ? "Plug-in hibrid"
+    : /hibrid|hybrid/.test(text) ? "Hibrid"
+    : /\b(?:dizel|diesel|tdi|bluehdi|hdi|dci|cdti|crdi|jtdm?|430d|435d|420d|330d|320d|318d|530d|520d|220d|116d|118d|120d|[1-8][0-5]\d d)\b/.test(text) ? "Dizel"
+    : /\b(?:elektri|electric|struja)\b/.test(text) ? "Električni"
+    : /\b(?:benzin|petrol|gti|tsi|tfsi|ecoboost|tce)\b/.test(text) ? "Benzin" : undefined;
+  const driveText = normalizeLocation(input.drive ?? "");
+  const drive = /\b(?:xdrive|quattro|4matic|4motion|awd|4x4|svi)\b/.test(text + " " + driveText) ? "4x4"
+    : /straznji|rear|rwd/.test(driveText) ? "Stražnji"
+    : /prednji|front|fwd/.test(driveText) ? "Prednji"
+    : make === "BMW" && ["Serija 3", "Serija 5"].includes(model) ? "Stražnji" : "Prednji";
+  let cc = input.cc;
+  if (/430d|435d|330d|530d|3\.0tdi/.test(text) && cc !== undefined && cc >= 1500 && cc <= 2400) cc = 2993;
+  const cylinders = /v8|4\.0tdi/.test(text) ? 8
+    : /430d|435d|330d|530d|3\.0tdi/.test(text) ? 6
+    : /320d|220d|2\.0tdi/.test(text) ? 4
+    : cc !== undefined && cc < 1100 ? 3
+    : cc !== undefined && cc >= 2450 && cc <= 3400 ? 6
+    : cc !== undefined && cc > 3800 ? 8
+    : cc !== undefined && cc >= 1150 && cc <= 2250 ? 4 : undefined;
+  return { make, model, generation, bodyType, badge, fuel, drive, cc, cylinders };
+}
+
 export const prices = [5000, 10000, 15000, 20000, 25000, 30000, 50000];
 export const years = Array.from({ length: 12 }, (_, index) => 2026 - index);
 export const distances = [50000, 100000, 150000, 200000];
@@ -327,9 +419,20 @@ export function normalizeImportedVehicle(source: {
   const fields = new Map(Object.entries(source.fields ?? {}).map(([label, value]) => [key(label), clean(value)]));
   const field = (...labels: string[]) => labels.map(label => fields.get(key(label))).find(Boolean);
   const title = clean(source.title ?? "").slice(0, 100);
-  const description = clean(source.description ?? "").split(/\r?\n/).map(line => line.trim())
+  const rawDescription = clean(source.description ?? "").split(/\r?\n/).map(line => line.trim())
     .filter(line => !/^(?:najbolja ponuda|posjetite na[sš]|pratite nas|zadr[zž]avamo pravo na pogre[sš]ku|nazovite odmah)\b/i.test(line))
-    .join("\n").replace(/\n{3,}/g, "\n\n").slice(0, 12000);
+    .join("\n");
+  const boilerplate = [
+    /karta\s*\n\s*napomena:\s*prikazana je približna lokacija/i,
+    /dodatne informacije/i, /prati oglašivača/i, /korisnik je verificirao broj telefona/i,
+    /nazovi oglašivača/i, /unatoč pažljivom unosu podataka moguće su pogreške/i,
+  ];
+  let cut = rawDescription.length;
+  for (const marker of boilerplate) {
+    const index = rawDescription.search(marker);
+    if (index > 0) cut = Math.min(cut, index);
+  }
+  const description = rawDescription.slice(0, cut).replace(/\n{3,}/g, "\n\n").slice(0, 12000);
   const value = (unit: string, ...labels: string[]) => {
     const raw = field(...labels);
     return raw && (/^\d[\d.,\s]*$/.test(raw) ? raw + " " + unit : raw);
@@ -357,6 +460,12 @@ export function normalizeImportedVehicle(source: {
     field("Prva registracija", "firstRegistration") && "Prva registracija " + field("Prva registracija", "firstRegistration"),
     field("Boja", "color"),
   ].filter(Boolean).join("\n"));
+  // Structured Njuškalo specs are extracted from the full raw text before stripping boilerplate.
+  const rawText = [title, rawDescription, ...[...fields.values()]].filter(Boolean).join("\n");
+  const registrationMatch = rawText.match(/\b(?:reg(?:istriran(?:o| do)?)?\.?)\s*[:=]?\s*(\d{1,2})\s*[./]\s*(20\d{2})\b/i);
+  const registeredUntil = registrationMatch ? registrationMatch[1].padStart(2, "0") + "/" + registrationMatch[2] : undefined;
+  const doors = Number((field("Broj vrata") ?? "").match(/\d+/)?.[0]) || undefined;
+  const seats = Number((field("Broj sjedala") ?? "").match(/\d+/)?.[0]) || undefined;
   const makeKey = key(makeName ?? "");
   const make = CAR_MAKES.find(make => key(make) === makeKey)
     ?? ({ vw: "Volkswagen", mercedes: "Mercedes-Benz", benz: "Mercedes-Benz" } as Record<string, string>)[makeKey]
@@ -369,6 +478,14 @@ export function normalizeImportedVehicle(source: {
     ?? (mercedesClass ? mercedesClass.toUpperCase() + "-klasa" : undefined)
     ?? (titleFacts.make === make ? titleFacts.model : undefined)
     ?? (parsed.make === make ? parsed.model : undefined) ?? modelName;
+  const canonical = canonicalizeImported({
+    make: make ?? "", model: model ?? "", title, variant: engineName ?? "",
+    year: facts.year ?? parsed.year,
+    bodyType: field("Oblik karoserije") ?? bodyName,
+    cc: facts.cc ?? parsed.cc,
+    drive: field("Vrsta pogona") ?? driveName,
+    text: rawText,
+  });
   const badges = normalizeLocation([engineName, modelName, title].join(" "));
   const badge = badges.match(/\b(?:[1-8]\d{2}\s*[die]|[1-6]\.\d\s*(?:tdi|tsi|tfsi|hdi|dci|cdti|ecoboost)|gti|gte|bluehdi|ecoboost|e hybrid|tce|crdi|jtdm?)\b/i)?.[0];
   const signal = normalizeLocation(text);
@@ -386,17 +503,33 @@ export function normalizeImportedVehicle(source: {
     return label.length >= 3 && (" " + signal.replace(/[.,;:]/g, " ") + " ").includes(" " + label + " ");
   }).map(item => item.label), ...(source.equipment ?? []).map(clean).filter(Boolean)])].slice(0, 60);
   const registration = field("firstRegistration");
+  const equipmentByCategory: Record<string, string[]> = {
+    "Sigurnost i asistencije": [], "Udobnost i interijer": [], "Multimedija i navigacija": [], "Eksterijer i ovjes": [],
+  };
+  const equipmentRules: Array<[string, RegExp]> = [
+    ["Sigurnost i asistencije", /\b(?:360\s*°?\s*kamere?|parkirni senzori|adaptivni tempomat|asistent trake|nadzor mrtvog kuta|kamera za vožnju unatrag|iso\s*fix)\b/i],
+    ["Udobnost i interijer", /\b(?:el\.?\s*sklopivi retrovizori|(?:kožna|kozna) sjedal\w*|m sport sjedal\w*|m volan|f1 saltarice|grijana sjedal\w*|tempomat|digitalni kokpit|crno nebo|panoramski krov)\b/i],
+    ["Multimedija i navigacija", /\b(?:harman\s*\/?\s*kardon|velika navigacij\w*|navigacij\w*|head up display|apple carplay|android auto|hud)\b/i],
+    ["Eksterijer i ovjes", /\b(?:led adaptivn\w* svijetla|led kvake|m paket|m sport paket|alu felge \d{2}|zatamnjena stražnja stakla|sportski ovjes)\b/i],
+  ];
+  for (const [category, pattern] of equipmentRules) {
+    const found = rawText.match(pattern);
+    if (found) equipmentByCategory[category].push(found[0].trim());
+  }
   return {
-    ...parsed, make, model, title, description, equipment, cylinders,
-    generation: make && model ? chassisFromTitle(make, model, title) : undefined,
-    variant: badge || parsed.variant,
-    fuel: fuelOf(normalizeLocation(fuelName ?? "")) ?? fuelOf(badges) ?? fuelOf(signal),
+    ...parsed, make: canonical.make || make, model: canonical.model || model, title, description, equipment,
+    cylinders: canonical.cylinders ?? cylinders,
+    generation: canonical.generation || (make && model ? chassisFromTitle(make, model, title) : undefined),
+    variant: canonical.badge || badge || parsed.variant,
+    bodyType: canonical.bodyType || field("Oblik karoserije") || parsed.bodyType,
+    doors, seats, drivetrain: canonical.drive, equipmentByCategory,
+    fuel: canonical.fuel ?? fuelOf(normalizeLocation(fuelName ?? "")) ?? fuelOf(badges) ?? fuelOf(signal),
     gear: gearOf(normalizeLocation(gearName ?? "")) ?? gearOf(signal),
-    drive: /\b(?:xdrive|quattro|4matic|4motion|4\s*[x×]\s*4|awd|allwheeldrive)\b/.test(normalizeLocation(driveName || text)) ? "4×4" : undefined,
-    year: facts.year ?? parsed.year, km: facts.km ?? parsed.km, kw: facts.kw ?? parsed.kw, cc: facts.cc ?? parsed.cc,
+    drive: canonical.drive ?? (/\b(?:xdrive|quattro|4matic|4motion|4\s*[x×]\s*4|awd|allwheeldrive)\b/.test(normalizeLocation(driveName || text)) ? "4×4" : undefined),
+    year: facts.year ?? parsed.year, km: facts.km ?? parsed.km, kw: facts.kw ?? parsed.kw, cc: canonical.cc ?? facts.cc ?? parsed.cc,
     price: currency && !/^(?:eur|€)$/i.test(currency) ? undefined : facts.price ?? describedPrice ?? parsed.price,
     firstRegistration: (registration && /^(?:19|20)\d{2}-(?:0[1-9]|1[0-2])/.test(registration) ? registration.slice(0, 7) : facts.firstRegistration) ?? parsed.firstRegistration,
-    registrationUntil: facts.registrationUntil ?? parsed.registrationUntil,
+    registrationUntil: registeredUntil ?? facts.registrationUntil ?? parsed.registrationUntil,
     color: facts.color ?? parsed.color,
     seller: field("Prodavatelj", "Prodavač", "seller"),
     city: field("Lokacija vozila", "Grad", "city"),
