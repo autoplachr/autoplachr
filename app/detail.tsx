@@ -22,6 +22,8 @@ export default function Detail({ vehicle, saved, onSave, onClose }: {
   const masked = vehicle.vin ? vehicle.vin.slice(0, 3) + "•".repeat(10) + vehicle.vin.slice(-4) : "—";
   const specs: [string, string, boolean?][] = [
     ["Marka", vehicle.make], ["Model", vehicle.model], ["Prva registracija", registered(vehicle.date), true],
+    ["Generacija / Podverzija", vehicle.generation ?? "—", true],
+    ["Motorizacija / Verzija", vehicle.variant ?? "—", true],
     ["Kilometraža", number(vehicle.km) + " km", true], ["Snaga", power(vehicle.kw), true],
     ["Obujam", vehicle.cc ? number(vehicle.cc) + " cm³" : "—", true], ["CO₂", vehicle.co2 + " g/km", true],
     ["Gorivo", vehicle.fuel], ["Mjenjač", vehicle.gear], ["Pogon", vehicle.drive],
@@ -58,14 +60,14 @@ export default function Detail({ vehicle, saved, onSave, onClose }: {
         {active?.link && <p className="photo-credit">Ilustrativna fotografija · <a target="_blank" rel="noreferrer" href={active.link}>{active.credit} / Unsplash</a></p>}
       </div>
       <div className="detail-summary">
-        <div className="price-line"><strong className="mono">{euro(vehicle.price)}</strong><Rating vehicle={vehicle}/></div>
+        <div className="price-line"><strong className="tabular">{euro(vehicle.price)}</strong><Rating vehicle={vehicle}/></div>
         <button type="button" className={"icon-btn " + (saved ? "saved" : "")} aria-label={saved ? "Ukloni iz spremljenih" : "Spremi vozilo"} aria-pressed={saved} onClick={onSave}><Heart size={20} fill={saved ? "currentColor" : "none"}/></button>
       </div>
       {vehicle.sellerNote && <p className="detail-seller-note">{vehicle.sellerNote}</p>}
       {listingConditions.length > 0 && <p className="listing-conditions">{listingConditions.map(flag => quick[flag]).join(" · ")}</p>}
       <section className="detail-section">
         <h3>Tehnički podaci</h3>
-        <dl className="spec-table">{specs.map(([label, value, mono]) => <div key={label}><dt>{label}</dt><dd className={mono ? "mono" : ""}>{value}</dd></div>)}</dl>
+        <dl className="spec-table">{specs.map(([label, value, numeric]) => <div key={label}><dt>{label}</dt><dd className={numeric ? "tabular" : ""}>{value}</dd></div>)}</dl>
       </section>
       {(vehicle.trim || makeEquipment.length > 0 || groups.some(group => vehicle.equipment[group].length)) && <section className="detail-section">
         <h3>Oprema vozila</h3>
@@ -75,7 +77,7 @@ export default function Detail({ vehicle, saved, onSave, onClose }: {
       </section>}
       {vehicle.range && <section className="detail-section price-evaluation">
         <h3>Usporedba cijene</h3>
-        <p>Tržišni raspon <strong className="mono">{euro(vehicle.range[0])} – {euro(vehicle.range[1])}</strong></p>
+        <p>Tržišni raspon <strong className="tabular">{euro(vehicle.range[0])} – {euro(vehicle.range[1])}</strong></p>
         <div className="price-scale" role="img" aria-label={"Tražena cijena " + euro(vehicle.price) + " u odnosu na ogledni tržišni raspon"}>
           <div/><div/><div/><span style={{ left: Math.max(4, Math.min(96, 33.33 + 33.33 * (vehicle.price - vehicle.range[0]) / (vehicle.range[1] - vehicle.range[0]))) + "%" }}/>
         </div>
@@ -84,9 +86,9 @@ export default function Detail({ vehicle, saved, onSave, onClose }: {
       </section>}
       <BuyerTools vehicle={vehicle} />
       <section className="detail-section seller-card">
-        <div className="seller-title"><h3>{vehicle.seller || "Privatni prodavač"}</h3><p>{vehicle.city}{vehicle.verified && " · Verificirana autokuća"}</p></div>
+        <div className="seller-title"><h3>{vehicle.seller || "Privatni prodavač"}</h3><p>{vehicle.city}{vehicle.verified && <span className="verified-label"><Check size={14} aria-hidden="true"/>Verificirana autokuća</span>}</p></div>
         <div className="flex flex-wrap gap-2">
-          {phone && !vehicle.demo ? <a className="btn secondary mono" href={"tel:" + vehicle.phone.replace(/[^+\d]/g, "")}><Phone size={15}/>{vehicle.phone}</a> : <button className="btn secondary" type="button" onClick={() => setPhone(true)}><Phone size={15}/>{phone ? vehicle.phone + " (demo)" : "Prikaži broj telefona (+385 …)"}</button>}
+          {phone && !vehicle.demo ? <a className="btn secondary tabular" href={"tel:" + vehicle.phone.replace(/[^+\d]/g, "")}><Phone size={15}/>{vehicle.phone}</a> : <button className="btn secondary" type="button" onClick={() => setPhone(true)}><Phone size={15}/>{phone ? vehicle.phone + " (demo)" : "Prikaži broj telefona (+385 …)"}</button>}
           <button type="button" className="btn quiet" aria-expanded={inquiry} onClick={() => setInquiry(!inquiry)}><MessageSquare size={15}/> Brzi upit</button>
         </div>
         {inquiry && <form className="inquiry form-stack" onSubmit={send}>

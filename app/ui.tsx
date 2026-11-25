@@ -80,7 +80,7 @@ export function VehiclePhoto({ photo, alt, eager = false }: { photo?: Photo; alt
 
 export function PhotoCount({ index, total }: { index: number; total: number }) {
   if (!total) return null;
-  return <span className="photo-count mono" aria-label={`Fotografija ${index + 1} od ${total}`}>{index + 1}/{total}</span>;
+  return <span className="photo-count tabular" aria-label={`Fotografija ${index + 1} od ${total}`}>{index + 1}/{total}</span>;
 }
 
 export function Rating({ vehicle }: { vehicle: Vehicle }) {

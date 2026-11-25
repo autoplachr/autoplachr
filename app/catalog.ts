@@ -1,13 +1,6 @@
 import photoData from "./photos.json";
 
-export const makes = {
-  BMW: ["Serija 3", "Serija 1"],
-  Audi: ["A4", "A6"],
-  Volkswagen: ["Golf", "Passat", "Tiguan"],
-  "Mercedes-Benz": ["C-klasa", "E-klasa"],
-  "Škoda": ["Octavia"],
-  Porsche: ["Macan"],
-} as const;
+import type { CAR_CATALOG } from "../src/data/car-catalog";
 
 export const cities = ["Zagreb", "Osijek", "Slavonski Brod", "Split", "Rijeka", "Varaždin"];
 export const countyByCity: Readonly<Record<string, string>> = {
@@ -46,6 +39,7 @@ export function emptyEquipment(): Equipment {
 export type Photo = { src: string; credit?: string; link?: string };
 export type Vehicle = {
   id: string; make: string; model: string; title: string; trim: string; price: number;
+  generation?: string; variant?: string;
   date: string; km: number; kw: number; cc: number; co2: number; fuel: Fuel;
   gear: typeof gears[number]; drive: string; vin: string; city: string; seller: string;
   dealer: boolean; verified: boolean; phone: string; email?: string; flags: Flag[];
@@ -101,30 +95,30 @@ const sellerNotes: Record<string, string> = {
   passatgte: "Kućni kabel za punjenje dolazi uz auto. Možemo se dogovoriti za pregled i probnu vožnju u Zagrebu.",
 };
 
-type Seed = [id: string, key: string, make: keyof typeof makes, model: string, title: string, trim: string, price: number,
+type Seed = [id: string, key: string, make: keyof typeof CAR_CATALOG, model: string, generation: string, variant: string, title: string, trim: string, price: number,
   date: string, km: number, kw: number, cc: number, co2: number, city: number, seller: string,
   flag: Flag[], range: [number, number], drive?: string, gear?: Vehicle["gear"], fuel?: Fuel];
 const seed: Seed[] = [
-  ["g20", "bmw-g20", "BMW", "Serija 3", "BMW 320d M-Sport xDrive", "M Sport · Harman Kardon · LED", 24900, "2021-05", 114500, 140, 1995, 138, 0, "Sjever Auto", ["pdv","cvh"], [25200,26900], "4×4"],
-  ["a4", "audi-a4", "Audi", "A4", "Audi A4 40 TDI S-Line", "S-Line · Matrix LED · Virtual Cockpit", 22750, "2020-09", 132000, 140, 1968, 118, 4, "Kvarner Motors", ["kupac"], [21800,23900]],
-  ["golf", "golf-mk8", "Volkswagen", "Golf", "Volkswagen Golf 8 GTD", "GTD · IQ.Light · Digital Cockpit Pro", 23490, "2021-11", 98500, 147, 1968, 137, 1, "Drava Auto", ["dolazak","cvh"], [23500,25400]],
-  ["c220", "mercedes-c-class", "Mercedes-Benz", "C-klasa", "Mercedes-Benz C 220 d AMG Line", "AMG Line · Burmester · MBUX", 32900, "2022-03", 74600, 147, 1993, 125, 3, "Jadran Auto", ["pdv"], [30200,33900], "Stražnji"],
-  ["macan", "porsche-macan", "Porsche", "Macan", "Porsche Macan S", "Sport Chrono · PDK · Panoramski krov", 56900, "2020-07", 88900, 260, 2995, 204, 0, "Sjever Auto", ["pdv"], [49500,55000], "4×4", "Automatski", "Benzin"],
-  ["octavia", "skoda-octavia", "Škoda", "Octavia", "Škoda Octavia RS 2.0 TSI", "RS · Canton · Matrix LED", 26900, "2022-06", 78400, 180, 1984, 163, 5, "Varaždin Auto", ["kupac","cvh"], [26000,28000], "Prednji", "Automatski", "Benzin"],
-  ["a6", "audi-a6", "Audi", "A6", "Audi A6 50 TDI quattro", "S-Line · Bang & Olufsen · 360°", 36900, "2019-10", 141000, 210, 2967, 147, 0, "Sjever Auto", ["pdv"], [34500,36700], "4×4"],
-  ["passat", "volkswagen-passat", "Volkswagen", "Passat", "Volkswagen Passat 2.0 TDI R-Line", "R-Line · Discover Pro · ACC", 19990, "2020-04", 148700, 110, 1968, 113, 2, "", ["cvh"], [20100,21700]],
-  ["tiguan", "volkswagen-tiguan", "Volkswagen", "Tiguan", "Volkswagen Tiguan 2.0 TDI 4Motion", "Elegance · Area View · 4Motion", 27450, "2021-08", 105200, 110, 1968, 162, 5, "Varaždin Auto", ["dolazak","pdv"], [26400,28500], "4×4"],
-  ["f30", "bmw-f30", "BMW", "Serija 3", "BMW 320d F30 Sport Line", "Sport Line · LED · Navigacija", 15400, "2017-06", 183200, 140, 1995, 119, 2, "", ["cvh"], [14800,15800], "Stražnji", "Ručni"],
-  ["118", "bmw-1-series", "BMW", "Serija 1", "BMW 118d F20 M Sport", "M Sport · Aluminijski naplatci · LED", 14850, "2018-03", 139400, 110, 1995, 111, 1, "", [], [14900,16100], "Stražnji", "Ručni"],
-  ["e220", "mercedes-e-class", "Mercedes-Benz", "E-klasa", "Mercedes-Benz E 220 d Avantgarde", "Avantgarde · Widescreen · LED", 25900, "2019-08", 156900, 143, 1950, 129, 4, "Kvarner Motors", ["pdv","kupac"], [24700,26900], "Stražnji"],
-  ["touring", "bmw-touring", "BMW", "Serija 3", "BMW 320d G21 Touring", "Sport Line · Live Cockpit · LED", 23900, "2020-02", 129650, 140, 1995, 125, 3, "Jadran Auto", ["dolazak","kupac"], [23100,24800], "Stražnji"],
-  ["passatgte", "volkswagen-passat", "Volkswagen", "Passat", "Volkswagen Passat GTE Variant", "GTE · Adaptivni tempomat · CarPlay", 22400, "2021-12", 95400, 160, 1395, 32, 0, "", ["cvh"], [20900,22200], "Prednji", "Automatski", "Hibrid"],
+  ["g20", "bmw-g20", "BMW", "Serija 3", "G20", "320d xDrive", "BMW 320d G20 M-Sport xDrive", "M Sport · Harman Kardon · LED", 24900, "2021-05", 114500, 140, 1995, 138, 0, "Sjever Auto", ["pdv","cvh"], [25200,26900], "4×4"],
+  ["a4", "audi-a4", "Audi", "A4", "B9", "40 TDI S line", "Audi A4 B9 40 TDI S line", "S-Line · Matrix LED · Virtual Cockpit", 22750, "2020-09", 132000, 140, 1968, 118, 4, "Kvarner Motors", ["kupac"], [21800,23900]],
+  ["golf", "golf-mk8", "Volkswagen", "Golf", "CD", "GTD", "Volkswagen Golf 8 (CD) GTD", "GTD · IQ.Light · Digital Cockpit Pro", 23490, "2021-11", 98500, 147, 1968, 137, 1, "Drava Auto", ["dolazak","cvh"], [23500,25400]],
+  ["c220", "mercedes-c-class", "Mercedes-Benz", "C-klasa", "W206", "220 d AMG Line", "Mercedes-Benz C 220 d W206 AMG Line", "AMG Line · Burmester · MBUX", 32900, "2022-03", 74600, 147, 1993, 125, 3, "Jadran Auto", ["pdv"], [30200,33900], "Stražnji"],
+  ["macan", "porsche-macan", "Porsche", "Macan", "95B", "S", "Porsche Macan S 95B", "Sport Chrono · PDK · Panoramski krov", 56900, "2020-07", 88900, 260, 2995, 204, 0, "Sjever Auto", ["pdv"], [49500,55000], "4×4", "Automatski", "Benzin"],
+  ["octavia", "skoda-octavia", "Škoda", "Octavia", "NX", "RS 2.0 TSI", "Škoda Octavia RS NX 2.0 TSI", "RS · Canton · Matrix LED", 26900, "2022-06", 78400, 180, 1984, 163, 5, "Varaždin Auto", ["kupac","cvh"], [26000,28000], "Prednji", "Automatski", "Benzin"],
+  ["a6", "audi-a6", "Audi", "A6", "C8", "50 TDI quattro", "Audi A6 C8 50 TDI quattro", "S-Line · Bang & Olufsen · 360°", 36900, "2019-10", 141000, 210, 2967, 147, 0, "Sjever Auto", ["pdv"], [34500,36700], "4×4"],
+  ["passat", "volkswagen-passat", "Volkswagen", "Passat", "B8", "2.0 TDI R-Line", "Volkswagen Passat B8 2.0 TDI R-Line", "R-Line · Discover Pro · ACC", 19990, "2020-04", 148700, 110, 1968, 113, 2, "", ["cvh"], [20100,21700]],
+  ["tiguan", "volkswagen-tiguan", "Volkswagen", "Tiguan", "AD", "2.0 TDI 4Motion", "Volkswagen Tiguan AD 2.0 TDI 4Motion", "Elegance · Area View · 4Motion", 27450, "2021-08", 105200, 110, 1968, 162, 5, "Varaždin Auto", ["dolazak","pdv"], [26400,28500], "4×4"],
+  ["f30", "bmw-f30", "BMW", "Serija 3", "F30", "320d", "BMW 320d F30 Sport Line", "Sport Line · LED · Navigacija", 15400, "2017-06", 183200, 140, 1995, 119, 2, "", ["cvh"], [14800,15800], "Stražnji", "Ručni"],
+  ["118", "bmw-1-series", "BMW", "Serija 1", "F20", "118d M Sport", "BMW 118d F20 M-Sport", "M Sport · Aluminijski naplatci · LED", 14850, "2018-03", 139400, 110, 1995, 111, 1, "", [], [14900,16100], "Stražnji", "Ručni"],
+  ["e220", "mercedes-e-class", "Mercedes-Benz", "E-klasa", "W213", "220 d Avantgarde", "Mercedes-Benz E 220 d W213 Avantgarde", "Avantgarde · Widescreen · LED", 25900, "2019-08", 156900, 143, 1950, 129, 4, "Kvarner Motors", ["pdv","kupac"], [24700,26900], "Stražnji"],
+  ["touring", "bmw-touring", "BMW", "Serija 3", "G21", "320d", "BMW 320d G21 Touring", "Sport Line · Live Cockpit · LED", 23900, "2020-02", 129650, 140, 1995, 125, 3, "Jadran Auto", ["dolazak","kupac"], [23100,24800], "Stražnji"],
+  ["passatgte", "volkswagen-passat", "Volkswagen", "Passat", "B8", "GTE", "Volkswagen Passat B8 GTE Variant", "GTE · Adaptivni tempomat · CarPlay", 22400, "2021-12", 95400, 160, 1395, 32, 0, "", ["cvh"], [20900,22200], "Prednji", "Automatski", "Hibrid"],
 ];
 export const vehicles: Vehicle[] = seed.map(([
-  id, key, make, model, title, trim, price, date, km, kw, cc, co2, city, seller, flags, range,
+  id, key, make, model, generation, variant, title, trim, price, date, km, kw, cc, co2, city, seller, flags, range,
   drive = "Prednji", gear = "Automatski", fuel = "Dizel",
 ], index) => ({
-  id, make, model, title, trim, price, date, km, kw, cc, co2, city: cities[city], drive, gear, fuel,
+  id, make, model, generation, variant, title, trim, price, date, km, kw, cc, co2, city: cities[city], drive, gear, fuel,
   sellerNote: sellerNotes[id], makeEquipment: seedMakeEquipment[id],
   vin: "EXAMPLE0000" + String(100001 + index), seller, dealer: Boolean(seller), verified: Boolean(seller),
   phone: "+385 00 000 000", flags, range, demo: true, photos: modelPhotos(key),

@@ -2,8 +2,9 @@
 
 import { ArrowRight, CarFront, Check, Grid2X2, Heart, List, Plus, SlidersHorizontal, Store, X } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { cities, countyByCity, euro, fuels, gears, makes, number, power, quick, registered, vehicles, type Vehicle } from "./catalog";
-import { distances, initialSearch, matchVehicles, modelsFor, prices, readSearch, sorts, writeSearch, years, type Search } from "./search";
+import { cities, countyByCity, euro, fuels, gears, number, power, quick, registered, vehicles, type Vehicle } from "./catalog";
+import { distances, initialSearch, matchVehicles, prices, readSearch, sorts, writeSearch, years, type Search } from "./search";
+import { CatalogFields } from "./catalog-fields";
 import { Dialog, ListingOptions, MakeEquipmentOptions, PhotoCount, Rating, Select, VehiclePhoto } from "./ui";
 import { selectedMakeOptions } from "./make-equipment";
 import { TaxCalculator } from "./buyer-tools";
@@ -20,44 +21,40 @@ function readStored<T>(key: string): T[] {
   } catch { return []; }
 }
 
-type FilterKey = "marka" | "model" | "cijena" | "godiste" | "km" | "gorivo" | "mjenjac" | "grad";
-type FilterField = { key: FilterKey; title: string; all: string; values: readonly (string | number)[]; format?: (v: string | number) => string; mono?: boolean; disabled?: boolean };
+type FilterKey = "cijena" | "godiste" | "km" | "gorivo" | "mjenjac" | "grad";
+type FilterField = { key: FilterKey; title: string; all: string; values: readonly (string | number)[]; format?: (v: string | number) => string; numeric?: boolean };
 
 function FilterControls({ search, count, update, apply }: {
   search: Search; count: number; update: (next: Search) => void; apply: () => void;
 }) {
   const active = Boolean(search.marka || search.model || search.cijena || search.godiste || search.km || search.gorivo || search.mjenjac || search.grad || search.opcije.length);
   const fields: FilterField[] = [
-    { key: "marka", title: "Marka", all: "Sve marke", values: Object.keys(makes) },
-    { key: "model", title: "Model", all: "Svi modeli", values: modelsFor(search.marka), disabled: !search.marka },
-    { key: "cijena", title: "Cijena do (€)", all: "Bez limita", values: prices, format: value => euro(Number(value)) + (value === 50000 ? "+" : ""), mono: true },
-    { key: "godiste", title: "Godište od", all: "Sva godišta", values: years, mono: true },
-    { key: "km", title: "Kilometraža do", all: "Bez limita", values: distances, format: value => number(Number(value)) + " km", mono: true },
+    { key: "cijena", title: "Cijena do (€)", all: "Bez limita", values: prices, format: value => euro(Number(value)) + (value === 50000 ? "+" : ""), numeric: true },
+    { key: "godiste", title: "Godište od", all: "Sva godišta", values: years, numeric: true },
+    { key: "km", title: "Kilometraža do", all: "Bez limita", values: distances, format: value => number(Number(value)) + " km", numeric: true },
     { key: "gorivo", title: "Gorivo", all: "Sva goriva", values: fuels },
     { key: "mjenjac", title: "Mjenjač", all: "Svi mjenjači", values: gears },
     { key: "grad", title: "Županija", all: "Sva Hrvatska", values: cities, format: value => countyByCity[value] ?? String(value) },
   ];
-  function renderField({ key, title, all, values, format, mono, disabled }: FilterField) {
-    return <Select key={key} label={title} className={search[key] ? (mono ? "numeric-select selected-field" : "selected-field") : ""} value={search[key]} onChange={event => {
-      const value = event.target.value;
-      const next = { ...search, [key]: value };
-      if (key === "marka") { next.model = ""; next.oprema = []; }
-      if (key === "model") next.oprema = selectedMakeOptions(next.marka, value, next.oprema);
-      update(next);
-    }} disabled={disabled}>
+  function renderField({ key, title, all, values, format, numeric }: FilterField) {
+    return <Select key={key} label={title} className={numeric ? "numeric-select" : ""} value={search[key]} onChange={event => update({ ...search, [key]: event.target.value })}>
       <option value="">{all}</option>
       {values.map(value => <option key={value} value={value}>{format ? format(value) : value}</option>)}
     </Select>;
   }
   return <form className="filter-form" onSubmit={event => { event.preventDefault(); apply(); }}>
     <div className="filter-body">
-      <div className="search-fields vehicle-identity">{fields.slice(0, 2).map(renderField)}</div>
+      <div className="search-fields vehicle-identity">
+        <CatalogFields value={{ make: search.marka, model: search.model, generation: search.generacija }} onChange={({make, model, generation}) => update({
+          ...search, marka: make, model, generacija: generation, oprema: selectedMakeOptions(make, model, search.oprema),
+        })} />
+      </div>
       <MakeEquipmentOptions make={search.marka} model={search.model} selected={search.oprema} onChange={oprema => update({ ...search, oprema })}/>
-      <div className="search-fields">{fields.slice(2).map(renderField)}</div>
+      <div className="search-fields">{fields.map(renderField)}</div>
       <ListingOptions selected={search.opcije} onChange={opcije => update({ ...search, opcije })} />
     </div>
     <div className="search-actions">
-      <button className="btn primary search-submit" type="submit">Prikaži <span className="mono">{count}</span> {count === 1 ? "vozilo" : "vozila"}</button>
+      <button className="btn primary search-submit" type="submit">Prikaži <span className="tabular">{count}</span> {count === 1 ? "vozilo" : "vozila"}</button>
       <button className="reset-btn" type="button" disabled={!active} onClick={() => update({ ...initialSearch, sortiranje: search.sortiranje, prikaz: search.prikaz })}>Poništi filtere</button>
     </div>
   </form>;
@@ -79,16 +76,16 @@ function Listing({ vehicle, saved, onOpen, onSave, eager }: {
     <div className="listing-content">
       <h3><button className="card-link" type="button" onClick={onOpen}>{vehicle.title}</button></h3>
       <ul className="listing-specs" aria-label="Osnovni podaci">{specs.map((spec, index) =>
-        <li key={spec} className={index < 3 ? "mono" : undefined}>{spec}</li>
+        <li key={spec} className={index < 3 ? "tabular" : undefined}>{spec}</li>
       )}</ul>
       {vehicle.sellerNote && <p className="seller-note">{vehicle.sellerNote}</p>}
       <div className="listing-seller">
         <span>{vehicle.seller || (vehicle.dealer ? "Autokuća" : "Privatni prodavač")} <span aria-hidden="true">·</span> {vehicle.city}</span>
-        {vehicle.verified && <span className="verified-label">Verificirana autokuća</span>}
+        {vehicle.verified && <span className="verified-label"><Check size={14} aria-hidden="true" />Verificirana autokuća</span>}
       </div>
     </div>
     <div className="listing-price">
-      <strong className="mono">{euro(vehicle.price)}</strong>
+      <strong className="tabular">{euro(vehicle.price)}</strong>
       <Rating vehicle={vehicle}/>
       {vat && <span className="vat-note">Uključen PDV (R1)</span>}
       <button className="listing-details" type="button" onClick={onOpen} aria-label={"Detalji: " + vehicle.title}>Detalji <ArrowRight size={15}/></button>
@@ -148,7 +145,7 @@ export default function Marketplace() {
   const inventory = useMemo(() => allVehicles.filter(v => (!savedOnly || saved.includes(v.id)) && (!dealerOnly || v.dealer)), [allVehicles, saved, savedOnly, dealerOnly]);
   const results = useMemo(() => matchVehicles(inventory, search), [inventory, search]);
   const savedCount = allVehicles.filter(v => saved.includes(v.id)).length;
-  const activeCount = [search.marka, search.model, search.cijena, search.godiste, search.km, search.gorivo, search.mjenjac, search.grad].filter(Boolean).length + search.opcije.length + search.oprema.length;
+  const activeCount = [search.marka, search.model, search.generacija, search.cijena, search.godiste, search.km, search.gorivo, search.mjenjac, search.grad].filter(Boolean).length + search.opcije.length + search.oprema.length;
   const update = (next: Search) => { setSearch(next); writeSearch(next); };
   const scrollResults = () => requestAnimationFrame(() => document.getElementById("vozila")?.scrollIntoView());
   const apply = () => { setPanel(null); scrollResults(); };
@@ -190,15 +187,15 @@ export default function Marketplace() {
   return <>
     <header className="topbar">
       <div className="shell topbar-inner">
-        <button className="brand" type="button" aria-label="Šasija HR, početna" onClick={showMarket}><span className="brand-icon"><CarFront size={20} strokeWidth={2.2}/></span><span>ŠASIJA</span><span className="brand-domain mono">.hr</span></button>
+        <button className="brand" type="button" aria-label="Šasija HR, početna" onClick={showMarket}><span className="brand-icon"><CarFront size={20} strokeWidth={2.2}/></span><span>ŠASIJA</span><span className="brand-domain tabular">.hr</span></button>
         <nav className="main-nav" aria-label="Glavna navigacija">
           <button type="button" aria-current={!dealerOnly && !savedOnly ? "page" : undefined} onClick={showMarket}>Rabljena vozila</button>
           <button type="button" aria-current={dealerOnly ? "page" : undefined} onClick={() => { setDealerOnly(true); setSavedOnly(false); scrollResults(); }}>Autokuće</button>
           <button type="button" onClick={() => setPanel("tax")}>PPMV Kalkulator</button>
         </nav>
         <div className="header-actions">
-          <button type="button" className="btn quiet save-nav" aria-label={"Spremljeno " + savedCount} aria-pressed={savedOnly} onClick={() => { setSavedOnly(!savedOnly); setDealerOnly(false); scrollResults(); }}><Heart size={16}/><span className="saved-text">Spremljeno</span><span className="saved-count mono">{savedCount}</span></button>
-          <button type="button" className="btn primary publish-nav" onClick={() => setPanel("publish")}><Plus size={17}/><span>Predaj oglas</span><span className="free mono">0 €</span></button>
+          <button type="button" className="btn quiet save-nav" aria-label={"Spremljeno " + savedCount} aria-pressed={savedOnly} onClick={() => { setSavedOnly(!savedOnly); setDealerOnly(false); scrollResults(); }}><Heart size={16}/><span className="saved-text">Spremljeno</span><span className="saved-count tabular">{savedCount}</span></button>
+          <button type="button" className="btn primary publish-nav" onClick={() => setPanel("publish")}><Plus size={17}/><span>Predaj oglas</span><span className="free tabular">0 €</span></button>
         </div>
       </div>
     </header>
@@ -209,12 +206,12 @@ export default function Marketplace() {
       </aside>
       <section className="results" id="vozila" aria-labelledby="results-title">
         <div className="mobile-tools">
-          <button type="button" className="btn secondary" aria-haspopup="dialog" onClick={() => setPanel("filters")}><SlidersHorizontal size={16}/> Filteri {activeCount > 0 && <span className="mono">({activeCount})</span>}</button>
+          <button type="button" className="btn secondary" aria-haspopup="dialog" onClick={() => setPanel("filters")}><SlidersHorizontal size={16}/> Filteri {activeCount > 0 && <span className="tabular">({activeCount})</span>}</button>
           <button type="button" className="btn quiet mobile-nav-action" onClick={() => setPanel("tax")}>PPMV</button>
           <button type="button" className="btn quiet mobile-nav-action" aria-pressed={dealerOnly} onClick={() => { setDealerOnly(!dealerOnly); setSavedOnly(false); }}>Autokuće</button>
         </div>
         <div className="results-toolbar">
-          <h1 id="results-title" className="result-count" aria-live="polite">{savedOnly ? "Spremljeno" : "Pronađeno"} <strong className="mono">{results.length}</strong> {results.length === 1 ? "vozilo" : "vozila"}{dealerOnly && " iz autokuća"}</h1>
+          <h1 id="results-title" className="result-count" aria-live="polite">{savedOnly ? "Spremljeno" : "Pronađeno"} <strong className="tabular">{results.length}</strong> {results.length === 1 ? "vozilo" : "vozila"}{dealerOnly && " iz autokuća"}</h1>
           <div className="results-controls">
             <Select className="sort-field" label="Sortiraj vozila" value={search.sortiranje} onChange={event => update({ ...search, sortiranje: event.target.value as Search["sortiranje"] })}>{Object.entries(sorts).map(([key, title]) => <option key={key} value={key}>{title}</option>)}</Select>
             <div className="view-switch" role="group" aria-label="Prikaz rezultata">
@@ -233,7 +230,7 @@ export default function Marketplace() {
         </section>
       </section>
     </main>
-    <footer className="site-footer"><div className="shell"><span>ŠASIJA<span className="mono">.hr</span></span><p>Ogledni oglasi i tržišne procjene.</p><button className="text-link" type="button" onClick={() => setPanel("tax")}>PPMV kalkulator <ArrowRight size={14}/></button></div></footer>
+    <footer className="site-footer"><div className="shell"><span>ŠASIJA<span className="tabular">.hr</span></span><p>Ogledni oglasi i tržišne procjene.</p><button className="text-link" type="button" onClick={() => setPanel("tax")}>PPMV kalkulator <ArrowRight size={14}/></button></div></footer>
     {panel === "filters" && <Dialog title="Filteri vozila" variant="filter-drawer" onClose={() => setPanel(null)}>{filters}</Dialog>}
     {panel === "tax" && <Dialog title="PPMV kalkulator uvoza" onClose={() => setPanel(null)} variant="form-dialog"><div className="dialog-content"><TaxCalculator/></div></Dialog>}
     {panel === "publish" && <PublishForm onClose={() => setPanel(null)} onPublish={publish}/>}
