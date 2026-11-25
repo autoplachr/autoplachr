@@ -201,14 +201,25 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
   if (endpoint === "auth/login") {
     const email = String(data.email ?? "").trim().toLowerCase();
     const password = String(data.password ?? "");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: sessionData, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
+      console.error("[supabase auth/login]", { message: error.message, status: error.status ?? null });
       if (/email not confirmed/i.test(error.message)) {
-        throw new Error("Potvrdite svoju e-mail adresu prije prijave.");
+        throw Object.assign(new Error("Potvrdite svoju e-mail adresu prije prijave."), { status: error.status });
       }
-      throw new Error("Pogrešan e-mail ili lozinka.");
+      if (/email rate limit|over_email_send_rate_limit|for security purposes|too many requests|429/i.test(error.message)) {
+        throw Object.assign(new Error("Previše pokušaja. Pričekajte nekoliko minuta i pokušajte ponovno."), { status: error.status ?? 429 });
+      }
+      if (/invalid login credentials|invalid_credentials|invalid password|user not found/i.test(error.message)) {
+        throw Object.assign(new Error("Pogrešan e-mail ili lozinka."), { status: error.status });
+      }
+      throw Object.assign(new Error(error.message || "Prijava nije uspjela."), { status: error.status });
     }
-    return { ok: true };
+    // Wait for the browser client to persist the session in cookies before any redirect.
+    await supabase.auth.getSession();
+    const { error: profileError } = await supabase.rpc("ensure_my_profile");
+    if (profileError) console.error("[supabase ensure_my_profile]", { message: profileError.message });
+    return { ok: true, userId: sessionData.user?.id };
   }
 
   if (endpoint === "auth/register") {
@@ -242,8 +253,25 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
         },
       },
     });
-    if (error) throw new Error(error.message || "Registracija nije uspjela.");
+    if (error) {
+      console.error("[supabase auth/register]", { message: error.message, status: error.status ?? null });
+      if (/email rate limit|over_email_send_rate_limit|for security purposes|too many requests|429/i.test(error.message)) {
+        throw Object.assign(new Error("Previše pokušaja slanja potvrde. Pričekajte oko sat vremena ili kontaktirajte podršku."), { status: error.status ?? 429 });
+      }
+      if (/already registered|already exists|user_already_exists/i.test(error.message)) {
+        throw Object.assign(new Error("Račun s tom e-mail adresom već postoji. Prijavite se ili poništite lozinku."), { status: error.status });
+      }
+      if (/password/i.test(error.message)) {
+        throw Object.assign(new Error("Lozinka mora imati najmanje 8 znakova."), { status: error.status });
+      }
+      throw Object.assign(new Error(error.message || "Registracija nije uspjela."), { status: error.status });
+    }
     const needsVerification = !signUpData.session;
+    if (signUpData.session) {
+      await supabase.auth.getSession();
+      const { error: profileError } = await supabase.rpc("ensure_my_profile");
+      if (profileError) console.error("[supabase ensure_my_profile]", { message: profileError.message });
+    }
     return { ok: true, needsVerification, email };
   }
 

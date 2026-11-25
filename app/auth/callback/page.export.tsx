@@ -11,7 +11,10 @@ export default function AuthCallbackPage() {
     let active = true;
     async function finalize() {
       const params = new URLSearchParams(window.location.search);
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
       const code = params.get("code");
+      const accessToken = hash.get("access_token");
+      const refreshToken = hash.get("refresh_token");
       const flowId = params.get("sb_flow_id");
       const siteOrigin = getSiteOrigin();
       let target = "/racun";
@@ -28,7 +31,10 @@ export default function AuthCallbackPage() {
       }
 
       try {
-        if (code) {
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (error) throw error;
+        } else if (code) {
           const { data, error } = await supabase.auth.exchangeCodeForSession(code, flowId ? { flowId } : undefined);
           if (error) throw error;
           if ("redirectType" in data && data.redirectType === "recovery") target = "/auth/recovery";

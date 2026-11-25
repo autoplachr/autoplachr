@@ -7,6 +7,7 @@ import { BrandLogo } from "../src/components/BrandLogo";
 import { AdSlot } from "../src/components/AdSlot";
 import { ArrowDown, ArrowRight, Bike, Car, Caravan, Truck, Zap, Check, Compass, Grid2X2, List, Navigation, RotateCcw, Search as SearchIcon, SlidersHorizontal, X } from "lucide-react";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { SEO_CITIES, TOP_FOOTER_BRANDS, slugifyHr, vehicleIdFromPath, vehicleListingPath } from "../src/lib/seo";
 import { CAR_MAKES } from "../src/data/car-catalog";
 import { FaqAccordion } from "./faq-accordion";
@@ -909,7 +910,8 @@ export default function Marketplace({
         // Fallback to /racun
       }
     }
-    navigate("/racun", true);
+    router.push("/racun");
+    router.refresh();
   }
   async function signOut() {
     try { await api("auth/logout",{});await refresh();navigate("/",true); }
@@ -925,29 +927,36 @@ export default function Marketplace({
   const cancelResultScroll = useRef<(() => void) | null>(null);
   const activeDetail = useRef<string | null>(null);
   const authExchangeStarted = useRef(false);
+  const router = useRouter();
   const [notice, setNotice] = useState("");
 
-  // Older confirmation emails point at `/?code=...`. Exchange that code once
-  // and land directly on the account instead of showing a broken home page.
+  // Confirmation emails may land on `/?code=...` (PKCE) or on any page with
+  // `#access_token=...` (implicit flow). Handle both once, then go to /racun.
   useEffect(() => {
-    if (authExchangeStarted.current) return;
+    if (authExchangeStarted.current || !isSupabaseConfigured) return;
     const params = new URLSearchParams(window.location.search);
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const code = params.get("code");
-    if (!code || window.location.pathname !== "/") return;
+    const accessToken = hash.get("access_token");
+    const refreshToken = hash.get("refresh_token");
+    const isCode = Boolean(code && window.location.pathname === "/");
+    if (!isCode && !(accessToken && refreshToken)) return;
     authExchangeStarted.current = true;
     (async () => {
-      const supabase = isSupabaseConfigured ? getSupabaseBrowserClient() : null;
-      if (supabase) {
-        try {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (!error) {
-            try { await supabase.rpc("ensure_my_profile"); } catch { /* Profile sync is non-blocking. */ }
-            window.history.replaceState(null, "", "/racun");
-            window.location.replace(new URL("/racun", getSiteOrigin()).href);
-            return;
-          }
-        } catch { /* Fall through to the standard callback. */ }
-      }
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) return;
+      try {
+        const { error } = accessToken && refreshToken
+          ? await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+          : await supabase.auth.exchangeCodeForSession(code!);
+        if (!error) {
+          await supabase.auth.getSession();
+          try { await supabase.rpc("ensure_my_profile"); } catch { /* Profile sync is non-blocking. */ }
+          window.history.replaceState(null, "", "/racun");
+          window.location.replace(new URL("/racun", getSiteOrigin()).href);
+          return;
+        }
+      } catch { /* Fall through to the standard callback. */ }
       window.history.replaceState(null, "", "/auth/callback?" + params.toString());
       window.location.replace(new URL("/auth/callback?" + params.toString(), getSiteOrigin()).href);
     })();
