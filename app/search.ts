@@ -115,6 +115,8 @@ export const categories = [
   { id: "suv", label: "SUV / Terenci" },
   { id: "gradski", label: "Gradski" },
   { id: "sportski", label: "Sportski" },
+  { id: "elektricna", label: "Električna vozila" },
+  { id: "hibridi", label: "Hibridi" },
   { id: "eko", label: "Električni i hibridi" },
   { id: "gospodarska", label: "Kombi i gospodarska vozila" },
   { id: "kamperi", label: "Kamperi i putnička vozila" },
@@ -134,7 +136,7 @@ export const bodyFilters = [
 ] as const;
 export const seatOptions = ["2", "4", "5", "7", "8"] as const;
 export const doorOptions = ["2/3", "4/5", "6/7"] as const;
-export const collections = ["prilike", "sport-paketi", "suv-obiteljski", "novo"] as const;
+export const collections = ["prilike", "sport-paketi", "suv-obiteljski", "novo", "danas", "autokuce"] as const;
 export type CollectionId = "" | (typeof collections)[number];
 export type Search = {
   kategorija: CategoryId;
@@ -261,6 +263,10 @@ function matchesCategory(v: Vehicle, category: CategoryId): boolean {
         /\b(r\.s\.|gtd|gti|rs|st|vz|cooper s|type r|jcw|amg|trophy)\b/i.test(`${v.variant ?? ""} ${v.title}`) ||
         v.kw >= 180
       );
+    case "elektricna":
+      return v.fuel === "Struja";
+    case "hibridi":
+      return v.fuel === "Hibrid";
     case "eko":
       return v.fuel === "Hibrid" || v.fuel === "Struja";
     case "ostalo":
@@ -273,6 +279,8 @@ function matchesCategory(v: Vehicle, category: CategoryId): boolean {
       return /motocikl|motorcycle|skuter/i.test(v.bodyType ?? "");
   }
 }
+const croatianDate = new Intl.DateTimeFormat("hr-HR", { timeZone: "Europe/Zagreb" });
+
 export function matchesCollection(v: Vehicle, collection: CollectionId): boolean {
   if (!collection) return true;
   switch (collection) {
@@ -284,6 +292,13 @@ export function matchesCollection(v: Vehicle, collection: CollectionId): boolean
       );
     case "suv-obiteljski":
       return v.bodyType === "SUV / Terenac" || v.bodyType === "Karavan" || v.bodyType === "Monovolumen (MPV)";
+    case "autokuce":
+      return v.dealer;
+    case "danas": {
+      if (!v.listedAt) return false;
+      const listedAt = new Date(v.listedAt);
+      return Number.isFinite(listedAt.getTime()) && croatianDate.format(listedAt) === croatianDate.format(Date.now());
+    }
     case "novo":
       return Number(v.date.slice(0, 4)) >= 2022 || Boolean(v.isFeatured);
   }

@@ -83,7 +83,7 @@ export type Photo = { src: string; preview?: string; backup?: string; credit?: s
 export type Vehicle = {
   id: string; make: string; model: string; title: string; trim: string; price: number;
   generation?: string; variant?: string; bodyType?: string;
-  date: string; km: number; kw: number; cc: number; co2: number; fuel: Fuel;
+  date: string; listedAt?: string; km: number; kw: number; cc: number; co2: number; fuel: Fuel;
   gear: typeof gears[number]; drive: string; vin: string; city: string; seller: string;
   dealer: boolean; verified: boolean; phone: string; email?: string; flags: Flag[];
   doors?: number; seats?: number; cylinders?: number; color?: string; colorFinish?: string; registrationUntil?: string;
