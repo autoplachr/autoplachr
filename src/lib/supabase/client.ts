@@ -11,7 +11,7 @@ let browserClient: SupabaseClient | null = null;
 export function getSupabaseBrowserClient(): SupabaseClient | null {
   if (!isSupabaseConfigured || typeof window === "undefined") return null;
   if (!browserClient) {
-    browserClient = createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    browserClient = createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { detectSessionInUrl: false } });
   }
   return browserClient;
 }

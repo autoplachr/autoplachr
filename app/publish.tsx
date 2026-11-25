@@ -277,7 +277,7 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
       const expected = result.requestedPhotos ?? 0;
       setImportStatus((expected ? "Preuzeto " + count + "/" + expected + " slika. " : "") +
         (data.equipment.length ? "Izvučena oprema i podaci vozila." : "Izvučeni podaci vozila.") +
-        (result.storageMisses ? " Dio slika spremljen je lokalno." : ""));
+        (result.storageMisses ? " Dio slika nije spremljen u Supabase Storage." : ""));
     } catch (problem) {
       setImportFallback(true);
       setImportStatus(problem instanceof Error ? problem.message : "Uvoz nije uspio.");

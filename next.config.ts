@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const staticExport = process.env.AUTOPLAC_STATIC_EXPORT === "1";
 const config: NextConfig = {
   ...(staticExport ? { output: "export" as const } : {}),
-  pageExtensions: [staticExport ? "export.tsx" : "server.ts", "tsx", "ts", "jsx", "js"],
+  ...(staticExport ? { pageExtensions: ["export.tsx", "tsx", "jsx", "js"] } : {}),
   allowedDevOrigins: ["*.trycloudflare.com", "*.loca.lt", "*.ngrok-free.app", "localhost", "127.0.0.1"],
   poweredByHeader: false,
   experimental: { inlineCss: true },

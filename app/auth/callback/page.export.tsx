@@ -11,11 +11,10 @@ export default function AuthCallbackPage() {
     async function finalize() {
       const params = new URLSearchParams(window.location.search);
       const code = params.get("code");
-      const next = params.get("next");
-      const safeNext = next === "/auth/recovery" ? next : "/racun";
+      let target = "/racun";
 
       if (!isSupabaseConfigured) {
-        window.location.replace(safeNext);
+        window.location.replace(target);
         return;
       }
 
@@ -27,13 +26,14 @@ export default function AuthCallbackPage() {
 
       try {
         if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
+          if ("redirectType" in data && data.redirectType === "recovery") target = "/auth/recovery";
         } else {
           const { data, error } = await supabase.auth.getSession();
           if (error || !data.session) throw new Error("Missing session");
         }
-        if (active) window.location.replace(safeNext);
+        if (active) window.location.replace(target);
       } catch {
         if (active) {
           setStatus("Prijava nije uspjela. Preusmjeravanje na prijavu…");

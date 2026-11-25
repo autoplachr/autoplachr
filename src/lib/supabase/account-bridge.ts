@@ -182,7 +182,7 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
     const email = String(data.email ?? "").trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Unesite valjanu e-mail adresu.");
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/auth/recovery`,
+      redirectTo: `${window.location.origin}/auth/callback`,
     });
     if (error) throw new Error("Slanje poveznice za poništavanje lozinke nije uspjelo.");
     return { ok: true };
