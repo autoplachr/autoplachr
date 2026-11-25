@@ -1,0 +1,442 @@
+{
+  "Abarth": {
+    "file": "abarth.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/abarth.png"
+  },
+  "Alfa Romeo": {
+    "file": "alfa-romeo.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/alfa-romeo.png"
+  },
+  "Alpine": {
+    "file": "alpine.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/alpine.png"
+  },
+  "Aston Martin": {
+    "file": "aston-martin.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/aston-martin.png"
+  },
+  "Audi": {
+    "file": "audi.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/audi.png"
+  },
+  "Bentley": {
+    "file": "bentley.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/bentley.png"
+  },
+  "BMW": {
+    "file": "bmw.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/bmw.png"
+  },
+  "BYD": {
+    "file": "byd.svg",
+    "isMonochromeDark": false,
+    "source": "https://cdn.jsdelivr.net/npm/car-brand-logos@1.0.0/byd-logo.svg"
+  },
+  "Cadillac": {
+    "file": "cadillac.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/cadillac.png"
+  },
+  "Chery": {
+    "file": "chery.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/chery.png"
+  },
+  "Chevrolet": {
+    "file": "chevrolet.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/chevrolet.png"
+  },
+  "Chrysler": {
+    "file": "chrysler.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/chrysler.png"
+  },
+  "Citroën": {
+    "file": "citroen.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/citroen.png"
+  },
+  "Corvette": {
+    "file": "corvette.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/chevrolet-corvette.png"
+  },
+  "Cupra": {
+    "file": "cupra.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/cupra.png"
+  },
+  "Dacia": {
+    "file": "dacia.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/dacia.png"
+  },
+  "Daewoo": {
+    "file": "daewoo.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/daewoo.png"
+  },
+  "Daihatsu": {
+    "file": "daihatsu.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/daihatsu.png"
+  },
+  "DFSK": {
+    "file": "dfsk.svg",
+    "isMonochromeDark": false,
+    "source": "https://cdn.jsdelivr.net/npm/car-brand-logos@1.0.0/dfsk-logo.svg"
+  },
+  "Dodge": {
+    "file": "dodge.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/dodge.png"
+  },
+  "Dongfeng": {
+    "file": "dongfeng.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/dongfeng.png"
+  },
+  "DS Automobiles": {
+    "file": "ds.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/ds.png"
+  },
+  "Ferrari": {
+    "file": "ferrari.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/ferrari.png"
+  },
+  "Fiat": {
+    "file": "fiat.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/fiat.png"
+  },
+  "Ford": {
+    "file": "ford.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/ford.png"
+  },
+  "Forthing": {
+    "file": "forthing.png",
+    "isMonochromeDark": false,
+    "source": "https://cdn.globalso.com/forthingmotor/new-logo-proportionss1.png"
+  },
+  "Geely": {
+    "file": "geely.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/geely.png"
+  },
+  "Genesis": {
+    "file": "genesis.svg",
+    "isMonochromeDark": true,
+    "source": "https://cdn.jsdelivr.net/npm/car-brand-logos@1.0.0/genesis-logo.svg"
+  },
+  "GMC": {
+    "file": "gmc.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/gmc.png"
+  },
+  "Honda": {
+    "file": "honda.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/honda.png"
+  },
+  "Hummer": {
+    "file": "hummer.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/hummer.png"
+  },
+  "Hyundai": {
+    "file": "hyundai.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/hyundai.png"
+  },
+  "Ineos": {
+    "file": "ineos.svg",
+    "isMonochromeDark": false,
+    "source": "https://cdn.jsdelivr.net/npm/car-brand-logos@1.0.0/ineos-logo.svg"
+  },
+  "Infiniti": {
+    "file": "infiniti.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/infiniti.png"
+  },
+  "Isuzu": {
+    "file": "isuzu.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/isuzu.png"
+  },
+  "Iveco": {
+    "file": "iveco.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/iveco.png"
+  },
+  "Jaecoo": {
+    "file": "jaecoo.svg",
+    "isMonochromeDark": true,
+    "source": "https://cdn.jsdelivr.net/npm/car-brand-logos@1.0.0/jaecoo-logo.svg"
+  },
+  "Jaguar": {
+    "file": "jaguar.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/jaguar.png"
+  },
+  "Jeep": {
+    "file": "jeep.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/jeep.png"
+  },
+  "Kia": {
+    "file": "kia.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/kia.png"
+  },
+  "Lada": {
+    "file": "lada.svg",
+    "isMonochromeDark": false,
+    "source": "https://cdn.simpleicons.org/lada"
+  },
+  "Lamborghini": {
+    "file": "lamborghini.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/lamborghini.png"
+  },
+  "Lancia": {
+    "file": "lancia.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/lancia.png"
+  },
+  "Land Rover": {
+    "file": "land-rover.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/land-rover.png"
+  },
+  "Leapmotor": {
+    "file": "leapmotor.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/leapmotor.png"
+  },
+  "Lexus": {
+    "file": "lexus.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/lexus.png"
+  },
+  "Lotus": {
+    "file": "lotus.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/lotus.png"
+  },
+  "Lynk & Co": {
+    "file": "lynk-and-co.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/lynk-and-co.png"
+  },
+  "Mahindra": {
+    "file": "mahindra.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/mahindra.png"
+  },
+  "Maserati": {
+    "file": "maserati.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/maserati.png"
+  },
+  "Maxus": {
+    "file": "maxus.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/maxus.png"
+  },
+  "Maybach": {
+    "file": "maybach.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/maybach.png"
+  },
+  "Mazda": {
+    "file": "mazda.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/mazda.png"
+  },
+  "McLaren": {
+    "file": "mclaren.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/mclaren.png"
+  },
+  "Mercedes-Benz": {
+    "file": "mercedes-benz.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/mercedes-benz.png"
+  },
+  "MG": {
+    "file": "mg.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/mg.png"
+  },
+  "Mini": {
+    "file": "mini.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/mini.png"
+  },
+  "Mitsubishi": {
+    "file": "mitsubishi.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/mitsubishi.png"
+  },
+  "Nio": {
+    "file": "nio.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/nio.png"
+  },
+  "Nissan": {
+    "file": "nissan.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/nissan.png"
+  },
+  "Omoda": {
+    "file": "omoda.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/omoda.png"
+  },
+  "Opel": {
+    "file": "opel.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/opel.png"
+  },
+  "Peugeot": {
+    "file": "peugeot.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/peugeot.png"
+  },
+  "Polestar": {
+    "file": "polestar.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/polestar.png"
+  },
+  "Porsche": {
+    "file": "porsche.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/porsche.png"
+  },
+  "RAM": {
+    "file": "ram.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/ram.png"
+  },
+  "Renault": {
+    "file": "renault.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/renault.png"
+  },
+  "Rimac": {
+    "file": "rimac.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/rimac.png"
+  },
+  "Rolls-Royce": {
+    "file": "rolls-royce.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/rolls-royce.png"
+  },
+  "Rover": {
+    "file": "rover.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/rover.png"
+  },
+  "Saab": {
+    "file": "saab.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/saab.png"
+  },
+  "Seat": {
+    "file": "seat.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/seat.png"
+  },
+  "Seres": {
+    "file": "seres.png",
+    "isMonochromeDark": false,
+    "source": "https://cdn.jsdelivr.net/npm/car-brand-logos@1.0.0/seres-logo.png"
+  },
+  "Smart": {
+    "file": "smart.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/smart.png"
+  },
+  "SsangYong / KGM": {
+    "file": "ssangyong.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/ssangyong.png"
+  },
+  "Subaru": {
+    "file": "subaru.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/subaru.png"
+  },
+  "Suzuki": {
+    "file": "suzuki.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/suzuki.png"
+  },
+  "Škoda": {
+    "file": "skoda.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/skoda.png"
+  },
+  "Tata": {
+    "file": "tata.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/tata.png"
+  },
+  "Tesla": {
+    "file": "tesla.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/tesla.png"
+  },
+  "Toyota": {
+    "file": "toyota.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/toyota.png"
+  },
+  "Vauxhall": {
+    "file": "vauxhall.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/vauxhall.png"
+  },
+  "Volkswagen": {
+    "file": "volkswagen.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/volkswagen.png"
+  },
+  "Volvo": {
+    "file": "volvo.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/volvo.png"
+  },
+  "Voyah": {
+    "file": "voyah.png",
+    "isMonochromeDark": true,
+    "source": "https://www.voyah-auto.com/img/common/footer-logo.png"
+  },
+  "Xpeng": {
+    "file": "xpeng.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/xpeng.png"
+  },
+  "Zastava / Yugo": {
+    "file": "zastava.png",
+    "isMonochromeDark": false,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/zastava.png"
+  },
+  "Zeekr": {
+    "file": "zeekr.png",
+    "isMonochromeDark": true,
+    "source": "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/optimized/zeekr.png"
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Heart, Maximize, MessageSquare, Phone, Printer, Share2, Star } from "lucide-react";
+import { BrandLogo } from "../src/components/BrandLogo";
 import { useEffect, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { euro, groups, marketValuation, number, power, registered, taxStatus, type Vehicle } from "./catalog";
 import { vehicleMakeOptions } from "./make-equipment";
@@ -177,7 +178,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
           {count > 1 && <div className="thumbnails">{vehicle.photos.map((item, index) => <button key={index} type="button" aria-label={"Fotografija " + (index + 1)} aria-pressed={photo === index} onClick={() => setPhoto(index)}><VehiclePhoto photo={item} alt=""/></button>)}</div>}
         </section>
         <dl className="key-specs detail-panel">{keySpecs.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className="tabular">{value}</dd></div>)}</dl>
-        <section className="detail-panel"><h2>Tehnički podaci</h2>
+        <section className="detail-panel"><h2 className="brand-spec-heading"><BrandLogo make={vehicle.make} size="md"/><span>Tehnički podaci</span></h2>
           <dl className="spec-table">{specs.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className="tabular">{value ?? "Nije navedeno"}</dd></div>)}</dl>
         </section>
         <section className="detail-panel"><h2>Oprema vozila</h2>

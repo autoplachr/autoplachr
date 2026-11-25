@@ -1,6 +1,7 @@
 "use client";
 
-import { CAR_MAKES, describeFamily, modelFor, modelsFor, OTHER_MODEL } from "../src/data/car-catalog";
+import { describeFamily, modelFor, modelsFor, OTHER_MODEL } from "../src/data/car-catalog";
+import { BrandSelect } from "../src/components/BrandSelect";
 import { Select } from "./ui";
 
 export type CatalogSelection = { make: string; model: string; generation: string };
@@ -25,13 +26,10 @@ export function CatalogFields({
   const models = modelsFor(value.make, showOther);
   const generations = modelFor(value.make, value.model)?.generations ?? [];
   return <>
-    <Select label="Marka" required={listing} value={value.make} onChange={event => {
-      onChange({ make: event.target.value, model: "", generation: "" });
+    <BrandSelect required={listing} value={value.make} onChange={make => {
+      onChange({ make, model: "", generation: "" });
       onCustomModelChange?.("");
-    }}>
-      <option value="">{listing ? "Odaberite marku" : "Sve marke"}</option>
-      {CAR_MAKES.map(make => <option key={make}>{make}</option>)}
-    </Select>
+    }}/>
     <Select label="Model" required={listing} value={value.model} disabled={!models.length} onChange={event => {
       const nextModel = event.target.value;
       onChange({ make: value.make, model: nextModel, generation: "" });

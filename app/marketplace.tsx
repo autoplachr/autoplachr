@@ -1,5 +1,7 @@
 "use client";
 
+import { BrandSelect } from "../src/components/BrandSelect";
+import { BrandLogo } from "../src/components/BrandLogo";
 import { ArrowDown, ArrowRight, CarFront, Check, ChevronDown, Grid2X2, Heart, List, Moon, Plus, SlidersHorizontal, Sun, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { restoreListingPhotos, countyByCity, euro, fuels, gears, marketValuation, number, power, quick, registered, vehicles, type Flag, type Vehicle } from "./catalog";
@@ -12,7 +14,7 @@ import Detail from "./detail";
 import PublishForm from "./publish";
 import { ValuationPage } from "./valuation-page";
 import { describeMarketDelta } from "../src/lib/price-engine";
-import { CAR_MAKES, describeFamily, modelFor, modelsFor } from "../src/data/car-catalog";
+import { describeFamily, modelFor, modelsFor } from "../src/data/car-catalog";
 
 import { AccountPage, AuthPage } from "./account";
 import { api, type Account, type ListingStatus, type OwnedListing } from "./account-api";
@@ -150,30 +152,10 @@ function HeroSearch({
           </div>
 
           <div className="hero-grid">
-            <label className="hero-field">
-              <span>Marka</span>
-              <div className="select-shell">
-                <select
-                  aria-label="Marka"
-                  value={search.marka}
-                  onChange={event => {
-                    const make = event.target.value;
-                    update({
-                      ...search,
-                      marka: make,
-                      model: "",
-                      generacija: "",
-                      oprema: validEquipmentFilters(make, "", "", search.oprema),
-                    });
-                  }}
-                >
-                  <option value="">Sve marke</option>
-                  {CAR_MAKES.map(make => <option key={make}>{make}</option>)}
-                </select>
-                <ChevronDown size={15} aria-hidden="true" />
-              </div>
-            </label>
-
+            <BrandSelect value={search.marka} onChange={make => update({
+              ...search, marka: make, model: "", generacija: "",
+              oprema: validEquipmentFilters(make, "", "", search.oprema),
+            })}/>
             <label className="hero-field">
               <span>Model</span>
               <div className="select-shell">
@@ -409,7 +391,7 @@ function RecommendedStrip({
               <div className="rec-body">
                 <h3>
                   <a className="card-link" href={listingUrl(vehicle.id)} onClick={event => onOpen(event, vehicle.id)}>
-                    {vehicle.title}
+                    <BrandLogo make={vehicle.make} size="xs"/><span>{vehicle.title}</span>
                   </a>
                 </h3>
                 <p className="rec-specs tabular">
@@ -452,14 +434,13 @@ function PopularBrandsStrip({
       <div className="home-section-head">
         <div>
           <span className="eyebrow">Najtraženije u Hrvatskoj</span>
-          <h2 id="brands-title">Brzi odabir po markama</h2>
+          <h2 id="brands-title">Popularne marke</h2>
         </div>
       </div>
       <div className="brands-grid">
         {popularBrands.map(brand => {
           const count = counts.get(brand) ?? 0;
           const active = selectedBrand === brand;
-          const monogram = brand === "Mercedes-Benz" ? "MB" : brand.slice(0, 2).toUpperCase();
           return (
             <button
               key={brand}
@@ -468,7 +449,7 @@ function PopularBrandsStrip({
               className={"brand-card" + (active ? " active" : "")}
               onClick={() => onSelectBrand(active ? "" : brand)}
             >
-              <span className="brand-mark" aria-hidden="true">{monogram}</span>
+              <span className="brand-mark"><BrandLogo make={brand} size="lg"/></span>
               <span className="brand-meta">
                 <strong>{brand}</strong>
                 <small className="tabular">{count} {count === 1 ? "vozilo" : "vozila"}</small>
@@ -510,7 +491,7 @@ function Listing({ vehicle, saved, onOpen, onSave, eager }: {
       <button className={"icon-btn heart-button " + (saved ? "saved" : "")} type="button" aria-label={saved ? "Ukloni spremljeno vozilo " + vehicle.title : "Spremi " + vehicle.title} aria-pressed={saved} onClick={onSave}><Heart size={17} fill={saved ? "currentColor" : "none"}/></button>
     </div>
     <div className="listing-content">
-      <h3><a className="card-link" href={listingUrl(vehicle.id)} onClick={onOpen}>{vehicle.title}</a></h3>
+      <h3><a className="card-link" href={listingUrl(vehicle.id)} onClick={onOpen}><BrandLogo make={vehicle.make} size="xs"/><span>{vehicle.title}</span></a></h3>
       <ul className="listing-specs" aria-label="Osnovni podaci">{specs.map((spec, index) =>
         <li key={spec} className={index < 3 ? "tabular" : undefined}>{spec}</li>
       )}</ul>
@@ -626,6 +607,7 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
   const allVehicles = useMemo(() => [...remote, ...published, ...vehicles], [remote,published]);
   const savedIds = account ? account.favorites.map(item => item.id) : saved;
   const dealerProfile = dealerId && remote.find(vehicle => vehicle.dealershipId === dealerId);
+  const dealerMakes = dealerId ? [...new Set(remote.filter(vehicle => vehicle.dealershipId === dealerId).map(vehicle => vehicle.make))] : [];
   const detail = allVehicles.find(vehicle => vehicle.id === detailId);
   function openListing(event: MouseEvent<HTMLAnchorElement>, id: string) {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -776,6 +758,7 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
         <section className="results" id="vozila" aria-labelledby="results-title">
           {dealerProfile && <section className="detail-panel seller-card dealership-profile" aria-label="Profil autokuće">
             <h1>{dealerProfile.seller}</h1>
+          <ul className="dealer-brand-tags" aria-label="Marke u ponudi">{dealerMakes.map(make => <li key={make}><BrandLogo make={make} size="xs"/>{make}</li>)}</ul>
             <p>{dealerProfile.sellerAddress || dealerProfile.city}</p>
             {dealerProfile.sellerWorkingHours && <p className="tabular">{dealershipHoursToday(dealerProfile.sellerWorkingHours)}</p>}
             {dealerProfile.sellerHours && <p>{dealerProfile.sellerHours}</p>}
