@@ -24,20 +24,39 @@ const json = (body, status = 200, headers = {}) => Response.json(body, { status,
 const parse = str => JSON.parse(str);
 const stmt = (env, sql, ...args) => env.DB.prepare(sql).bind(...args);
 
-async function passwordHash(password, salt = hex(bytes(16))) {
+const passwordIterations = 100000; // Cloudflare Workers Web Crypto ceiling.
+const passwordVersion = "pbkdf2-sha256-100000";
+const dummyPassword = passwordVersion + "." + "a".repeat(32) + "." + "a".repeat(64);
+
+async function derivePassword(password, salt, iterations) {
   const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
-  const hash = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: unhex(salt), iterations: 600000 }, key, 256);
-  return salt + "." + hex(hash);
+  return hex(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: unhex(salt), iterations }, key, 256));
+}
+
+async function passwordHash(password) {
+  const salt = hex(bytes(16));
+  return passwordVersion + "." + salt + "." + await derivePassword(password, salt, passwordIterations);
 }
 
 async function passwordMatches(password, stored) {
-  const computed = await passwordHash(password, stored.split(".")[0]);
+  const [first, second, third] = stored.split(".");
+  const legacy = third === undefined;
+  if (!legacy && first !== passwordVersion) return false;
+  const [salt, expected] = legacy ? [first, second] : [second, third];
+  if (!/^[0-9a-f]{32}$/.test(salt) || !/^[0-9a-f]{64}$/.test(expected ?? "")) return false;
+  let computed;
+  try {
+    computed = await derivePassword(password, salt, legacy ? 600000 : passwordIterations);
+  } catch (error) {
+    if (legacy && error?.name === "NotSupportedError") return false;
+    throw error;
+  }
   let difference = 0;
-  for (let i = 0; i < stored.length; i++) difference |= computed.charCodeAt(i) ^ stored.charCodeAt(i);
+  for (let i = 0; i < expected.length; i++) difference |= computed.charCodeAt(i) ^ expected.charCodeAt(i);
   return difference === 0;
 }
 
-const cookie = (request, token, age) => "sasija_session=" + token + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + age +
+const cookie = (request, token, age) => "autoplac_session=" + token + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + age +
   (new URL(request.url).protocol === "https:" ? "; Secure" : "");
 
 async function startSession(request, env, accountId) {
@@ -47,7 +66,7 @@ async function startSession(request, env, accountId) {
 }
 
 async function accountFor(request, env) {
-  const token = request.headers.get("cookie")?.match(/(?:^|;\s*)sasija_session=([\da-f]{64})(?:;|$)/)?.[1];
+  const token = request.headers.get("cookie")?.match(/(?:^|;\s*)autoplac_session=([\da-f]{64})(?:;|$)/)?.[1];
   if (!token) return null;
   return stmt(env, "SELECT a.*,s.token FROM account a JOIN session s ON a.id=s.account_id WHERE s.token=? AND s.expires>?", await digest(token), now()).first();
 }
@@ -148,7 +167,7 @@ async function saveListing(env, account, body) {
   const dealerAddress = profile.address && [profile.address, [profile.postalCode, profile.city].filter(Boolean).join(" ")].join(", ");
   const clean = {
     id: vehicle.id, title: value(vehicle,"title",100), make: value(vehicle,"make",80), model: value(vehicle,"model",80),
-    generation: value(vehicle,"generation",100), variant: value(vehicle,"variant",100), trim: value(vehicle,"trim",100),
+    generation: value(vehicle,"generation",100), variant: value(vehicle,"variant",100), bodyType: value(vehicle,"bodyType",40), trim: value(vehicle,"trim",100),
     date: vehicle.date, price:vehicle.price, km:vehicle.km, kw:vehicle.kw, cc:vehicle.cc, co2:vehicle.co2,
     gear:value(vehicle,"gear",30), fuel:value(vehicle,"fuel",30), drive:value(vehicle,"drive",30), vin:value(vehicle,"vin",17),
     sellerNote:value(vehicle,"sellerNote",400), flags:vehicle.flags,
@@ -219,7 +238,7 @@ export async function api(request, env) {
       await rate(env, "email:" + await digest(email), 8, 900);
       const account = await stmt(env, "SELECT id,password FROM account WHERE email=?", email).first();
       const password = typeof body.password === "string" ? body.password.slice(0, 128) : "";
-      const matches = await passwordMatches(password, account?.password ?? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa." + "a".repeat(64));
+      const matches = await passwordMatches(password, account?.password ?? dummyPassword);
       requireValue(account && matches, "E-pošta ili lozinka nije ispravna.", 401);
       return startSession(request, env, account.id);
     }

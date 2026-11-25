@@ -5,7 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import worker from "../worker/index.mjs";
 
 await mkdir(".local-data", { recursive: true });
-const database = new DatabaseSync(process.env.SASIJA_PREVIEW_DB || ".local-data/marketplace.sqlite");
+const database = new DatabaseSync(process.env.AUTOPLAC_PREVIEW_DB || ".local-data/marketplace.sqlite");
 database.exec("PRAGMA foreign_keys=ON");
 if (!database.prepare("SELECT name FROM sqlite_master WHERE name='account'").get()) {
   database.exec(await readFile("drizzle/0000_marketplace.sql", "utf8"));
@@ -35,7 +35,7 @@ const DB = {
   }
 };
 const root = resolve("out");
-const types = { ".html":"text/html; charset=utf-8", ".css":"text/css", ".js":"text/javascript", ".json":"application/json", ".txt":"text/plain; charset=utf-8", ".webp":"image/webp", ".svg":"image/svg+xml", ".woff2":"font/woff2" };
+const types = { ".html":"text/html; charset=utf-8", ".css":"text/css", ".js":"text/javascript", ".json":"application/json", ".txt":"text/plain; charset=utf-8", ".webp":"image/webp", ".jpg":"image/jpeg", ".jpeg":"image/jpeg", ".png":"image/png", ".svg":"image/svg+xml", ".woff2":"font/woff2" };
 const ASSETS = { async fetch(request) {
   const pathname = decodeURIComponent(new URL(request.url).pathname);
   const target = resolve(root, "." + (pathname === "/" ? "/index.html" : pathname));

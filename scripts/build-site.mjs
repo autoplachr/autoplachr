@@ -15,7 +15,7 @@ const api = await readFile("worker/api.mjs","utf8");
 await writeFile("dist/server/api.mjs", api.replace(/\.\.\/src\/data\/([a-z-]+)\.ts/g, "./$1.mjs"));
 await cp("worker/index.mjs", "dist/server/index.js");
 await writeFile("dist/server/wrangler.json", JSON.stringify({
-  main: "index.js", name: "sasija", compatibility_date: "2026-01-01",
-  assets: { directory: "../client", binding: "ASSETS", run_worker_first: ["/api/*", "/racun", "/prijava", "/registracija", "/uvjeti-koristenja", "/privatnost", "/kolacici", "/dsa-prijava"] },
+  main: "index.js", name: "autoplac", compatibility_date: "2026-01-01",
+  assets: { directory: "../client", binding: "ASSETS", run_worker_first: ["/api/*", "/racun", "/prijava", "/registracija", "/procjena-cijene", "/uvjeti-koristenja", "/privatnost", "/kolacici", "/dsa-prijava"] },
   d1_databases: [{ binding: "DB", database_name: "site-creator-d1", database_id: "00000000-0000-4000-8000-000000000000" }]
 }));

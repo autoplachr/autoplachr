@@ -3,12 +3,12 @@ import "@fontsource-variable/inter";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ŠASIJA.HR — Rabljena vozila",
-  description: "Pronađite rabljena vozila, usporedite cijene i izračunajte troškove uvoza u Hrvatsku.",
+  title: "AUTOPLAC.HR — Rabljena vozila",
+  description: "Pronađite provjerena rabljena vozila u Hrvatskoj, usporedite cijene i izračunajte troškove uvoza.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="hr" suppressHydrationWarning><head>
-    <script dangerouslySetInnerHTML={{ __html: `try { if (localStorage.getItem("sasija.theme") === "dark") document.documentElement.dataset.theme = "dark"; } catch {}` }} />
+    <script dangerouslySetInnerHTML={{ __html: `try { if (localStorage.getItem("autoplac.theme") === "dark") document.documentElement.dataset.theme = "dark"; } catch {}` }} />
   </head><body>{children}</body></html>;
 }

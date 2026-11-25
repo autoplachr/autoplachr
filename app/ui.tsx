@@ -3,6 +3,7 @@
 import { ChevronDown, X } from "lucide-react";
 import { useEffect, useRef, type ReactNode, type SelectHTMLAttributes } from "react";
 import { flags, quick, rating, type Flag, type Photo, type Vehicle } from "./catalog";
+import type { PriceRatingTier } from "../src/lib/price-engine";
 import { makeOptions } from "./make-equipment";
 
 export function MakeEquipmentOptions({ make, model, selected, onChange }: {
@@ -99,13 +100,12 @@ export function PhotoCount({ index, total }: { index: number; total: number }) {
   return <span className="photo-count tabular" aria-label={`Fotografija ${index + 1} od ${total}`}>{index + 1}/{total}</span>;
 }
 
-export function Rating({ vehicle }: { vehicle: Vehicle }) {
-  const result = rating(vehicle);
+export function Rating({ vehicle, tier }: { vehicle?: Vehicle; tier?: PriceRatingTier }) {
+  const result = tier ?? (vehicle ? rating(vehicle) : null);
   if (!result) return null;
-  const filled = { good: 5, fair: 3, high: 1 }[result.type];
   return <span className={"rating " + result.type}>
     <span className="rating-bars" aria-hidden="true">{Array.from({ length: 5 }, (_, index) =>
-      <span className={index < filled ? "filled" : undefined} key={index}/>
+      <span className={index < result.bars ? "filled" : undefined} key={index}/>
     )}</span>
     <span>{result.label}</span>
   </span>;

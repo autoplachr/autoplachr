@@ -3,6 +3,7 @@ import Marketplace from "../marketplace";
 
 const titles = {
   racun: "Moj račun", prijava: "Prijava", registracija: "Registracija",
+  "procjena-cijene": "Procjena cijene vozila",
   "uvjeti-koristenja": "Opći uvjeti poslovanja", privatnost: "Politika privatnosti",
   kolacici: "Politika kolačića", "dsa-prijava": "Akt o digitalnim uslugama",
 };
@@ -14,7 +15,7 @@ export function generateStaticParams() {
 }
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const section = (await params).section;
-  return { title: titles[section] + " | ŠASIJA.HR", robots: ["racun","prijava","registracija"].includes(section) ? {index:false} : undefined };
+  return { title: titles[section] + " | AUTOPLAC.HR", robots: ["racun","prijava","registracija"].includes(section) ? {index:false} : undefined };
 }
 export default async function AccountOrLegalPage({ params }: Props) {
   return <Marketplace initialPath={"/" + (await params).section}/>;

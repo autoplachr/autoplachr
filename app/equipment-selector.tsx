@@ -4,7 +4,7 @@ import { equipmentCategories, equipmentFor } from "../src/data/equipment-catalog
 import type { Vehicle } from "./catalog";
 
 export function EquipmentSelector({ vehicle, onChange, filter = false }: {
-  vehicle: Pick<Vehicle,"make"|"model"> & Partial<Pick<Vehicle,"generation"|"fuel"|"variant"|"date"|"catalogEquipment">>;
+  vehicle: Pick<Vehicle,"make"|"model"> & Partial<Pick<Vehicle,"generation"|"variant"|"date"|"catalogEquipment"|"bodyType">> & { fuel?: string };
   onChange: (selection: string[]) => void; filter?: boolean;
 }) {
   const [query, setQuery] = useState("");

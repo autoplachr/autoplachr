@@ -26,7 +26,7 @@ function ProfileFields({ type, profile, registration = false, errors = {} }: { t
       <label className="field"><span>OIB</span><input name="oib" inputMode="numeric" pattern="[0-9]{11}" maxLength={11} required defaultValue={profile?.oib} aria-invalid={!!errors.oib}/><FieldIssue message={errors.oib}/></label>
       <label className="field"><span>Adresa sjedišta / salona</span><input name="address" defaultValue={profile?.address} maxLength={200} required autoComplete="street-address" aria-invalid={!!errors.address}/><FieldIssue message={errors.address}/></label>
       <HoursFields initial={profile?.workingHours} legacy={profile?.hours}/>
-      <p className="fine-print span-all">Pregled poddomene <strong>{subdomain || "vasasalon"}.sasija.hr</strong></p>
+      <p className="fine-print span-all">Pregled poddomene <strong>{subdomain || "vasasalon"}.autoplac.hr</strong></p>
       {!registration && <label className="field span-all"><span>HTTPS adresa XML izvora</span><input type="url" name="importUrl" maxLength={500} defaultValue={profile?.importUrl}/><small>Postavka izvora za dogovoreni uvoz.</small></label>}
     </>}
   </div>;
@@ -155,7 +155,7 @@ export function AccountPage({ account, inventory, refresh, onPublish, signOut, o
   function exportData() {
     const { moderator, ...portable } = account;
     const url = URL.createObjectURL(new Blob([JSON.stringify(portable,null,2)],{type:"application/json"}));
-    const link = document.createElement("a");link.href=url;link.download="sasija-moji-podaci.json";link.click();
+    const link = document.createElement("a");link.href=url;link.download="autoplac-moji-podaci.json";link.click();
     setTimeout(() => URL.revokeObjectURL(url),1000);
   }
   return <main className="shell account-shell">

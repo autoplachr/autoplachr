@@ -22,7 +22,7 @@ export function LegalPage({ path, cookieSettings, report }: { path:LegalPath; co
   return <main className="shell account-shell legal-shell">
     <article className="detail-panel legal-document"><header className="account-heading"><div><h1>{legalLinks[path]}</h1><p>Verzija od 25. studenoga 2026.</p></div><button className="btn secondary legal-print" type="button" onClick={() => window.print()}>Ispiši</button></header>
     {path === "/uvjeti-koristenja" && <>
-      <section><h2>Operator i usluga</h2>{contact}<p>ŠASIJA.HR objavljuje oglase i omogućava kontakt kupaca i prodavača. Prodavač određuje cijenu i uvjete prodaje. Kupoprodaja, uplata, pregled vozila i prijenos vlasništva ugovaraju se izravno s prodavačem. Za oznaku trgovca u oglasu odgovara osoba koja oglas objavi.</p></section>
+      <section><h2>Operator i usluga</h2>{contact}<p>AUTOPLAC.HR objavljuje oglase i omogućava kontakt kupaca i prodavača. Prodavač određuje cijenu i uvjete prodaje. Kupoprodaja, uplata, pregled vozila i prijenos vlasništva ugovaraju se izravno s prodavačem. Za oznaku trgovca u oglasu odgovara osoba koja oglas objavi.</p></section>
       <section><h2>Račun i objava</h2><p>Privatna osoba može prvi put aktivirati najviše dva besplatna oglasa u kalendarskoj godini. Prodaja ili brisanje prethodnog oglasa ne vraća iskorišteno mjesto. Za aktivaciju privatnog oglasa računa se potvrda hrvatskog broja +385 u ovom okruženju. Trgovci moraju navesti naziv, OIB, adresu i kontakt te održavati podatke točnima. Proba pokazuje samo predloženi naziv poddomene.</p><p>Organizirana preprodaja kao privatna osoba nije dopuštena. Trgovci moraju navesti svoj profesionalni status te poštovati primjenjiva potrošačka i porezna pravila.</p></section>
       <section><h2>Pravila oglasa i rangiranje</h2><p>Smijete oglašavati vozilo za koje imate pravo raspolaganja. Navedite točan VIN, kilometražu, cijenu i poznata bitna oštećenja. Zabranjeni su lažni VIN-ovi, namjerno izmijenjena kilometraža, obmanjujuća cijena, duplicirani oglasi i slike bez prava upotrebe. Ažurirajte oglase nakon prodaje.</p><p>Zadani redoslijed polazi od novijih oglasa. Isticanje utječe na poziciju korisničkog oglasa u zadanom poretku sedam dana. Cijena predviđene usluge je 6 €. U privatnom pregledu aktivacija je ogledna i bez naplate. Kupac može odabrati druge kriterije sortiranja.</p></section>
       <section><h2>Moderiranje i prigovor</h2><p>Oglas možemo privremeno povući zbog sumnje na prijevaru, nezakonit sadržaj ili kršenje ovih pravila. Prijave se razmatraju pojedinačno. Korisnik može zatražiti obrazloženje i preispitivanje odluke uz oznaku oglasa ili prijave. Na odluke nadležnih tijela odgovaramo prema primjenjivom pravu.</p><a href="/dsa-prijava">Prijava sadržaja i DSA prava</a></section>
@@ -35,7 +35,7 @@ export function LegalPage({ path, cookieSettings, report }: { path:LegalPath; co
       <section><h2>Vaša prava</h2><p>Možete zatražiti pristup i ispravak podataka, brisanje, ograničenje i prenosivost te podnijeti prigovor. Privolu možete povući u bilo kojem trenutku u postavkama. U računu možete preuzeti JSON i trajno obrisati račun. Za ostale zahtjeve obratite se voditelju obrade. Pritužbu možete podnijeti Agenciji za zaštitu osobnih podataka (AZOP).</p><p><a href={sources.gdpr}>Opća uredba o zaštiti podataka</a> · <a href="https://azop.hr/">AZOP</a></p></section>
     </>}
     {path === "/kolacici" && <>
-      <section><h2>Nužna pohrana</h2><p>Nužni kolačić sasija_session održava prijavu najdulje 14 dana. U pohrani preglednika ostaju izbor teme i privole, kao i vozila koja ste spremili dok ste bili odjavljeni. Stranica hostinga može koristiti svoju prijavnu pohranu za pristup privatnoj stranici.</p></section>
+      <section><h2>Nužna pohrana</h2><p>Nužni kolačić autoplac_session održava prijavu najdulje 14 dana. U pohrani preglednika ostaju izbor teme i privole, kao i vozila koja ste spremili dok ste bili odjavljeni. Stranica hostinga može koristiti svoju prijavnu pohranu za pristup privatnoj stranici.</p></section>
       <section><h2>Analitički i marketinški alati</h2><p>Izbori su zadano isključeni. Platforma trenutačno ne učitava analitičke ili marketinške skripte. Spremanje izbora omogućava izmjenu postavki na ovom pregledniku. Odbijanje opcionalne pohrane ne ograničava korištenje oglasnika.</p></section>
       <section><h2>Odabir i povlačenje privole</h2><p>Postavke možete izmijeniti putem podnožja. Možete i obrisati pohranu stranice u pregledniku, što briše postavke na uređaju i može vas odjaviti.</p><button className="btn secondary" type="button" onClick={cookieSettings}>Postavke kolačića</button><p><a href={sources.zek}>Zakon o elektroničkim komunikacijama</a> · <a href="https://azop.hr/obrada-osobnih-podataka-kolacici/">Smjernice AZOP-a</a></p></section>
     </>}
@@ -85,7 +85,7 @@ export function ReportDialog({ listing, onClose }: { listing?:string; onClose:()
 }
 
 type CookieChoice = { analytics:boolean; marketing:boolean };
-const consentKey = "sasija.cookies.v1";
+const consentKey = "autoplac.cookies.v1";
 export function CookieConsent({ settings, close }: { settings:boolean; close:()=>void }) {
   const [choice,setChoice] = useState<CookieChoice | null | undefined>();
   const [analytics,setAnalytics] = useState(false);

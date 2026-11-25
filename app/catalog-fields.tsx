@@ -1,29 +1,58 @@
 "use client";
 
-import { CAR_MAKES, describeFamily, modelFor, modelsFor } from "../src/data/car-catalog";
+import { CAR_MAKES, describeFamily, modelFor, modelsFor, OTHER_MODEL } from "../src/data/car-catalog";
 import { Select } from "./ui";
 
 export type CatalogSelection = { make: string; model: string; generation: string };
 export const customVariant = "Druga verzija";
 
-export function CatalogFields({ value, onChange, listing = false }: {
-  value: CatalogSelection; onChange: (selection: CatalogSelection) => void; listing?: boolean;
+export function CatalogFields({
+  value,
+  onChange,
+  listing = false,
+  allowCustom = false,
+  customModel = "",
+  onCustomModelChange,
+}: {
+  value: CatalogSelection;
+  onChange: (selection: CatalogSelection) => void;
+  listing?: boolean;
+  allowCustom?: boolean;
+  customModel?: string;
+  onCustomModelChange?: (modelName: string) => void;
 }) {
-  const models = modelsFor(value.make);
+  const showOther = listing || allowCustom;
+  const models = modelsFor(value.make, showOther);
   const generations = modelFor(value.make, value.model)?.generations ?? [];
   return <>
     <Select label="Marka" required={listing} value={value.make} onChange={event => {
       onChange({ make: event.target.value, model: "", generation: "" });
+      onCustomModelChange?.("");
     }}>
       <option value="">{listing ? "Odaberite marku" : "Sve marke"}</option>
       {CAR_MAKES.map(make => <option key={make}>{make}</option>)}
     </Select>
     <Select label="Model" required={listing} value={value.model} disabled={!models.length} onChange={event => {
-      onChange({ make: value.make, model: event.target.value, generation: "" });
+      const nextModel = event.target.value;
+      onChange({ make: value.make, model: nextModel, generation: "" });
+      if (nextModel !== OTHER_MODEL) onCustomModelChange?.("");
     }}>
       <option value="">{listing ? "Odaberite model" : "Svi modeli"}</option>
       {models.map(model => <option key={model}>{model}</option>)}
     </Select>
+    {showOther && value.model === OTHER_MODEL && onCustomModelChange && (
+      <label className="field span-all">
+        <span>Naziv modela (ručni unos)</span>
+        <input
+          value={customModel}
+          required={listing}
+          pattern=".*\S.*"
+          maxLength={70}
+          placeholder="npr. 90, 300C, Cordoba SX..."
+          onChange={event => onCustomModelChange(event.target.value)}
+        />
+      </label>
+    )}
     <Select label="Generacija / Podverzija" className="generation-field" required={listing} value={value.generation} disabled={!generations.length} onChange={event => {
       onChange({ make: value.make, model: value.model, generation: event.target.value });
     }}>
@@ -38,11 +67,11 @@ export function CatalogFields({ value, onChange, listing = false }: {
   </>;
 }
 
-export function VariantField({ selection, value, onChange }: {
-  selection: CatalogSelection; value: string; onChange: (variant: string) => void;
+export function VariantField({ selection, value, onChange, required = true }: {
+  selection: CatalogSelection; value: string; onChange: (variant: string) => void; required?: boolean;
 }) {
   const variants = modelFor(selection.make, selection.model)?.variants ?? [];
-  return <Select label="Motorizacija / Verzija" value={value} required disabled={!selection.generation} onChange={event => onChange(event.target.value)}>
+  return <Select label="Motorizacija / Verzija" value={value} required={required} disabled={!selection.generation} onChange={event => onChange(event.target.value)}>
     <option value="">Odaberite verziju</option>
     {variants.map(variant => <option key={variant}>{variant}</option>)}
     <option>{customVariant}</option>

@@ -1,6 +1,6 @@
 import { croatianCounties } from "../src/data/croatia-locations";
 import { equipmentFor, equipmentId } from "../src/data/equipment-catalog";
-import { cities, countyByCity, flags, fuels, gears, rating, type Flag, type Vehicle } from "./catalog";
+import { cities, countyByCity, flags, fuels, gears, marketValuation, type Flag, type Vehicle } from "./catalog";
 import { legacySportOption, selectedMakeOptions, vehicleMakeOptions } from "./make-equipment";
 import { CAR_MAKES, chassisFromTitle, matchesGeneration, modelsFor, validGeneration } from "../src/data/car-catalog";
 
@@ -14,11 +14,23 @@ export const sorts = {
   mileage: "Kilometraža: najmanja",
   rating: "Najbolja ocjena cijene",
 } as const;
+export const categories = [
+  { id: "", label: "Sva vozila" },
+  { id: "limuzina", label: "Limuzine" },
+  { id: "karavan", label: "Karavani" },
+  { id: "suv", label: "SUV / Terenci" },
+  { id: "gradski", label: "Gradski" },
+  { id: "sportski", label: "Sportski" },
+  { id: "eko", label: "Električni i hibridi" },
+] as const;
+export type CategoryId = (typeof categories)[number]["id"];
 export type Search = {
+  kategorija: CategoryId;
   marka: string; model: string; generacija: string; cijena: string; godiste: string; km: string; gorivo: string;
   mjenjac: string; grad: string; opcije: Flag[]; oprema: string[]; sortiranje: keyof typeof sorts; prikaz: "grid" | "lista";
 };
 export const initialSearch: Search = {
+  kategorija: "",
   marka: "", model: "", generacija: "", cijena: "", godiste: "", km: "", gorivo: "", mjenjac: "", grad: "",
   opcije: [], oprema: [], sortiranje: "newest", prikaz: "lista",
 };
@@ -40,6 +52,7 @@ export function readSearch(query: string): Search {
   const legacyPackage = legacySportOption[marka];
   if (legacyPackage && generalOptions.includes("sport")) equipment.push(legacyPackage);
   return {
+    kategorija: accept("kategorija", categories.map(c => c.id)) as CategoryId,
     marka, model, generacija: validGeneration(marka, model, generation) ? generation : "", cijena: accept("cijena", prices.map(String)),
     godiste: accept("godiste", years.map(String)), km: accept("km", distances.map(String)),
     gorivo: accept("gorivo", fuels), mjenjac: accept("mjenjac", gears), grad: accept("grad", [...cities, ...croatianCounties]),
@@ -61,8 +74,31 @@ export function writeSearch(search: Search) {
   const next = window.location.pathname + (query ? "?" + query : "") + window.location.hash;
   if (next !== window.location.pathname + window.location.search + window.location.hash) window.history.pushState(null, "", next);
 }
+function matchesCategory(v: Vehicle, category: CategoryId): boolean {
+  if (!category) return true;
+  switch (category) {
+    case "limuzina":
+      return v.bodyType === "Limuzina";
+    case "karavan":
+      return v.bodyType === "Karavan";
+    case "suv":
+      return v.bodyType === "SUV / Terenac";
+    case "gradski":
+      return v.bodyType === "Hatchback / Kompakt" && v.kw <= 145;
+    case "sportski":
+      return (
+        v.bodyType === "Coupé" ||
+        v.bodyType === "Cabrio / Roadster" ||
+        /\b(r\.s\.|gtd|gti|rs|st|vz|cooper s|type r|jcw|amg|trophy)\b/i.test(`${v.variant ?? ""} ${v.title}`) ||
+        v.kw >= 180
+      );
+    case "eko":
+      return v.fuel === "Hibrid" || v.fuel === "Struja";
+  }
+}
 export function matchVehicles(vehicles: Vehicle[], s: Search) {
   const result = vehicles.filter(v =>
+    matchesCategory(v, s.kategorija) &&
     (!s.marka || v.make === s.marka) && (!s.model || v.model === s.model) &&
     (!s.generacija || matchesGeneration(v.make, v.model, s.generacija, v.generation ?? chassisFromTitle(v.make, v.model, v.title))) &&
     (!s.cijena || (s.cijena === "50000" ? v.price >= 50000 : v.price <= Number(s.cijena))) &&
@@ -81,7 +117,12 @@ export function matchVehicles(vehicles: Vehicle[], s: Search) {
     case "lowest": return matching.sort((a, b) => a.price - b.price);
     case "highest": return matching.sort((a, b) => b.price - a.price);
     case "mileage": return matching.sort((a, b) => a.km - b.km);
-    case "rating": return matching.sort((a, b) => (rating(a)?.rank ?? 3) - (rating(b)?.rank ?? 3));
+    case "rating":
+      return matching.sort((a, b) => {
+        const va = marketValuation(a);
+        const vb = marketValuation(b);
+        return va.rating.rank - vb.rating.rank || va.deltaPercent - vb.deltaPercent;
+      });
     default: return matching;
   }
 }

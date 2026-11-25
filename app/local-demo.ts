@@ -5,12 +5,12 @@ import type { Vehicle } from "./catalog";
 
 type LocalAccount = Account & { salt:string; password:string; used:Record<string,string[]>; otpUntil?:number };
 type LocalStore = { accounts:LocalAccount[]; active?:string; reports?:string[] };
-const key = "sasija.local-demo.v1";
+const key = "autoplac.local-demo.v1";
 export const localDemo = () => typeof window !== "undefined" && ["localhost","127.0.0.1","[::1]"].includes(window.location.hostname);
 export function demoCredentials(type:Profile["type"], unique = false) {
   const suffix = unique ? "-" + crypto.randomUUID().slice(0,8) : "";
   return { type, name:type === "dealer" ? "Test Autokuća B2B" : "Test Privatni prodavač",
-    email:"test-" + type + suffix + "@example.test", password:"Sasija-Test-12345", city:"Zagreb", postalCode:"10000",
+    email:"test-" + type + suffix + "@example.test", password:"Autoplac-Test-12345", city:"Zagreb", postalCode:"10000",
     county:"Grad Zagreb", phone:type === "dealer" ? "099 000 0001" : "099 000 0002", oib:"12345678900", address:"Testna 42",
     workingHours:presetHours(1), terms:true, declaration:true };
 }

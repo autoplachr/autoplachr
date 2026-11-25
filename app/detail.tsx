@@ -2,7 +2,7 @@
 
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Heart, Maximize, MessageSquare, Phone, Printer, Share2, Star } from "lucide-react";
 import { useEffect, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
-import { euro, groups, number, power, registered, taxStatus, type Vehicle } from "./catalog";
+import { euro, groups, marketValuation, number, power, registered, taxStatus, type Vehicle } from "./catalog";
 import { vehicleMakeOptions } from "./make-equipment";
 import { Dialog, Rating, VehiclePhoto } from "./ui";
 import { equipmentFor } from "../src/data/equipment-catalog";
@@ -22,8 +22,8 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
   const [phone, setPhone] = useState("");
   const [revealing,setRevealing] = useState(false);
   useEffect(() => {
-    if (!vehicle.contactAvailable || sessionStorage.getItem("sasija.view."+vehicle.id)) return;
-    void api("view",{id:vehicle.id}).then(() => sessionStorage.setItem("sasija.view."+vehicle.id,"1")).catch(() => undefined);
+    if (!vehicle.contactAvailable || sessionStorage.getItem("autoplac.view."+vehicle.id)) return;
+    void api("view",{id:vehicle.id}).then(() => sessionStorage.setItem("autoplac.view."+vehicle.id,"1")).catch(() => undefined);
   },[vehicle.id,vehicle.contactAvailable]);
   async function reveal() {
     if (!vehicle.contactAvailable) {setPhone(vehicle.phone);return;}
@@ -38,6 +38,38 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
   const [shareUrl, setShareUrl] = useState("");
   const count = vehicle.photos.length;
   const active = vehicle.photos[photo];
+  const valuation = marketValuation(vehicle);
+  const priceScaleMin = Math.round(valuation.excellentMax * 0.88);
+  const priceScaleMax = Math.round(valuation.highMax * 1.1);
+  const pinLeft = (() => {
+    const p = vehicle.price;
+    const t = valuation;
+    if (p <= t.excellentMax) {
+      return Math.max(3, Math.min(19, 20 * Math.max(0, p - priceScaleMin) / Math.max(1, t.excellentMax - priceScaleMin)));
+    }
+    if (p <= t.goodMax) {
+      return 20 + 20 * (p - t.excellentMax) / Math.max(1, t.goodMax - t.excellentMax);
+    }
+    if (p <= t.fairMax) {
+      return 40 + 20 * (p - t.goodMax) / Math.max(1, t.fairMax - t.goodMax);
+    }
+    if (p <= t.highMax) {
+      return 60 + 20 * (p - t.fairMax) / Math.max(1, t.highMax - t.fairMax);
+    }
+    return Math.min(97, 80 + 20 * (p - t.highMax) / Math.max(1, priceScaleMax - t.highMax));
+  })();
+  const priceTiers = [
+    { rank: 0, bars: 5, label: "Odlična cijena", range: `≤ ${euro(valuation.excellentMax)}`, tone: "good-5" },
+    { rank: 1, bars: 4, label: "Dobra cijena", range: `${euro(valuation.excellentMax + 1)} – ${euro(valuation.goodMax)}`, tone: "good-4" },
+    { rank: 2, bars: 3, label: "Fer cijena", range: `${euro(valuation.goodMax + 1)} – ${euro(valuation.fairMax)}`, tone: "fair-3" },
+    { rank: 3, bars: 2, label: "Viša cijena", range: `${euro(valuation.fairMax + 1)} – ${euro(valuation.highMax)}`, tone: "high-2" },
+    { rank: 4, bars: 1, label: "Visoka cijena", range: `> ${euro(valuation.highMax)}`, tone: "high-1" },
+  ] as const;
+  const deltaSign = valuation.deltaEur > 0 ? "+" : valuation.deltaEur < 0 ? "-" : "";
+  const pctSign = valuation.deltaPercent > 0 ? "+" : valuation.deltaPercent < 0 ? "-" : "";
+  const deltaTone = Math.abs(valuation.deltaPercent) <= 3 ? "neutral" : valuation.deltaEur < 0 ? "good" : "high";
+  const signedDelta = `${deltaSign}${euro(Math.abs(valuation.deltaEur))}`;
+  const signedPct = `${pctSign}${Math.abs(valuation.deltaPercent).toLocaleString("hr-HR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
   const move = (offset: number) => setPhoto(current => (current + offset + count) % count);
   const version = vehicle.variant === "S" ? vehicle.model + " S" : vehicle.variant;
   const breadcrumb = [vehicle.make, vehicle.model, vehicle.generation, version].filter(Boolean);
@@ -160,16 +192,82 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
         </section>
       </div>
       <aside className="detail-sidebar" aria-label="Cijena, kontakt i alati za kupce">
-        <section className="detail-panel price-evaluation" id="kontakt-prodavaca" aria-label="Cijena i procjena">
+        <section className="detail-panel price-evaluation" id="kontakt-prodavaca" aria-label="Analiza tržišne cijene u RH">
           <strong className="detail-price tabular">{euro(vehicle.price)}</strong>
           <p>{tax}</p>
-          {vehicle.range && <>
-            <Rating vehicle={vehicle}/>
-            <div className="price-scale" role="img" aria-label={"Tražena cijena " + euro(vehicle.price) + " u odnosu na ogledni tržišni raspon"}>
-              <div/><div/><div/><span style={{ left: Math.max(4, Math.min(96, 33.33 + 33.33 * (vehicle.price - vehicle.range[0]) / Math.max(1, vehicle.range[1] - vehicle.range[0]))) + "%" }}/>
+          <div className="valuation-module">
+            <div className="valuation-head">
+              <h2>Analiza tržišne cijene u RH</h2>
+              <Rating tier={valuation.rating}/>
             </div>
-            <p>{vehicle.demo ? "Ogledni tržišni raspon" : "Tržišni raspon"} <strong className="tabular">{euro(vehicle.range[0])} – {euro(vehicle.range[1])}</strong></p>
-          </>}
+            <div className="price-scale price-scale-5" role="img" aria-label={`Tražena cijena ${euro(vehicle.price)} u odnosu na tržišni raspon u RH (${euro(valuation.fairMin)} – ${euro(valuation.fairMax)})`}>
+              <div/><div/><div/><div/><div/><span style={{ left: pinLeft + "%" }}/>
+            </div>
+            <div className="scale-labels">
+              <span>Odlična</span>
+              <span className="tabular">Fer raspon</span>
+              <span>Visoka</span>
+            </div>
+            <div className="valuation-metrics">
+              <div>
+                <span>Tržišni raspon u RH</span>
+                <strong className="tabular">{euro(valuation.fairMin)} – {euro(valuation.fairMax)}</strong>
+              </div>
+              <div>
+                <span>Realna tržišna vrijednost u RH</span>
+                <strong className="tabular">{euro(valuation.medianMarketPrice)}</strong>
+              </div>
+              <div>
+                <span>Modelirani uzorak usporedivih vozila u RH</span>
+                <strong className="tabular">{valuation.sampleCount} sličnih oglasa</strong>
+              </div>
+              <div>
+                <span>Procjena uvoza iz DE s PPMV-om ({euro(valuation.estimatedPpmvEur)})</span>
+                <strong className="tabular">~{euro(valuation.estimatedImportTotalEur)} ukupno</strong>
+              </div>
+              <div>
+                <span>Razlika u odnosu na tržište</span>
+                <strong className={"tabular valuation-delta " + deltaTone}>{signedDelta} ({signedPct})</strong>
+              </div>
+            </div>
+            <div className="valuation-track" aria-label={"Ocjena cijene: " + valuation.rating.label}>
+              {priceTiers.map(tier => <div key={tier.rank} className={tier.tone} data-active={tier.rank === valuation.rating.rank} title={tier.label}>{tier.rank === valuation.rating.rank && "▼"}</div>)}
+            </div>
+            <div className="valuation-tiers" aria-label="5 razina tržišne cijene">
+              {priceTiers.map(tier => {
+                const isActive = valuation.rating.rank === tier.rank;
+                return <div key={tier.rank} className={`tier-row ${tier.tone}${isActive ? " active" : ""}`}>
+                  <span className="tier-name"><i className="tier-dot" aria-hidden="true"/>{tier.label}</span>
+                  <strong className="tabular">{tier.range}</strong>
+                </div>;
+              })}
+            </div>
+            <details className="valuation-factors">
+              <summary>Detaljan izračun procjene <span className="tabular">({valuation.breakdown.length - 1} koraka)</span></summary>
+              <ul className="valuation-waterfall">
+                {valuation.breakdown.map(row => <li key={row.id} className={row.isTotal ? "waterfall-total" : undefined}>
+                  <div className="waterfall-label">
+                    <span>{row.label}</span>
+                    {row.detail && <small>{row.detail}</small>}
+                  </div>
+                  <strong className={"tabular " + (row.isTotal ? "total" : row.amountEur > 0 && row.id !== "base" ? "pos" : row.amountEur < 0 ? "neg" : "")}>
+                    {row.id === "base" || row.isTotal ? euro(row.amountEur) : (row.amountEur > 0 ? "+" : row.amountEur < 0 ? "-" : "") + euro(Math.abs(row.amountEur))}
+                  </strong>
+                </li>)}
+              </ul>
+            </details>
+            {valuation.factors.length > 0 && <details className="valuation-factors">
+              <summary>Ključni faktori procjene <span className="tabular">({valuation.factors.length})</span></summary>
+              <ul>
+                {valuation.factors.map(factor => <li key={factor.id}>
+                  <span>{factor.label}</span>
+                  <strong className={"tabular " + (factor.impactEur >= 0 ? "pos" : "neg")}>
+                    {factor.impactEur >= 0 ? "+" : "-"}{euro(Math.abs(factor.impactEur))}
+                  </strong>
+                </li>)}
+              </ul>
+            </details>}
+          </div>
           <p className="finance-summary">Informativna rata leasinga <b className="tabular">{euro(Math.round(monthlyPayment(vehicle.price, 20, 60)))} / mj.</b></p>
         </section>
         <section className="detail-panel seller-card" aria-label="Kontakt prodavača">
