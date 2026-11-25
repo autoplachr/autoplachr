@@ -511,7 +511,7 @@ input[type="checkbox"] { appearance: auto; width: 16px; height: 16px; flex: 0 0 
 
 .location-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; }
 .location-city { position:relative; min-width:0; }
-.location-suggestions { position:absolute; z-index:5; inset:100% auto auto 0; width:max-content; max-width:min(360px, calc(100vw - 52px)); background:var(--surface); border:1px solid var(--border-hover); border-radius:var(--radius); box-shadow:0 6px 18px #0002; }
+.location-suggestions { background:var(--surface); border:1px solid var(--border-hover); border-radius:var(--radius); box-shadow:0 6px 18px #0002; }
 .location-suggestions button { display:block; text-align:left; width:100%; padding:8px 10px; font-size:13px; }
 .location-suggestions button:hover,.location-suggestions button:focus-visible { background:var(--hover); }
 .hours-builder { display:grid; min-width:0; gap:9px; border:1px solid var(--border); border-radius:var(--radius); padding:10px; background:#fff; }
@@ -922,7 +922,7 @@ html[data-theme="dark"] .brand-card.active { background:rgba(37,99,235,.2); }
 .brand-select-trigger:hover, .brand-select-trigger[aria-expanded="true"] { border-color:var(--border-hover); }
 .brand-select-trigger[aria-invalid="true"] { border-color:var(--error); }
 .brand-required { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
-.brand-select-popover { position:fixed; margin:0; padding:0; background:var(--surface); color:var(--text); border:1px solid var(--border-hover); border-radius:9px; box-shadow:var(--raised-shadow); overflow:auto; overscroll-behavior:contain; }
+.brand-select-popover { margin:0; padding:0; background:var(--surface); color:var(--text); border:1px solid var(--border-hover); border-radius:9px; box-shadow:var(--raised-shadow); overflow:clip; }
 .brand-select-search { display:flex; align-items:center; gap:7px; position:sticky; top:0; padding:8px; border-bottom:1px solid var(--border); background:var(--surface); z-index:1; color:var(--muted); }
 .brand-select-search input { width:100%; min-width:0; padding:5px 8px; background:var(--hover); border:1px solid var(--border); border-radius:5px; color:var(--text); }
 .brand-select-popover ul { padding:3px; }
@@ -1017,4 +1017,29 @@ html[data-theme="dark"] .listing-photo::after { box-shadow:inset 0 0 0 1px #FFFF
 @media (hover:hover) and (pointer:fine) {
   .listing-photo-arrow { opacity:0; transition:opacity 150ms ease, background-color 150ms ease; }
   .listing:hover .listing-photo-arrow, .rec-card:hover .listing-photo-arrow, .listing-photo:focus-within .listing-photo-arrow { opacity:1; }
+}
+
+.brand-select-popover, .location-suggestions {
+  position:absolute; inset:calc(100% + 4px) 0 auto; z-index:50;
+  width:auto; max-width:none;
+}
+.brand-select-popover[hidden] { display:none; }
+.brand-select-popover ul, .location-suggestions {
+  max-height:45dvh; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y;
+}
+.brand-select-popover ul { max-height:min(45dvh, 286px); }
+.location-suggestions button { overflow-wrap:anywhere; }
+.filter-body { overscroll-behavior:contain; }
+@media (max-width:767px) {
+  html, body { overflow-x:hidden; }
+  input, select, textarea { font-size:16px !important; }
+  .dialog {
+    max-height:min(90dvh,calc(var(--modal-viewport-height,100dvh) - 14px));
+    bottom:var(--modal-keyboard-inset,0px);
+  }
+  .filter-drawer { max-height:min(90dvh,calc(var(--modal-viewport-height,100dvh) - 8px)); }
+  .filter-drawer .filter-body { touch-action:pan-y; }
+  .dialog .brand-select-popover ul, .dialog .location-suggestions {
+    max-height:min(45dvh,calc(var(--modal-viewport-height,100dvh) * .32));
+  }
 }

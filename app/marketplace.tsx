@@ -4,7 +4,7 @@ import { ListingPhoto } from "../src/components/ListingPhoto";
 import { BrandSelect } from "../src/components/BrandSelect";
 import { BrandLogo } from "../src/components/BrandLogo";
 import { ArrowDown, ArrowRight, CarFront, Check, ChevronDown, Grid2X2, Heart, List, Moon, Plus, SlidersHorizontal, Sun, UserRound, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { restoreListingPhotos, countyByCity, euro, fuels, gears, marketValuation, number, power, quick, registered, vehicles, type Flag, type Vehicle } from "./catalog";
 import { categories, distances, initialSearch, matchVehicles, prices, readSearch, sorts, validEquipmentFilters, writeSearch, years, type CategoryId, type Search } from "./search";
 import { CatalogFields } from "./catalog-fields";
@@ -456,7 +456,9 @@ function listingUrl(id: string) {
 }
 
 function scrollToTop() {
-  window.scrollTo({ top: 0 });
+  window.scrollTo({ top:0,left:0,behavior:"instant" });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
 }
 
 function Listing({ vehicle, saved, onOpen, onSave, eager }: {
@@ -525,6 +527,7 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
     setAccount(current);setRemote(inventory);setLoadedInventory(true);setAccountError("");
   }
   function navigate(target: string, replace = false) {
+    cancelResultScroll.current?.();
     if (location.pathname + location.search !== target) history[replace ? "replaceState" : "pushState"](null,"",target);
     setPath(location.pathname.replace(/\/$/,"") || "/");
     const params = new URLSearchParams(location.search);
@@ -532,7 +535,7 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
     setDealerId(params.get("salon"));
     setDetailId(id);activeDetail.current=id;
     setSearch(readSearch(location.search));
-    requestAnimationFrame(scrollToTop);
+    scrollToTop();
   }
   async function signedIn() {
     await refresh();
@@ -548,10 +551,14 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
   const [dealerId,setDealerId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const resultsScroll = useRef(0);
+  const resetOnPop = useRef(false);
+  const cancelResultScroll = useRef<(() => void) | null>(null);
   const activeDetail = useRef<string | null>(null);
   const [notice, setNotice] = useState("");
   useEffect(() => {
     setDark(document.documentElement.dataset.theme === "dark");
+    const previousRestoration = history.scrollRestoration;
+    history.scrollRestoration = "manual";
     const themeChanged = (event: StorageEvent) => {
       if (event.key !== "autoplac.theme" && event.key !== null) return;
       const selected = event.newValue === "dark";
@@ -568,7 +575,13 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
       const wasDetail = activeDetail.current !== null;
       activeDetail.current = id;
       setDetailId(id);
-      if (event && (wasDetail || id)) requestAnimationFrame(() => window.scrollTo(0, id ? 0 : resultsScroll.current));
+      if (event) cancelResultScroll.current?.();
+      if (event && (wasDetail || id)) {
+        const toTop = resetOnPop.current || Boolean(id);
+        resetOnPop.current = false;
+        if (toTop) scrollToTop();
+        else requestAnimationFrame(() => window.scrollTo({top:resultsScroll.current,left:0,behavior:"instant"}));
+      }
     };
     const sync = (event?:StorageEvent) => {
       if (event?.key === "autoplac.local-demo.v1") void refresh().catch(() => undefined);
@@ -581,7 +594,7 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
     sync();
     window.addEventListener("popstate", locationChanged);
     window.addEventListener("storage", sync);
-    return () => { window.removeEventListener("storage", themeChanged); window.removeEventListener("popstate", locationChanged); window.removeEventListener("storage", sync); };
+    return () => { cancelResultScroll.current?.(); history.scrollRestoration = previousRestoration; window.removeEventListener("storage", themeChanged); window.removeEventListener("popstate", locationChanged); window.removeEventListener("storage", sync); };
   }, []);
   useEffect(() => {
     if (!notice) return;
@@ -594,9 +607,18 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
   const dealerProfile = dealerId && remote.find(vehicle => vehicle.dealershipId === dealerId);
   const dealerMakes = dealerId ? [...new Set(remote.filter(vehicle => vehicle.dealershipId === dealerId).map(vehicle => vehicle.make))] : [];
   const detail = allVehicles.find(vehicle => vehicle.id === detailId);
+  const renderedDetail = detail?.id;
+  useLayoutEffect(scrollToTop,[path]);
+  useLayoutEffect(() => { if (detailId) scrollToTop(); },[detailId,renderedDetail]);
+  useEffect(() => {
+    if (!detailId) return;
+    const frame = requestAnimationFrame(scrollToTop);
+    return () => cancelAnimationFrame(frame);
+  },[detailId,renderedDetail]);
   function openListing(event: MouseEvent<HTMLAnchorElement>, id: string) {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
+    cancelResultScroll.current?.();
     if (!detailId) resultsScroll.current = window.scrollY;
     const url = new URL(window.location.href);
     url.pathname = "/";
@@ -606,14 +628,13 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
     activeDetail.current = id;
     setPath("/");
     setDetailId(id);
-    requestAnimationFrame(() => {
-      scrollToTop();
-      document.getElementById("vehicle-title")?.focus({ preventScroll: true });
-    });
+    scrollToTop();
   }
   function backToResults() {
+    scrollToTop();
     const depth = Number(history.state?.autoplacDetailDepth ?? 0);
     if (depth > 0) {
+      resetOnPop.current = true;
       history.go(-depth);
       return;
     }
@@ -631,7 +652,34 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
   const activeCount = [search.kategorija, search.marka, search.model, search.generacija, search.cijena, search.godiste, search.km, search.gorivo, search.mjenjac, search.grad].filter(Boolean).length + search.opcije.length + search.oprema.length;
   const update = (next: Search) => { setSearch(next); writeSearch(next); };
   const scrollResults = () => requestAnimationFrame(() => document.getElementById("svi-oglasi")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }));
-  const apply = () => { setPanel(null); scrollResults(); };
+  const apply = () => {
+    cancelResultScroll.current?.();
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setPanel(null);
+    const viewport = window.visualViewport;
+    let timer: number | undefined, frame: number | undefined;
+    function cleanup() {
+      clearTimeout(timer);
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      viewport?.removeEventListener("resize",onResize);
+      cancelResultScroll.current = null;
+    }
+    function finish() {
+      clearTimeout(timer);
+      viewport?.removeEventListener("resize",onResize);
+      frame = requestAnimationFrame(() => {cleanup();scrollResults();});
+      cancelResultScroll.current = cleanup;
+    }
+    function onResize() {
+      if (viewport && viewport.height >= document.documentElement.clientHeight - 80) finish();
+    }
+    // Wait for the keyboard to settle, with a bound for browsers that skip resize.
+    if (panel === "filters" && viewport && viewport.height < document.documentElement.clientHeight - 80) {
+      timer = window.setTimeout(finish,420);
+      viewport.addEventListener("resize",onResize);
+      cancelResultScroll.current = cleanup;
+    } else finish();
+  };
   async function toggleSaved(id: string) {
     if (account) {
       try {
@@ -646,10 +694,11 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
     setSaved(next);
   }
   function showMarket() {
+    cancelResultScroll.current?.();
     if (path !== "/" || dealerId) navigate("/"); else goToResults();
     setDealerOnly(false);
     setSavedOnly(false);
-    window.scrollTo({ top: 0 });
+    scrollToTop();
   }
   function startPublish(listing?: OwnedListing) {
     if (!account) {
@@ -679,9 +728,9 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
         <button className="brand" type="button" aria-label="Autoplac HR, početna" onClick={showMarket}><span className="brand-icon"><CarFront size={20} strokeWidth={2.2}/></span><span>AUTOPLAC</span><span className="brand-domain tabular">.hr</span></button>
         <nav className="main-nav" aria-label="Glavna navigacija">
           <button type="button" aria-current={path === "/" && !dealerOnly && !savedOnly && !detailId ? "page" : undefined} onClick={showMarket}>Rabljena vozila</button>
-          <button type="button" aria-current={path === "/" && dealerOnly ? "page" : undefined} onClick={() => { if (path !== "/" || dealerId) navigate("/"); else goToResults(); setDealerOnly(true); setSavedOnly(false); scrollResults(); }}>Autokuće</button>
-          <button type="button" onClick={() => setPanel("tax")}>PPMV Kalkulator</button>
-          <button type="button" aria-current={path === "/procjena-cijene" ? "page" : undefined} onClick={() => { navigate("/procjena-cijene"); window.scrollTo({ top: 0 }); }}>Procjena cijene</button>
+          <button type="button" aria-current={path === "/" && dealerOnly ? "page" : undefined} onClick={() => { if (path !== "/" || dealerId) navigate("/"); else goToResults(); setDealerOnly(true); setSavedOnly(false); scrollToTop(); }}>Autokuće</button>
+          <button type="button" onClick={() => {scrollToTop();setPanel("tax");}}>PPMV Kalkulator</button>
+          <button type="button" aria-current={path === "/procjena-cijene" ? "page" : undefined} onClick={() => navigate("/procjena-cijene")}>Procjena cijene</button>
         </nav>
         <div className="header-actions">
           <button type="button" className="icon-btn theme-toggle" aria-label="Tamna tema" aria-pressed={dark} title={dark ? "Uključi svijetlu temu" : "Uključi tamnu temu"} onClick={changeTheme}>{dark ? <Sun size={17}/> : <Moon size={17}/>}</button>
@@ -750,9 +799,9 @@ export default function Marketplace({ initialPath = "/" }: {initialPath?:string}
           </section>}
           <div className="mobile-tools">
             <button type="button" className="btn secondary" aria-haspopup="dialog" onClick={() => setPanel("filters")}><SlidersHorizontal size={16}/> Filteri {activeCount > 0 && <span className="tabular">({activeCount})</span>}</button>
-            <button type="button" className="btn quiet mobile-nav-action" onClick={() => setPanel("tax")}>PPMV</button>
-            <button type="button" className="btn quiet mobile-nav-action" onClick={() => { navigate("/procjena-cijene"); window.scrollTo({ top: 0 }); }}>Procjena</button>
-            <button type="button" className="btn quiet mobile-nav-action" aria-pressed={dealerOnly} onClick={() => { setDealerOnly(!dealerOnly); setSavedOnly(false); }}>Autokuće</button>
+            <button type="button" className="btn quiet mobile-nav-action" onClick={() => {scrollToTop();setPanel("tax");}}>PPMV</button>
+            <button type="button" className="btn quiet mobile-nav-action" onClick={() => navigate("/procjena-cijene")}>Procjena</button>
+            <button type="button" className="btn quiet mobile-nav-action" aria-pressed={dealerOnly} onClick={() => { setDealerOnly(!dealerOnly); setSavedOnly(false); scrollToTop(); }}>Autokuće</button>
           </div>
           <div className="results-toolbar">
             <h2 id="results-title" className="result-count" aria-live="polite">{savedOnly ? "Spremljeno" : "Pronađeno"} <strong className="tabular">{results.length}</strong> {results.length === 1 ? "vozilo" : "vozila"}{dealerOnly && " iz autokuća"}</h2>

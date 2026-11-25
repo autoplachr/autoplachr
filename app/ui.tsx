@@ -44,16 +44,75 @@ export function Select({ label, className = "", children, ...props }: SelectHTML
   </label>;
 }
 
+let modalLocks = 0;
+let releasePageLock: (() => void) | undefined;
+
+function lockPage() {
+  if (modalLocks++ === 0) {
+    const body = document.body, root = document.documentElement;
+    const previousBody = { overflow:body.style.overflow, position:body.style.position, inset:body.style.inset, width:body.style.width };
+    const previousRoot = root.style.overflow;
+    const y = window.scrollY, x = window.scrollX;
+    body.style.overflow = "hidden";
+    root.style.overflow = "hidden";
+    if (matchMedia("(max-width: 767px)").matches) {
+      body.style.position = "fixed";
+      body.style.inset = `-${y}px auto auto -${x}px`;
+      body.style.width = "100%";
+    }
+    releasePageLock = () => {
+      Object.assign(body.style,previousBody);
+      root.style.overflow = previousRoot;
+      window.scrollTo({top:y,left:x,behavior:"instant"});
+    };
+  }
+  return () => {
+    if (--modalLocks === 0) {
+      releasePageLock?.();
+      releasePageLock = undefined;
+    }
+  };
+}
+
 export function Dialog({ title, children, onClose, variant = "", eyebrow }: {
   title: string; children: ReactNode; onClose: () => void; variant?: string; eyebrow?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const element = ref.current;
-    const previous = document.body.style.overflow;
-    element?.showModal();
-    document.body.style.overflow = "hidden";
-    return () => { element?.close(); document.body.style.overflow = previous; };
+    if (!element) return;
+    const unlock = lockPage();
+    element.showModal();
+    const viewport = window.visualViewport;
+    let viewportFrame: number | undefined;
+    function updateViewport() {
+      if (!viewport) return;
+      const layoutHeight = document.documentElement.clientHeight;
+      element!.style.setProperty("--modal-viewport-height", viewport.height + "px");
+      element!.style.setProperty("--modal-keyboard-inset", Math.max(0,layoutHeight-viewport.height-viewport.offsetTop) + "px");
+      if (!matchMedia("(max-width: 767px)").matches || layoutHeight - viewport.height < 80) return;
+      if (viewportFrame !== undefined) cancelAnimationFrame(viewportFrame);
+      viewportFrame = requestAnimationFrame(() => {
+        const focused = document.activeElement;
+        if (!(focused instanceof HTMLElement) || !element!.contains(focused) || !focused.matches("input,textarea,select")) return;
+        const scroller = focused.closest<HTMLElement>(".filter-body") ?? element!;
+        const box = scroller.getBoundingClientRect(), field = focused.getBoundingClientRect();
+        const top = Math.max(box.top,viewport.offsetTop) + 8;
+        const bottom = Math.min(box.bottom,viewport.offsetTop + viewport.height) - 8;
+        if (field.bottom > bottom) scroller.scrollTop += field.bottom - bottom;
+        else if (field.top < top) scroller.scrollTop -= top - field.top;
+      });
+    }
+    updateViewport();
+    viewport?.addEventListener("resize",updateViewport);
+    viewport?.addEventListener("scroll",updateViewport);
+    return () => {
+      if (viewportFrame !== undefined) cancelAnimationFrame(viewportFrame);
+      viewport?.removeEventListener("resize",updateViewport);
+      viewport?.removeEventListener("scroll",updateViewport);
+      element.close();
+      unlock();
+    };
   }, []);
   return <dialog ref={ref} className={"dialog " + variant} aria-label={title} onCancel={event => {
     event.preventDefault();
