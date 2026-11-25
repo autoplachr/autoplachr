@@ -1,8 +1,16 @@
-import { cp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, writeFile, rm } from "node:fs/promises";
 import ts from "typescript";
 import { subprocess } from "./subprocess.mjs";
 
 await subprocess(process.execPath, ["node_modules/next/dist/bin/next", "build"]);
+const htmlPages = (await readdir("out")).filter(file => file.endsWith(".html") && file !== "404.html");
+for (const page of htmlPages) {
+  const html = await readFile("out/" + page, "utf8");
+  if (![...html.matchAll(/<style(?:\s[^>]*)?>([\s\S]*?)<\/style>/g)].some(([,css]) =>
+    css.includes("--nav-height") && css.includes(".hero-search") && css.includes("[data-theme=dark]"))) {
+    throw new Error("Missing inline marketplace stylesheet in " + page);
+  }
+}
 await rm("dist/client", { recursive: true, force: true });
 await mkdir("dist/server", { recursive: true });
 await cp("out", "dist/client", { recursive: true });
