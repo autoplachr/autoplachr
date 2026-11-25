@@ -300,7 +300,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
     </div>
     {similar.length > 0 && <section className="detail-panel similar-section"><h2>Slična vozila u ponudi</h2>
       <div className="similar-list">{similar.map(item => <a key={item.id} className="similar-car" href={"?oglas=" + encodeURIComponent(item.id)} onClick={event => onOpen(event, item.id)}>
-        <VehiclePhoto photo={item.photos[0]} alt=""/><div><h3>{item.title}</h3><span className="tabular">{registered(item.date)} • {number(item.km)} km</span><strong className="tabular">{euro(item.price)}</strong></div>
+        <VehiclePhoto photo={item.photos[0]} alt="" thumbnail/><div><h3>{item.title}</h3><span className="tabular">{registered(item.date)} • {number(item.km)} km</span><strong className="tabular">{euro(item.price)}</strong></div>
       </a>)}</div>
     </section>}
     {fullscreen && <Dialog title="Fotografije vozila" variant="photo-lightbox" onClose={() => setFullscreen(false)}>

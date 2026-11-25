@@ -2,7 +2,7 @@
 
 import { ChevronDown, X } from "lucide-react";
 import { useEffect, useRef, type ReactNode, type SelectHTMLAttributes } from "react";
-import { flags, quick, rating, type Flag, type Photo, type Vehicle } from "./catalog";
+import { flags, quick, rating, type Flag, type Vehicle } from "./catalog";
 import type { PriceRatingTier } from "../src/lib/price-engine";
 import { makeOptions } from "./make-equipment";
 
@@ -71,29 +71,7 @@ export function Dialog({ title, children, onClose, variant = "", eyebrow }: {
   </dialog>;
 }
 
-export function VehiclePhoto({ photo, alt, eager = false }: { photo?: Photo; alt: string; eager?: boolean }) {
-  const placeholder = "/cars/unavailable.svg";
-  const imageRef = useRef<HTMLImageElement>(null);
-  const backup = photo?.backup;
-  function recover(img: HTMLImageElement) {
-    if (!img.complete || img.naturalWidth) return;
-    const failed = img.getAttribute("src");
-    if (failed === placeholder) return;
-    if (backup && failed !== backup) img.src = backup;
-    else {
-      img.alt = alt ? alt + " — fotografija nije dostupna" : "";
-      img.src = placeholder;
-    }
-  }
-  // The exported HTML can finish its first image request before React attaches onError.
-  useEffect(() => {
-    if (imageRef.current) recover(imageRef.current);
-  }, [photo?.src, backup, alt]);
-  return <div className="vehicle-photo">
-    <img ref={imageRef} key={photo?.src} alt={photo ? alt : "Fotografija nije dostupna"} src={photo?.src || placeholder}
-      loading={eager ? "eager" : "lazy"} decoding="async" onError={event => recover(event.currentTarget)} />
-  </div>;
-}
+export { CarImage as VehiclePhoto } from "../src/components/CarImage";
 
 export function PhotoCount({ index, total }: { index: number; total: number }) {
   if (!total) return null;

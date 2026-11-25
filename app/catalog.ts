@@ -78,7 +78,7 @@ export function emptyEquipment(): Equipment {
   return { Sigurnost: [], Udobnost: [], Multimedija: [], Eksterijer: [] };
 }
 
-export type Photo = { src: string; backup?: string; credit?: string; link?: string; license?: string; licenseUrl?: string };
+export type Photo = { src: string; preview?: string; backup?: string; credit?: string; link?: string; license?: string; licenseUrl?: string };
 export type Vehicle = {
   id: string; make: string; model: string; title: string; trim: string; price: number;
   generation?: string; variant?: string; bodyType?: string;

@@ -448,7 +448,7 @@ export function ValuationPage({
               <div className="similar-list">
                 {matchingVehicles.map(item => (
                   <a key={item.id} className="similar-car" href={"?oglas=" + encodeURIComponent(item.id)} onClick={e => onOpenListing(e, item.id)}>
-                    <VehiclePhoto photo={item.photos[0]} alt="" />
+                    <VehiclePhoto photo={item.photos[0]} alt="" thumbnail />
                     <div>
                       <h4>{item.title}</h4>
                       <span className="tabular">{registered(item.date)} • {number(item.km)} km • {item.city}</span>

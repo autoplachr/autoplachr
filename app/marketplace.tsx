@@ -376,7 +376,7 @@ function RecommendedStrip({
           return (
             <article key={vehicle.id} className="rec-card">
               <div className="rec-media">
-                <VehiclePhoto photo={vehicle.photos[0]} alt={vehicle.title} eager={index < 4} />
+                <VehiclePhoto photo={vehicle.photos[0]} alt={vehicle.title} eager={index < 4} thumbnail />
                 {tag && <span className="rec-tag">{tag}</span>}
                 <button
                   className={"icon-btn heart-button " + (isSaved ? "saved" : "")}
@@ -449,7 +449,7 @@ function PopularBrandsStrip({
               className={"brand-card" + (active ? " active" : "")}
               onClick={() => onSelectBrand(active ? "" : brand)}
             >
-              <span className="brand-mark"><BrandLogo make={brand} size="lg"/></span>
+              <BrandLogo make={brand} size="lg"/>
               <span className="brand-meta">
                 <strong>{brand}</strong>
                 <small className="tabular">{count} {count === 1 ? "vozilo" : "vozila"}</small>
@@ -485,7 +485,7 @@ function Listing({ vehicle, saved, onOpen, onSave, eager }: {
   const delta = describeMarketDelta(valuation.deltaEur, valuation.deltaPercent, euro);
   return <article className="listing">
     <div className="listing-media">
-      <VehiclePhoto photo={vehicle.photos[0]} alt={vehicle.title} eager={eager}/>
+      <VehiclePhoto photo={vehicle.photos[0]} alt={vehicle.title} eager={eager} thumbnail/>
       {(arriving || vat) && <span className={"listing-badge" + (arriving ? " arriving" : "")}>{arriving ? quick.dolazak : "PDV u cijeni (R1)"}</span>}
       <PhotoCount index={0} total={vehicle.photos.length}/>
       <button className={"icon-btn heart-button " + (saved ? "saved" : "")} type="button" aria-label={saved ? "Ukloni spremljeno vozilo " + vehicle.title : "Spremi " + vehicle.title} aria-pressed={saved} onClick={onSave}><Heart size={17} fill={saved ? "currentColor" : "none"}/></button>
