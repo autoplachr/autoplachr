@@ -63,8 +63,11 @@ const QUICK_REPLIES = [
 
 const formData = (event: FormEvent<HTMLFormElement>) => Object.fromEntries(new FormData(event.currentTarget));
 function errorText(error: unknown) {
-  const message = typeof error === "string" ? error : (error as { message?: unknown } | null)?.message;
-  return typeof message === "string" && message ? message : "Zahtjev nije dovršen.";
+  const message = error instanceof Error ? error.message
+    : typeof error === "string" ? error
+    : typeof (error as { message?: unknown } | null)?.message === "string" ? (error as { message: string }).message
+    : "Greška pri prijavi.";
+  return typeof message === "string" && message ? message : "Greška pri prijavi.";
 }
 
 function FieldIssue({ message }: { message?: string }) {

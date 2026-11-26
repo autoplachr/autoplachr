@@ -32,7 +32,7 @@ function first(values: Map<string, unknown>, ...names: string[]) {
 }
 function amount(value: unknown): number | undefined {
   const clean = text(value).replace(/[^\d.,-]/g, "");
-  if (!clean || clean.startsWith("-")) return;
+  if (typeof clean !== "string" || !clean || clean.startsWith("-")) return;
   const normalized = clean.replace(/[.,](?=\d{3}(?:[.,]|$))/g, "").replace(",", ".");
   const valueNumber = Number(normalized);
   if (Number.isFinite(valueNumber)) return valueNumber;

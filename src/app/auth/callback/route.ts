@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   const siteOrigin = getSiteOrigin();
   const code = url.searchParams.get("code");
   const next = url.searchParams.get("next");
-  const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/racun";
+  const safeNext = typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : "/racun";
 
   if (code) {
     const supabase = await getSupabaseServerClient();

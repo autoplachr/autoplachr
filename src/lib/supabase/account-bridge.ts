@@ -25,8 +25,15 @@ function slugifySubdomain(name: string): string {
     .slice(0, 55);
 }
 
+export function safeAuthMessage(value: unknown, fallback = "Greška pri prijavi."): string {
+  if (value instanceof Error) return typeof value.message === "string" && value.message ? value.message : fallback;
+  if (typeof value === "string") return value || fallback;
+  const candidate = (value as { message?: unknown } | null)?.message;
+  return typeof candidate === "string" && candidate ? candidate : fallback;
+}
+
 function passwordAuthError(error: AuthError, registration: boolean): Error {
-  const message = typeof error.message === "string" ? error.message : "";
+  const message = safeAuthMessage(error, "");
   if (error.status === 429 || error.code === "over_request_rate_limit" || error.code === "over_email_send_rate_limit") {
     return new Error("Previše pokušaja. Pričekajte nekoliko minuta i pokušajte ponovno.");
   }
@@ -54,7 +61,7 @@ function mapListingRow(row: Record<string, unknown>, profileRow?: Record<string,
   for (const raw of rawEquip) {
     const label = typeof raw === "string" ? raw : (raw as { label?: unknown } | null)?.label;
     if (typeof label !== "string") continue;
-    const clean = label.startsWith("eq:") ? label.slice(3) : label;
+    const clean = typeof label === "string" && label.startsWith("eq:") ? label.slice(3) : label;
     if (!clean) continue;
     const canonical = canonicalEquipmentLabel(clean);
     const storedCategory = typeof raw === "object" ? String((raw as { category?: unknown })?.category ?? "") : "";
@@ -184,7 +191,7 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
       }
     }
     const { data: result, error } = await rpc();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(safeAuthMessage(error, "Usluga nije dostupna."));
     return result;
   }
 
@@ -230,6 +237,9 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
     const { data: result, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw passwordAuthError(error, false);
     if (!result?.session) throw new Error("Prijava nije uspjela. Pokušajte ponovno.");
+    await supabase.auth.getSession();
+    const { error: profileError } = await supabase.rpc("ensure_my_profile");
+    if (profileError) console.error("[supabase ensure_my_profile]", safeAuthMessage(profileError));
     return { ok: true };
   }
 
@@ -265,6 +275,10 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
     });
     if (error) throw passwordAuthError(error, true);
     if (!signUpData?.session) throw new Error("Automatska prijava nije uspjela. Pokušajte se prijaviti lozinkom.");
+    // Confirm email is disabled: Supabase returns a session immediately.
+    await supabase.auth.getSession();
+    const { error: profileError } = await supabase.rpc("ensure_my_profile");
+    if (profileError) console.error("[supabase ensure_my_profile]", safeAuthMessage(profileError));
     return { ok: true };
   }
 
@@ -479,7 +493,7 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
     const bucket = supabase.storage.from("vehicle-images");
     const photoSources = vehicle.photos.flatMap(photo => typeof photo?.src === "string" ? [photo.src] : []);
     const images = await Promise.all(photoSources.map(async src => {
-      if (!src.startsWith("data:image/webp;base64,")) return src;
+      if (typeof src !== "string" || !src.startsWith("data:image/webp;base64,")) return src;
       const image = await (await fetch(src)).blob();
       const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", await image.arrayBuffer()));
       const hash = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
@@ -539,7 +553,7 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
     const { error } = await supabase.rpc("activate_listing_boost", { listing_id: data.id, tier: data.tier });
     if (error) {
       if (error.code === "PGRST202") throw new Error("Isticanje oglasa trenutačno nije dostupno.");
-      throw new Error(error.message);
+      throw new Error(safeAuthMessage(error, "Isticanje oglasa nije uspjelo."));
     }
     return { ok: true };
   }

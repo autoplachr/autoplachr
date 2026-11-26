@@ -1314,6 +1314,7 @@ export function titleContainsChassis(title: string, code: string) {
 export function chassisFromTitle(make: string, modelName: string, title: string) {
   const codes = modelFor(make, modelName)?.generations.flatMap(family => family.codes) ?? [];
   const matches = codes.filter(code => code !== OTHER_GENERATION && code.length >= 2 && /\d/.test(code) && titleContainsChassis(title, code));
-  const longest = matches.filter(code => !matches.some(other => other !== code && other.startsWith(code + " ")));
+  const longest = matches.filter(code => !matches.some(other =>
+    other !== code && typeof other === "string" && typeof code === "string" && other.startsWith(code + " ")));
   return longest.length === 1 ? longest[0] : undefined;
 }

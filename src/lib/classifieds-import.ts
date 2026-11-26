@@ -17,7 +17,8 @@ let activeImports = 0;
 
 export async function importClassifieds(request: Request, env: NodeJS.ProcessEnv, vision?: Vision) {
   if (request.method !== "POST") return json({ message: "Koristite POST." }, 405);
-  if (request.headers.get("origin") !== new URL(request.url).origin || !request.headers.get("content-type")?.startsWith("application/json")) {
+  const contentType = request.headers.get("content-type");
+  if (request.headers.get("origin") !== new URL(request.url).origin || typeof contentType !== "string" || !contentType.startsWith("application/json")) {
     return json({ message: "Neispravan zahtjev." }, 403);
   }
   const rate = checkRateLimit("classifieds:global", 50, 60_000);

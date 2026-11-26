@@ -1,7 +1,7 @@
 export type FieldErrors = Record<string,string>;
-export function normalizePhone(text: string) {
-  const clean = text.replace(/[\s().-]/g,"");
-  return clean.startsWith("0") ? "+385" + clean.slice(1) : clean;
+export function normalizePhone(text: unknown) {
+  const clean = typeof text === "string" ? text.replace(/[\s().-]/g, "") : "";
+  return typeof clean === "string" && clean.startsWith("0") ? "+385" + clean.slice(1) : clean;
 }
 export function profileErrors(data: Record<string,unknown>, dealer: boolean): FieldErrors {
   const get = (key:string) => String(data[key] ?? "").trim();

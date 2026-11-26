@@ -15,7 +15,7 @@ export async function fetchClassifieds(input: string, maximumBytes: number, sign
   for (let redirects = 0; redirects < 5; redirects++) {
     signal.throwIfAborted();
     if (url.protocol !== "https:" || url.port || url.username || url.password || url.href.length > 2048 ||
-        !url.hostname.includes(".") || url.hostname.startsWith("[") || isIP(url.hostname)) throw new Error("Unesite javnu HTTPS poveznicu.");
+        !url.hostname.includes(".") || (typeof url.hostname === "string" && url.hostname.startsWith("[")) || isIP(url.hostname)) throw new Error("Unesite javnu HTTPS poveznicu.");
     const addresses = await lookup(url.hostname, { family: 4, all: true });
     if (!addresses.length || addresses.some(({ address }) => privateNetworks.check(address))) throw new Error("Unesite javnu HTTPS poveznicu.");
     const address = addresses[0].address;

@@ -120,7 +120,7 @@ export function vehicleIdFromPath(pathname: string): string | null {
 export function absoluteImageUrl(src?: string): string {
   if (!src) return `${SITE_URL}/hero-twilight.webp`;
   if (/^https?:\/\//i.test(src)) return src;
-  return `${SITE_URL}${src.startsWith("/") ? src : "/" + src}`;
+  return `${SITE_URL}${typeof src === "string" && src.startsWith("/") ? src : "/" + String(src)}`;
 }
 
 export function popularModelsForBrand(brand: string): string[] {
