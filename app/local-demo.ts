@@ -233,7 +233,7 @@ function seedDemoConversations(userId: string): Conversation[] {
 }
 
 function withInboxStats(account: LocalAccount): Account {
-  const { salt: _s, password: _p, used: _u, otpUntil: _o, emailVerified: _ev, ...visible } = account;
+  const { salt: _salt, password: _password, used: _used, otpUntil: _otp, emailVerified: _emailVerified, ...visible } = account;
   const conversations = (visible.conversations ?? []).map(c => ({
     ...c,
     unreadCount: c.messages.filter(m => !m.isRead && m.senderId !== visible.id).length,
@@ -317,7 +317,7 @@ export async function localApi(endpoint: string, input: object = {}): Promise<un
     return { ok: true };
   }
 
-  if (endpoint === "config") return { demoOtp: true };
+  if (endpoint === "config") return {};
   if (endpoint === "account") {
     if (!account) return null;
     return withInboxStats(account);
@@ -362,7 +362,6 @@ export async function localApi(endpoint: string, input: object = {}): Promise<un
         salt,
         password: await derive(crypto.randomUUID(), salt),
         verified: true,
-        emailVerified: true,
         moderator: false,
         listings: [],
         favorites: [],
@@ -382,20 +381,6 @@ export async function localApi(endpoint: string, input: object = {}): Promise<un
     return { ok: true };
   }
 
-  if (endpoint === "auth/resend") {
-    return { ok: true };
-  }
-
-  if (endpoint === "auth/verify-email-demo") {
-    const email = String(data.email ?? "").trim().toLowerCase();
-    const user = state.accounts.find(item => item.email === email);
-    if (!user) throw new Error("Račun nije pronađen.");
-    user.emailVerified = true;
-    state.active = user.id;
-    save();
-    return { ok: true };
-  }
-
   if (endpoint === "auth/demo" || endpoint === "auth/register" || endpoint === "auth/login") {
     const demo = endpoint === "auth/demo";
     const type = data.type === "dealer" ? "dealer" : "private";
@@ -412,7 +397,6 @@ export async function localApi(endpoint: string, input: object = {}): Promise<un
       const profile = makeProfile(supplied, type);
       const salt = crypto.randomUUID();
       const id = crypto.randomUUID();
-      const autoActivate = demo || data.skipVerification === true;
       user = {
         id,
         email,
@@ -420,7 +404,6 @@ export async function localApi(endpoint: string, input: object = {}): Promise<un
         salt,
         password: await derive(password, salt),
         verified: demo || type === "dealer",
-        emailVerified: autoActivate,
         moderator: false,
         listings: [],
         favorites: [],
@@ -428,16 +411,9 @@ export async function localApi(endpoint: string, input: object = {}): Promise<un
         used: {},
       };
       state.accounts.push(user);
-      if (!autoActivate) {
-        save();
-        return { ok: true, needsVerification: true, email };
-      }
     } else {
       if (!user || (!demo && (await derive(password, user.salt)) !== user.password)) {
         throw new Error("Pogrešan e-mail ili lozinka.");
-      }
-      if (user.emailVerified === false && !demo) {
-        throw new Error("Potvrdite svoju e-mail adresu prije prijave.");
       }
     }
     if (demo) seedSellerAnalytics(state, user);
@@ -452,7 +428,7 @@ export async function localApi(endpoint: string, input: object = {}): Promise<un
     save();
     return { id };
   }
-  if (endpoint.startsWith("report/status?id=")) {
+  if (typeof endpoint === "string" && endpoint.startsWith("report/status?id=")) {
     if (state.reports?.includes(endpoint.split("=")[1])) return { status: "pending" };
     throw new Error("Prijava nije pronađena.");
   }
@@ -464,15 +440,6 @@ export async function localApi(endpoint: string, input: object = {}): Promise<un
     case "auth/logout":
       delete state.active;
       break;
-    case "otp/start":
-      account.otpUntil = Date.now() + 300000;
-      save();
-      return { demoCode: "123456" };
-    case "otp/verify":
-      if (!account.otpUntil || account.otpUntil < Date.now() || data.code !== "123456") throw new Error("Kod nije ispravan ili je istekao.");
-      account.verified = true;
-      delete account.otpUntil;
-      break;
     case "profile": {
       if (typeof data.whatsappPhone === "string") {
         const phone = normalizePhone(data.whatsappPhone);
@@ -482,10 +449,6 @@ export async function localApi(endpoint: string, input: object = {}): Promise<un
       const next = makeProfile({ ...account.profile, ...data }, account.profile.type);
       next.whatsappPhone = account.profile.whatsappPhone;
       next.trialStartedAt = account.profile.trialStartedAt;
-      if (next.phone !== account.profile.phone && !account.verified) {
-        account.verified = false;
-        delete account.otpUntil;
-      }
       account.profile = next;
       for (const item of account.listings) {
         Object.assign(item, {

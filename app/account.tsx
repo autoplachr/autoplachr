@@ -12,7 +12,6 @@ import {
   EyeOff,
   Heart,
   LayoutDashboard,
-  Mail,
   MessageSquare,
   Pause,
   Play,
@@ -64,7 +63,8 @@ const QUICK_REPLIES = [
 
 const formData = (event: FormEvent<HTMLFormElement>) => Object.fromEntries(new FormData(event.currentTarget));
 function errorText(error: unknown) {
-  return error instanceof Error ? error.message : "Zahtjev nije dovršen.";
+  const message = typeof error === "string" ? error : (error as { message?: unknown } | null)?.message;
+  return typeof message === "string" && message ? message : "Zahtjev nije dovršen.";
 }
 
 function FieldIssue({ message }: { message?: string }) {
@@ -197,8 +197,6 @@ export function AuthPage({
   const [showPassword, setShowPassword] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const [resetSent, setResetSent] = useState("");
-  const [verifyEmail, setVerifyEmail] = useState("");
-  const [resendNotice, setResendNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -210,7 +208,6 @@ export function AuthPage({
     setError("");
     setErrors({});
     setResetMode(false);
-    setVerifyEmail("");
   }, [registration]);
 
   useEffect(() => setDemo(localDemo()), []);
@@ -263,20 +260,6 @@ export function AuthPage({
     }
   }
 
-  async function resendConfirmation() {
-    if (!verifyEmail) return;
-    setBusy(true);
-    setResendNotice("");
-    try {
-      await api("auth/resend", { email: verifyEmail });
-      setResendNotice("Nova poruka za potvrdu je poslana.");
-    } catch (problem) {
-      setError(errorText(problem));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = formData(event);
@@ -294,7 +277,7 @@ export function AuthPage({
     if (Object.keys(fields).length) return;
     setBusy(true);
     try {
-      const res = await api<{ ok?: boolean; needsVerification?: boolean; email?: string }>(
+      await api(
         isReg ? "auth/register" : "auth/login",
         {
           ...data,
@@ -304,13 +287,9 @@ export function AuthPage({
           alerts: !!data.alerts,
         },
       );
-      if (res?.needsVerification) {
-        setVerifyEmail(res.email || String(data.email).trim());
-        return;
-      }
       await onDone();
     } catch (problem) {
-      const fieldIssues = (problem as { fields?: FieldErrors }).fields;
+      const fieldIssues = (problem as { fields?: FieldErrors } | null)?.fields;
       if (fieldIssues && Object.keys(fieldIssues).length) setErrors(fieldIssues);
       else setError(errorText(problem));
     } finally {
@@ -318,65 +297,6 @@ export function AuthPage({
     }
   }
 
-  if (verifyEmail) {
-    return (
-      <main className="shell account-shell">
-        <section className="detail-panel auth-card flex flex-col gap-4">
-          <div className="flex items-center gap-2.5 text-[#2563EB]">
-            <Mail size={22} />
-            <h1 className="!m-0 text-[22px] font-bold text-[var(--text)]">Provjerite svoju e-poštu</h1>
-          </div>
-          <p className="text-[14px] text-[var(--spec)] !m-0">
-            Poslali smo potvrdu na <strong className="text-[var(--text)]">{verifyEmail}</strong>. Otvorite poveznicu u
-            poruci kako biste aktivirali račun na AUTOPLAC.HR.
-          </p>
-          {resendNotice && (
-            <p className="calculation !m-0" role="status">
-              {resendNotice}
-            </p>
-          )}
-          {error && (
-            <p className="form-error !m-0" role="alert">
-              {error}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2.5 pt-1">
-            <button type="button" className="btn secondary" disabled={busy} onClick={() => void resendConfirmation()}>
-              Ponovno pošalji e-mail
-            </button>
-            {demo && (
-              <button
-                type="button"
-                className="btn primary"
-                disabled={busy}
-                onClick={async () => {
-                  setBusy(true);
-                  try {
-                    await api("auth/verify-email-demo", { email: verifyEmail });
-                    await onDone();
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                Potvrdi e-mail i nastavi (lokalno)
-              </button>
-            )}
-            <button
-              type="button"
-              className="btn quiet"
-              onClick={() => {
-                setVerifyEmail("");
-                setMode("login");
-              }}
-            >
-              Natrag na prijavu
-            </button>
-          </div>
-        </section>
-      </main>
-    );
-  }
 
   return (
     <main className="shell account-shell">
@@ -659,94 +579,6 @@ export function AuthPage({
   );
 }
 
-export function Verification({ account, onVerified }: { account: Account; onVerified: () => Promise<void> }) {
-  const [code, setCode] = useState("");
-  const [demo, setDemo] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function doRequest(action: "start" | "verify", verificationCode = code) {
-    setError("");
-    setBusy(true);
-    try {
-      if (action === "start") {
-        const response = await api<{ demoCode: string }>("otp/start", {});
-        setDemo(response.demoCode);
-      } else {
-        await api("otp/verify", { code: verificationCode });
-        setDemo("");
-        setCode("");
-        await onVerified();
-      }
-    } catch (problem) {
-      setError(errorText(problem));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (account.verified) {
-    return (
-      <p className="verified-label !m-0">
-        <Check size={15} /> {account.profile.phone} · Verificirani račun
-      </p>
-    );
-  }
-
-  return (
-    <div className="verification form-stack">
-      <p className="!m-0 text-[13px] text-[var(--spec)]">Potvrdite telefonski broj {account.profile.phone}.</p>
-      <button className="btn secondary" type="button" disabled={busy} onClick={() => void doRequest("start")}>
-        {demo ? "Zatraži novi kod" : "Zatraži SMS kod"}
-      </button>
-      {demo && (
-        <form
-          className="form-stack"
-          onSubmit={event => {
-            event.preventDefault();
-            void doRequest("verify");
-          }}
-        >
-          <p className="calculation !m-0">
-            Testni SMS kod: <strong className="tabular">{demo}</strong>
-            <button
-              className="btn secondary"
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setCode(demo);
-                void doRequest("verify", demo);
-              }}
-            >
-              Unesi testni kod
-            </button>
-          </p>
-          <label className="field">
-            <span>Šesteroznamenkasti kod</span>
-            <input
-              value={code}
-              onChange={event => setCode(event.target.value)}
-              inputMode="numeric"
-              pattern="[0-9]{6}"
-              maxLength={6}
-              required
-              autoComplete="one-time-code"
-            />
-          </label>
-          <button className="btn primary" disabled={busy}>
-            Potvrdi broj
-          </button>
-        </form>
-      )}
-      {error && (
-        <p role="alert" className="form-error !m-0">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
 type Confirm = { kind: "delete-account" } | { kind: "delete-listing" | "boost"; listing: OwnedListing };
 
 export function AccountPage({
@@ -882,7 +714,7 @@ export function AccountPage({
       if (endpoint !== "listing/boost") setMessage(success);
       setConfirm(undefined);
     } catch (problem) {
-      const fields = (problem as { fields?: FieldErrors }).fields;
+      const fields = (problem as { fields?: FieldErrors } | null)?.fields;
       if (endpoint === "profile" && fields && Object.keys(fields).length) setProfileIssues(fields);
       else setError(errorText(problem));
     } finally {
@@ -1226,7 +1058,6 @@ export function AccountPage({
             </div>
           </div>
 
-          {!account.verified && account.profile.type === "private" && <Verification account={account} onVerified={refresh} />}
 
           {filteredListings.length === 0 ? (
             <div className="p-6 text-center rounded-lg border border-dashed border-[var(--border)]">
@@ -1892,7 +1723,6 @@ export function AccountPage({
                 Spremi profil
               </button>
             </form>
-            <Verification account={account} onVerified={refresh} />
             <button type="button" className="btn secondary self-start" onClick={() => setTab("favoriti")}>Spremljeni oglasi</button>
           </section>
 

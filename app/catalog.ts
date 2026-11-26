@@ -95,7 +95,8 @@ export type Vehicle = {
 const photos = photoData as Record<string, Photo[]>;
 export function modelPhotos(key: string) { return photos[key] ?? []; }
 export function restoreListingPhotos(vehicle: Vehicle): Vehicle {
-  const restored = (vehicle.photos ?? []).flatMap(photo => {
+  const restored = (Array.isArray(vehicle.photos) ? vehicle.photos : []).flatMap(photo => {
+    if (typeof photo?.src !== "string") return [];
     const match = /^\/cars\/([a-z0-9-]+)-(\d+)\.webp$/.exec(photo.src);
     if (!match || !photos[match[1]]) return [photo];
     const replacement = photos[match[1]][Number(match[2]) - 1];

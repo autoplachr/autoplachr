@@ -306,10 +306,10 @@ function FilterControls({ search, count, update, apply, compact = false }: {
         {fields.map(renderField)}
         <EngineFilters search={search} update={update} />
       </div>
-      <MakeEquipmentOptions make={search.marka} model={search.model} selected={search.oprema.filter(id => !id.startsWith("eq:"))} onChange={oprema => update({ ...search, oprema: [...search.oprema.filter(id => id.startsWith("eq:")), ...oprema] })}/>
+      <MakeEquipmentOptions make={search.marka} model={search.model} selected={search.oprema.filter(id => typeof id === "string" && !id.startsWith("eq:"))} onChange={oprema => update({ ...search, oprema: [...search.oprema.filter(id => typeof id === "string" && id.startsWith("eq:")), ...oprema] })}/>
       {search.marka && <EquipmentSelector filter key={search.marka + search.model} vehicle={{
         make:search.marka, model:search.model, generation:search.generacija, catalogEquipment:search.oprema,
-      }} onChange={oprema => update({...search,oprema:[...search.oprema.filter(id => !id.startsWith("eq:")), ...oprema.filter(id => id.startsWith("eq:"))]})}/>}
+      }} onChange={oprema => update({...search,oprema:[...search.oprema.filter(id => typeof id === "string" && !id.startsWith("eq:")), ...oprema.filter(id => typeof id === "string" && id.startsWith("eq:"))]})}/>}
       <ListingOptions selected={search.opcije} onChange={opcije => update({ ...search, opcije })} />
       {!compact && <LeasingEstimate />}
     </div>
@@ -922,7 +922,7 @@ export default function Marketplace({
 
   async function mergeGuestFavorites(currentAccount: Account | null) {
     if (!currentAccount) return;
-    const guestIds = readStored<string>(storageKeys.saved);
+    const guestIds = readStored<unknown>(storageKeys.saved).filter(id => typeof id === "string");
     if (!guestIds.length) return;
     const allKnown = [...remote, ...published, ...vehicles];
     const items = guestIds.map(id => ({
@@ -1166,7 +1166,7 @@ export default function Marketplace({
     }
     const url = new URL(window.location.href);
     url.searchParams.delete("oglas");
-    if (url.pathname.startsWith("/oglas/")) url.pathname = "/";
+    if (typeof url.pathname === "string" && url.pathname.startsWith("/oglas/")) url.pathname = "/";
     history.replaceState(null, "", url);
     setPath("/");
     activeDetail.current = null;
@@ -1265,13 +1265,14 @@ export default function Marketplace({
         setPublishAfterLogin(true);
         navigate("/prijava");
       }
-    } else if (publishAfterLogin && account && path === "/racun" && (account.verified || account.profile.type === "dealer")) {
+    } else if (publishAfterLogin && account && path === "/racun") {
       setPublishAfterLogin(false);setEditing(undefined);setPanel("publish");
     }
   },[publishAfterLogin,account,path]);
   const legalPath = Object.hasOwn(legalLinks,path) ? path as LegalPath : undefined;
   const filters = <FilterControls search={search} count={results.length} update={update} apply={apply}/>;
-  const activeHeaderRoute = path.startsWith("/autokuce/") ? "/autokuce"
+  const isDealershipPath = typeof path === "string" && path.startsWith("/autokuce/");
+  const activeHeaderRoute = isDealershipPath ? "/autokuce"
     : path === "/" && (dealerOnly || savedOnly || detailId || dealerId) ? "" : path;
   useEffect(() => {
     const detail = detailId ? allVehicles.find(vehicle => vehicle.id === detailId) : undefined;
@@ -1286,7 +1287,7 @@ export default function Marketplace({
       "/procjena-cijene": "Procjena tržišne cijene vozila | AUTOPLAC.HR",
     };
     document.title = detail ? `${detail.title} | AUTOPLAC.HR`
-      : titles[path] ?? (path.startsWith("/autokuce/") ? "Autokuće i saloni | AUTOPLAC.HR" : "AUTOPLAC.HR");
+      : titles[path] ?? (isDealershipPath ? "Autokuće i saloni | AUTOPLAC.HR" : "AUTOPLAC.HR");
   }, [path, detailId, allVehicles]);
   return <div className="min-h-screen flex flex-col overflow-x-clip">
     <Navbar
@@ -1307,10 +1308,10 @@ export default function Marketplace({
 
     <div className="flex-1 min-w-0">
     {legalPath ? <LegalPage key={path} path={legalPath} cookieSettings={() => setCookieSettings(true)} report={() => setReport({})}/> :
-      path === "/autokuce" || path.startsWith("/autokuce/") ? (
+      path === "/autokuce" || isDealershipPath ? (
         <DealershipDirectoryView
           vehicles={allVehicles}
-          selectedSlug={path.startsWith("/autokuce/") ? decodeURIComponent(path.slice("/autokuce/".length)) : null}
+          selectedSlug={isDealershipPath ? decodeURIComponent(path.slice("/autokuce/".length)) : null}
           savedIds={savedIds}
           onSave={id => void toggleSaved(id)}
           onOpenListing={openListing}
@@ -1428,7 +1429,7 @@ export default function Marketplace({
             <button type="button" className="btn secondary" aria-haspopup="dialog" onClick={() => setPanel("filters")}><SlidersHorizontal size={16}/> Filteri {activeCount > 0 && <span className="tabular">({activeCount})</span>}</button>
             <button type="button" className="btn quiet mobile-nav-action" onClick={() => {scrollToTop();setPanel("tax");}}>PPMV</button>
             <button type="button" className="btn quiet mobile-nav-action" onClick={() => navigate("/procjena-cijene")}>Procjena</button>
-            <button type="button" className="btn quiet mobile-nav-action" aria-pressed={path === "/autokuce" || path.startsWith("/autokuce/")} onClick={() => navigate("/autokuce")}>Autokuće</button>
+            <button type="button" className="btn quiet mobile-nav-action" aria-pressed={path === "/autokuce" || isDealershipPath} onClick={() => navigate("/autokuce")}>Autokuće</button>
           </div>
           <div className="results-toolbar">
             <h2 id="results-title" className="result-count" aria-live="polite">{savedOnly ? "Spremljeno" : "Pronađeno"} <strong className="tabular">{results.length}</strong> {results.length === 1 ? "vozilo" : "vozila"}{dealerOnly && " iz autokuća"}</h2>

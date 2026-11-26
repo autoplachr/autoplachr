@@ -430,7 +430,7 @@ export function parseListingText(rawText: string) {
     ?? (first ? [first[0], first[2]] : null)
     ?? cleaned.match(/\b((?:19|20)\d{2})(?![\d.,]\d|\s*(?:km|tkm|kw|ks|cm[³3]|cc|eur\b|€|e\b))/));
   const mileage = text.match(new RegExp("\\b" + amount + "\\s*(t\\s*km|km)\\b"));
-  const km = mileage ? readNumber(mileage)! * (mileage[2].startsWith("t") ? 1000 : 1)
+  const km = mileage ? readNumber(mileage)! * (typeof mileage[2] === "string" && mileage[2].startsWith("t") ? 1000 : 1)
     : readNumber(text.match(new RegExp("\\bkilometraza\\s*[:=-]?\\s*" + amount)));
   const kw = readNumber(text.match(new RegExp("\\b" + amount + "\\s*kw\\b")));
   const ks = readNumber(text.match(new RegExp("\\b" + amount + "\\s*ks\\b"))) ?? (kw === undefined ? undefined : Math.round(kw * 1.35962));

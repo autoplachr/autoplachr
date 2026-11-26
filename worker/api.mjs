@@ -235,12 +235,10 @@ async function saveListing(env, account, body) {
   const updatedVehicle = "CASE WHEN listing.boosted_until IS NULL THEN excluded.vehicle ELSE json_set(excluded.vehicle,'$.boostTier',COALESCE(json_extract(listing.vehicle,'$.boostTier'),'top_7d')) END";
   if (status === "active") {
     requireValue(!existing?.moderated, "Oglas je povučen odlukom moderatora.", 403);
-    requireValue(account.verified || profile.type === "dealer", "Potvrdite telefon prije objave.", 403);
     const year = Number(new Intl.DateTimeFormat("en", { year: "numeric", timeZone: "Europe/Zagreb" }).format(new Date()));
     const ledger = stmt(env, "INSERT INTO publication SELECT ?,?,? WHERE ?='dealer' OR (SELECT COUNT(*) FROM publication WHERE account_id=? AND year=?)<2 ON CONFLICT(id) DO NOTHING", id, account.id, year, profile.type, account.id, year);
-    const verifiedNow = "EXISTS (SELECT 1 FROM account WHERE id=? AND (verified=1 OR ?='dealer'))";
-    const listing = stmt(env, "INSERT INTO listing(id,account_id,vehicle,status,created) SELECT ?,?,?,'active',? WHERE EXISTS (SELECT 1 FROM publication WHERE id=? AND account_id=?) AND " + verifiedNow +
-      " ON CONFLICT(id) DO UPDATE SET vehicle=" + updatedVehicle + ",status='active' WHERE listing.account_id=excluded.account_id AND listing.moderated=0", id, account.id, data, now(), id, account.id, account.id, profile.type);
+    const listing = stmt(env, "INSERT INTO listing(id,account_id,vehicle,status,created) SELECT ?,?,?,'active',? WHERE EXISTS (SELECT 1 FROM publication WHERE id=? AND account_id=?)" +
+      " ON CONFLICT(id) DO UPDATE SET vehicle=" + updatedVehicle + ",status='active' WHERE listing.account_id=excluded.account_id AND listing.moderated=0", id, account.id, data, now(), id, account.id);
     const response = await env.DB.batch([ledger, listing]);
     requireValue(response[1].meta.changes, "Iskoristili ste dva besplatna oglasa za ovu kalendarsku godinu ili oglas nije moguće objaviti.", 409);
   } else {
@@ -391,7 +389,7 @@ export async function api(request, env) {
   }
   const rlHeaders = rateLimitHeaders(activeLimit);
   try {
-    if (endpoint === "config" && method === "GET") return json({ operator: env.OPERATOR_NAME || "", address: env.OPERATOR_ADDRESS || "", email: env.OPERATOR_EMAIL || "", demoOtp: env.DEMO_OTP !== "off" }, 200, rlHeaders);
+    if (endpoint === "config" && method === "GET") return json({ operator: env.OPERATOR_NAME || "", address: env.OPERATOR_ADDRESS || "", email: env.OPERATOR_EMAIL || "" }, 200, rlHeaders);
     if (method !== "GET") {
       requireValue(request.headers.get("origin") === url.origin && request.headers.get("content-type")?.startsWith("application/json"), "Neispravan zahtjev.", 403);
     }
@@ -478,31 +476,10 @@ export async function api(request, env) {
       case "auth/logout":
         await stmt(env, "DELETE FROM session WHERE token=?", account.token).run();
         return json({ ok: true }, 200, { "set-cookie": cookie(request, "", 0) });
-      case "otp/start": {
-        requireValue(env.DEMO_OTP !== "off", "SMS pružatelj nije konfiguriran.", 503);
-        await rate(env, "otp:" + account.id, 4, 3600);
-        const code = String(100000 + crypto.getRandomValues(new Uint32Array(1))[0] % 900000);
-        await stmt(env, "INSERT INTO otp VALUES (?,?,?,0) ON CONFLICT(account_id) DO UPDATE SET code=excluded.code, expires=excluded.expires, attempts=0", account.id, await digest(account.id + code), now()+300).run();
-        return json({ demoCode: code });
-      }
-      case "otp/verify": {
-        const code = value(body,"code",6);
-        const hash = await digest(account.id + code);
-        const consume = stmt(env, "DELETE FROM otp WHERE account_id=? AND code=? AND expires>? AND attempts<5", account.id, hash, now());
-        const verify = stmt(env, "UPDATE account SET verified=1 WHERE id=? AND changes()=1", account.id);
-        const attempt = stmt(env, "UPDATE otp SET attempts=attempts+1 WHERE account_id=? AND expires>? AND attempts<5", account.id, now());
-        const [consumed] = await env.DB.batch([consume, verify, attempt]);
-        requireValue(consumed.meta.changes, "Kod nije ispravan ili je istekao.");
-        break;
-      }
       case "profile": {
         const next = { ...profileFrom({ ...profile, ...body }, profile.type), accepted: profile.accepted };
         const samePhone = next.phone === profile.phone;
         const changes = [stmt(env, "UPDATE account SET profile=?,verified=? WHERE id=?", JSON.stringify(next), samePhone ? account.verified : 0, account.id)];
-        if (!samePhone) {
-          changes.push(stmt(env, "DELETE FROM otp WHERE account_id=?", account.id));
-          if (profile.type === "private") changes.push(stmt(env, "UPDATE listing SET status='draft' WHERE account_id=? AND status='active'", account.id));
-        }
         const address = next.address ? [next.address,[next.postalCode,next.city].filter(Boolean).join(" ")].join(", ") : null;
         changes.push(stmt(env, "UPDATE listing SET vehicle=json_set(vehicle,'$.seller',?,'$.phone',?,'$.sellerAddress',?,'$.sellerHours',?,'$.sellerWorkingHours',json(?)) WHERE account_id=?", next.name, next.phone, address, next.hours ?? null, JSON.stringify(next.workingHours ?? null), account.id));
         await env.DB.batch(changes);

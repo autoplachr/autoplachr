@@ -1,4 +1,4 @@
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import type { AuthError, RealtimeChannel } from "@supabase/supabase-js";
 import type {
   Account,
   ChatMessage,
@@ -25,21 +25,40 @@ function slugifySubdomain(name: string): string {
     .slice(0, 55);
 }
 
+function passwordAuthError(error: AuthError, registration: boolean): Error {
+  const message = typeof error.message === "string" ? error.message : "";
+  if (error.status === 429 || error.code === "over_request_rate_limit" || error.code === "over_email_send_rate_limit") {
+    return new Error("Previše pokušaja. Pričekajte nekoliko minuta i pokušajte ponovno.");
+  }
+  if (error.code === "invalid_credentials" || /invalid login credentials/i.test(message)) {
+    return new Error("Pogrešan e-mail ili lozinka.");
+  }
+  if (error.code === "user_already_exists" || error.code === "email_exists" || /already registered/i.test(message)) {
+    return new Error("Račun s tom e-mail adresom već postoji. Prijavite se ili poništite lozinku.");
+  }
+  if (error.code === "weak_password") return new Error("Odaberite jaču lozinku.");
+  return new Error(registration ? "Registracija nije uspjela." : "Prijava nije uspjela.");
+}
+
 function mapListingRow(row: Record<string, unknown>, profileRow?: Record<string, unknown>): OwnedListing {
   const year = Number(row.year) || 2021;
   const month = String(Number(row.month) || 6).padStart(2, "0");
   const rawEquip = Array.isArray(row.equipment) ? row.equipment : [];
   const rawImages = Array.isArray(row.images)
-    ? row.images.map(img => (typeof img === "string" ? { src: img } : img as { src: string })).filter(p => p?.src)
+    ? row.images.flatMap((image: unknown) => {
+        const src = typeof image === "string" ? image : (image as { src?: unknown } | null)?.src;
+        return typeof src === "string" && src.trim() ? [{ src }] : [];
+      })
     : [];
   const eq = emptyEquipment();
   for (const raw of rawEquip) {
-    const label = typeof raw === "string" ? raw : String((raw as { label?: unknown })?.label ?? "");
+    const label = typeof raw === "string" ? raw : (raw as { label?: unknown } | null)?.label;
+    if (typeof label !== "string") continue;
     const clean = label.startsWith("eq:") ? label.slice(3) : label;
     if (!clean) continue;
     const canonical = canonicalEquipmentLabel(clean);
     const storedCategory = typeof raw === "object" ? String((raw as { category?: unknown })?.category ?? "") : "";
-    const category = (storedCategory in eq ? storedCategory : equipmentCategoryFor(canonical)) as keyof typeof eq;
+    const category = (Object.hasOwn(eq, storedCategory) ? storedCategory : equipmentCategoryFor(canonical)) as keyof typeof eq;
     if (!eq[category].includes(canonical)) eq[category].push(canonical);
   }
   const flags: Vehicle["flags"] = [];
@@ -149,7 +168,7 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
   if (!supabase) return undefined;
   const data = input as Record<string, unknown>;
 
-  if (endpoint.startsWith("lead/") || endpoint === "salon/plan") {
+  if ((typeof endpoint === "string" && endpoint.startsWith("lead/")) || endpoint === "salon/plan") {
     function rpc() {
       switch (endpoint) {
         case "lead/log": return supabase!.rpc("log_listing_lead", {
@@ -205,43 +224,19 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
     return { ok: true };
   }
 
-  if (endpoint === "auth/resend") {
-    const email = String(data.email ?? "").trim().toLowerCase();
-    const { error } = await supabase.auth.resend({
-      type: "signup", email, options: { emailRedirectTo: getAuthCallbackUrl() },
-    });
-    if (error) throw new Error("Ponovno slanje potvrde nije uspjelo. Pokušajte uskoro.");
-    return { ok: true };
-  }
-
   if (endpoint === "auth/login") {
-    const email = String(data.email ?? "").trim().toLowerCase();
-    const password = String(data.password ?? "");
-    const { data: sessionData, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      console.error("[supabase auth/login]", { message: error.message, status: error.status ?? null });
-      if (/email not confirmed/i.test(error.message)) {
-        throw Object.assign(new Error("Potvrdite svoju e-mail adresu prije prijave."), { status: error.status });
-      }
-      if (/email rate limit|over_email_send_rate_limit|for security purposes|too many requests|429/i.test(error.message)) {
-        throw Object.assign(new Error("Previše pokušaja. Pričekajte nekoliko minuta i pokušajte ponovno."), { status: error.status ?? 429 });
-      }
-      if (/invalid login credentials|invalid_credentials|invalid password|user not found/i.test(error.message)) {
-        throw Object.assign(new Error("Pogrešan e-mail ili lozinka."), { status: error.status });
-      }
-      throw Object.assign(new Error(error.message || "Prijava nije uspjela."), { status: error.status });
-    }
-    // Wait for the browser client to persist the session in cookies before any redirect.
-    await supabase.auth.getSession();
-    const { error: profileError } = await supabase.rpc("ensure_my_profile");
-    if (profileError) console.error("[supabase ensure_my_profile]", { message: profileError.message });
-    return { ok: true, userId: sessionData.user?.id };
+    const email = typeof data.email === "string" ? data.email.trim().toLowerCase() : "";
+    const password = typeof data.password === "string" ? data.password : "";
+    const { data: result, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw passwordAuthError(error, false);
+    if (!result?.session) throw new Error("Prijava nije uspjela. Pokušajte ponovno.");
+    return { ok: true };
   }
 
   if (endpoint === "auth/register") {
     const type = data.type === "dealer" ? "dealer" : "private";
-    const email = String(data.email ?? "").trim().toLowerCase();
-    const password = String(data.password ?? "");
+    const email = typeof data.email === "string" ? data.email.trim().toLowerCase() : "";
+    const password = typeof data.password === "string" ? data.password : "";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 8) {
       throw new Error("Unesite valjanu e-mail adresu i lozinku od najmanje 8 znakova.");
     }
@@ -252,7 +247,6 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
       email,
       password,
       options: {
-        emailRedirectTo: getAuthCallbackUrl(),
         data: {
           account_type: type,
           full_name: fullName,
@@ -269,26 +263,9 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
         },
       },
     });
-    if (error) {
-      console.error("[supabase auth/register]", { message: error.message, status: error.status ?? null });
-      if (/email rate limit|over_email_send_rate_limit|for security purposes|too many requests|429/i.test(error.message)) {
-        throw Object.assign(new Error("Previše pokušaja slanja potvrde. Pričekajte oko sat vremena ili kontaktirajte podršku."), { status: error.status ?? 429 });
-      }
-      if (/already registered|already exists|user_already_exists/i.test(error.message)) {
-        throw Object.assign(new Error("Račun s tom e-mail adresom već postoji. Prijavite se ili poništite lozinku."), { status: error.status });
-      }
-      if (/password/i.test(error.message)) {
-        throw Object.assign(new Error("Lozinka mora imati najmanje 8 znakova."), { status: error.status });
-      }
-      throw Object.assign(new Error(error.message || "Registracija nije uspjela."), { status: error.status });
-    }
-    const needsVerification = !signUpData.session;
-    if (signUpData.session) {
-      await supabase.auth.getSession();
-      const { error: profileError } = await supabase.rpc("ensure_my_profile");
-      if (profileError) console.error("[supabase ensure_my_profile]", { message: profileError.message });
-    }
-    return { ok: true, needsVerification, email };
+    if (error) throw passwordAuthError(error, true);
+    if (!signUpData?.session) throw new Error("Automatska prijava nije uspjela. Pokušajte se prijaviti lozinkom.");
+    return { ok: true };
   }
 
   if (endpoint === "auth/logout") {
@@ -500,7 +477,8 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
         : vehicle.previousPriceEur ?? (existingRow?.previous_price_eur ? Number(existingRow.previous_price_eur) : null);
 
     const bucket = supabase.storage.from("vehicle-images");
-    const images = await Promise.all(vehicle.photos.map(async ({ src }) => {
+    const photoSources = vehicle.photos.flatMap(photo => typeof photo?.src === "string" ? [photo.src] : []);
+    const images = await Promise.all(photoSources.map(async src => {
       if (!src.startsWith("data:image/webp;base64,")) return src;
       const image = await (await fetch(src)).blob();
       const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", await image.arrayBuffer()));
