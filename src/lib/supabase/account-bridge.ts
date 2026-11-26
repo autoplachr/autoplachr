@@ -32,6 +32,17 @@ export function safeAuthMessage(value: unknown, fallback = "Greška pri prijavi.
   return typeof candidate === "string" && candidate ? candidate : fallback;
 }
 
+function listingSaveError(action: string, error: { code?: string; message?: string }): Error {
+  const code = error.code ? " (" + error.code + ")" : "";
+  return new Error(action + code + " — " + safeAuthMessage(error, "Nepoznata pogreška."));
+}
+
+function optionalInteger(value: unknown): number | null {
+  if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.round(number) : null;
+}
+
 function passwordAuthError(error: AuthError, registration: boolean): Error {
   const message = safeAuthMessage(error, "");
   if (error.status === 429 || error.code === "over_request_rate_limit" || error.code === "over_email_send_rate_limit") {
@@ -151,6 +162,7 @@ function mapProfileRow(row: Record<string, unknown>, email: string): Profile {
     companyName,
     avatarUrl: row.avatar_url ? String(row.avatar_url) : undefined,
     city: String(row.city || "Zagreb"),
+    postalCode: typeof row.postal_code === "string" ? row.postal_code : undefined,
     county: String(row.county || "Grad Zagreb"),
     phone: String(row.phone || "+385 "),
     oib: row.oib ? String(row.oib) : undefined,
@@ -263,6 +275,7 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
           company_name: companyName || undefined,
           phone: normalizePhone(String(data.phone ?? "")),
           city: String(data.city ?? "").trim(),
+          postal_code: String(data.postalCode ?? "").trim(),
           county: String(data.county ?? "").trim(),
           oib: type === "dealer" ? String(data.oib ?? "").trim() : undefined,
           address: type === "dealer" ? String(data.address ?? "").trim() : undefined,
@@ -435,6 +448,7 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
     }
     if (typeof data.phone === "string") patch.phone = normalizePhone(data.phone);
     if (typeof data.city === "string") patch.city = data.city.trim();
+    if (typeof data.postalCode === "string") patch.postal_code = data.postalCode.trim() || null;
     if (typeof data.county === "string") patch.county = data.county.trim();
     if (typeof data.oib === "string") patch.oib = data.oib.trim();
     if (typeof data.address === "string") patch.address = data.address.trim();
@@ -469,26 +483,33 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
   if (endpoint === "listing/save") {
     const vehicle = data.vehicle as Vehicle;
     const status = String(data.status ?? "active") as ListingStatus;
-    const [yearStr, monthStr] = String(vehicle.date || "2022-06").split("-");
-    const equipArr: unknown[] = [
+    const [yearStr, monthStr] = (vehicle.date || "").split("-");
+    const registration = vehicle.registrationUntil?.trim() || null;
+    const isoRegistration = registration?.match(/^(\d{4})-(0[1-9]|1[0-2])(?:-\d{2})?$/);
+    const equipArr: Array<string | { label: string; category: string }> = [
       ...(vehicle.catalogEquipment ?? []),
       ...Object.entries(vehicle.equipment ?? {}).flatMap(([category, items]) =>
         items.map(label => ({ label, category })),
       ),
     ].slice(0, 80);
 
-    const { data: existingRow } = await supabase
+    const { error: profileError } = await supabase.rpc("ensure_my_profile");
+    if (profileError) throw listingSaveError("Priprema profila nije uspjela", profileError);
+
+    const { data: existingRow, error: readError } = await supabase
       .from("listings")
       .select("price_eur, previous_price_eur")
       .eq("id", vehicle.id)
       .maybeSingle();
+
+    if (readError) throw listingSaveError("Učitavanje oglasa nije uspjelo", readError);
 
     const oldPrice = existingRow?.price_eur ? Number(existingRow.price_eur) : 0;
     const newPrice = Math.round(vehicle.price || 0);
     const previousPriceEur =
       oldPrice > 0 && newPrice > 0 && oldPrice > newPrice
         ? oldPrice
-        : vehicle.previousPriceEur ?? (existingRow?.previous_price_eur ? Number(existingRow.previous_price_eur) : null);
+        : optionalInteger(vehicle.previousPriceEur) ?? optionalInteger(existingRow?.previous_price_eur);
 
     const bucket = supabase.storage.from("vehicle-images");
     const photoSources = vehicle.photos.flatMap(photo => typeof photo?.src === "string" ? [photo.src] : []);
@@ -499,7 +520,7 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
       const hash = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
       const filename = user.id + "/manual/" + hash + ".webp";
       const { error } = await bucket.upload(filename, image, { contentType: "image/webp", upsert: true });
-      if (error) throw new Error("Spremanje fotografije nije uspjelo.");
+      if (error) throw listingSaveError("Spremanje fotografije nije uspjelo", error);
       return bucket.getPublicUrl(filename).data.publicUrl;
     }));
     const payload = {
@@ -514,19 +535,19 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
       title: vehicle.title,
       body_style: vehicle.bodyType ?? null,
       year: Number(yearStr) || 2022,
-      month: Number(monthStr) || 6,
+      month: optionalInteger(monthStr),
       mileage: Math.round(vehicle.km || 0),
       fuel: vehicle.fuel,
       transmission: vehicle.gear,
       drivetrain: vehicle.drive,
       power_kw: Math.round(vehicle.kw || 0),
-      engine_cc: Math.round(vehicle.cc || 0),
-      co2: Math.round(vehicle.co2 || 0),
-      cylinders: vehicle.cylinders ?? null,
-      doors: vehicle.doors ?? null,
-      seats: vehicle.seats ?? null,
-      ownership: vehicle.ownership ?? null,
-      registration_until: vehicle.registrationUntil || null,
+      engine_cc: optionalInteger(vehicle.cc),
+      co2: optionalInteger(vehicle.co2),
+      cylinders: optionalInteger(vehicle.cylinders),
+      doors: optionalInteger(vehicle.doors),
+      seats: optionalInteger(vehicle.seats),
+      ownership: vehicle.ownership?.trim() || null,
+      registration_until: isoRegistration ? isoRegistration[2] + "/" + isoRegistration[1] : registration,
       color: vehicle.color ?? null,
       vin: vehicle.vin || null,
       previous_price_eur: previousPriceEur,
@@ -545,7 +566,7 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
     };
 
     const { error } = await supabase.from("listings").upsert(payload, { onConflict: "id" });
-    if (error) throw new Error("Spremanje oglasa nije uspjelo.");
+    if (error) throw listingSaveError("Spremanje oglasa nije uspjelo", error);
     return { ok: true };
   }
 
