@@ -206,16 +206,20 @@ Deno.serve(async request => {
       if (publicUrl) photos.push({ src: publicUrl }); else storageMisses++;
     }
 
+    let bannerOnFirst = false;
+    let bestCoverIndex: number | undefined;
     if (photos.length > 1) {
       try {
         const analysis = await analyzeListing({ imageUrls: photos.slice(0, 6).map(photo => photo.src), rawText: String(parsed.vehicle.description ?? "") }, env());
-        if (analysis.bannerOnFirst && typeof analysis.bestCoverIndex === "number" && analysis.bestCoverIndex > 0 && photos[analysis.bestCoverIndex]) {
-          photos.unshift(...photos.splice(analysis.bestCoverIndex, 1));
+        bannerOnFirst = Boolean(analysis.bannerOnFirst);
+        bestCoverIndex = analysis.bestCoverIndex;
+        if (bannerOnFirst && typeof bestCoverIndex === "number" && bestCoverIndex > 0 && photos[bestCoverIndex]) {
+          photos.unshift(...photos.splice(bestCoverIndex, 1));
         }
       } catch { /* Keep the locally ranked cover. */ }
     }
 
-    return json({ vehicle: parsed.vehicle, photos, source: finalUrl.href, requestedPhotos: Math.min(MAX_PHOTOS, candidates.length), storageMisses });
+    return json({ vehicle: parsed.vehicle, photos, source: finalUrl.href, requestedPhotos: Math.min(MAX_PHOTOS, candidates.length), storageMisses, bannerOnFirst, bestCoverIndex });
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : "Uvoz nije uspio.";
     return /javnu HTTPS|prevelika/i.test(message) ? error(message, 400) : json({ blocked: true, message: "Uvoz nije uspio. Provjerite javnu HTTPS poveznicu ili zalijepite tekst oglasa." }, 422);

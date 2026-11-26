@@ -123,6 +123,24 @@ export function canonicalEquipmentLabel(raw: string): string {
   return raw.trim().slice(0, 100);
 }
 
+/** Canonicalize a list once, dropping generic rear-camera labels when a 360° chip exists. */
+export function canonicalEquipmentLabels(labels: string[]): string[] {
+  const unique = [...new Set(labels.map(canonicalEquipmentLabel).filter(Boolean))];
+  return unique.includes("360° kamera") ? unique.filter(label => label !== "Kamera za vožnju unatrag") : unique;
+}
+
+const EQUIPMENT_DETAIL_CATEGORY: Record<string, "Sigurnost" | "Udobnost" | "Multimedija" | "Eksterijer"> = {
+  Sigurnost: "Sigurnost", Udobnost: "Udobnost", Multimedija: "Multimedija", Eksterijer: "Eksterijer",
+};
+
+export function equipmentCategoryFor(raw: string): "Sigurnost" | "Udobnost" | "Multimedija" | "Eksterijer" {
+  const text = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  for (const [category, , pattern] of IMPORT_EQUIPMENT_RULES) {
+    if (pattern.test(text)) return EQUIPMENT_DETAIL_CATEGORY[category];
+  }
+  return "Eksterijer";
+}
+
 export const prices = [5000, 10000, 15000, 20000, 25000, 30000, 50000];
 export const years = Array.from({ length: 12 }, (_, index) => 2026 - index);
 export const distances = [50000, 100000, 150000, 200000];
@@ -453,6 +471,38 @@ const listingEquipmentPatterns: readonly (readonly [RegExp, string])[] = [
 ];
 
 
+const DESCRIPTION_BOILERPLATE = [
+  /karta\s*\n\s*napomena:\s*prikazana je približna lokacija/i,
+  /dodatne informacije/i, /prati oglašivača/i, /korisnik je verificirao broj telefona/i,
+  /nazovi oglašivača/i, /unatoč pažljivom unosu podataka moguće su pogreške/i,
+  /oglas iz usluge/i, /mjesto sigurne i povoljne kupnje/i, /najbrzi put do vašeg/i,
+  /auto\s*centar\s*bi[/\s-]*mer/i, /^cijena:\s*[\d.,\s]+e?\s*fix\b/im,
+];
+
+/** Strip raw equipment bullet blocks and dealer footers while keeping seller service notes. */
+export function cleanImportedDescription(raw: string): string {
+  let text = raw.replace(/\n{3,}/g, "\n\n");
+  const opremaStart = text.search(/^\s*oprema\s*:/im);
+  if (opremaStart >= 0) {
+    const head = text.slice(0, opremaStart);
+    const tail = text.slice(opremaStart).split("\n").filter(line => {
+      const trimmed = line.trim();
+      if (/^(?:oprema\s*:|[-•]\s*$)/i.test(trimmed)) return false;
+      if (DESCRIPTION_BOILERPLATE.some(marker => marker.test(trimmed))) return false;
+      // Genuine mechanical/service notes stay in the seller description.
+      if (/(?:ugradjen|ugrađen|lanac|servis|koristi|pregled|motor sa|novi lanac)/i.test(trimmed)) return true;
+      return !/^\s*[-•]\s*/.test(trimmed);
+    }).join("\n");
+    text = head + tail;
+  }
+  let cut = text.length;
+  for (const marker of DESCRIPTION_BOILERPLATE) {
+    const index = text.search(marker);
+    if (index > 0) cut = Math.min(cut, index);
+  }
+  return text.slice(0, cut).replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export function normalizeImportedVehicle(source: {
   title?: string; description?: string; fields?: Record<string, string>; equipment?: string[];
 }) {
@@ -464,17 +514,7 @@ export function normalizeImportedVehicle(source: {
   const rawDescription = clean(source.description ?? "").split(/\r?\n/).map(line => line.trim())
     .filter(line => !/^(?:najbolja ponuda|posjetite na[sš]|pratite nas|zadr[zž]avamo pravo na pogre[sš]ku|nazovite odmah)\b/i.test(line))
     .join("\n");
-  const boilerplate = [
-    /karta\s*\n\s*napomena:\s*prikazana je približna lokacija/i,
-    /dodatne informacije/i, /prati oglašivača/i, /korisnik je verificirao broj telefona/i,
-    /nazovi oglašivača/i, /unatoč pažljivom unosu podataka moguće su pogreške/i,
-  ];
-  let cut = rawDescription.length;
-  for (const marker of boilerplate) {
-    const index = rawDescription.search(marker);
-    if (index > 0) cut = Math.min(cut, index);
-  }
-  const description = rawDescription.slice(0, cut).replace(/\n{3,}/g, "\n\n").slice(0, 12000);
+  const description = cleanImportedDescription(rawDescription).slice(0, 12000);
   const value = (unit: string, ...labels: string[]) => {
     const raw = field(...labels);
     return raw && (/^\d[\d.,\s]*$/.test(raw) ? raw + " " + unit : raw);
@@ -558,6 +598,9 @@ export function normalizeImportedVehicle(source: {
       if (!equipmentByCategory[target].includes(label)) equipmentByCategory[target].push(label);
     }
   }
+  if (equipmentByCategory["Sigurnost i asistencije"].includes("360° kamera")) {
+    equipmentByCategory["Sigurnost i asistencije"] = equipmentByCategory["Sigurnost i asistencije"].filter(label => label !== "Kamera za vožnju unatrag");
+  }
   return {
     ...parsed, make: canonical.make || make, model: canonical.model || model, title, description, equipment,
     cylinders: canonical.cylinders ?? cylinders,
@@ -576,6 +619,7 @@ export function normalizeImportedVehicle(source: {
     seller: field("Prodavatelj", "Prodavač", "seller"),
     city: field("Lokacija vozila", "Grad", "city"),
     condition: field("Stanje", "condition"),
+    ownership: field("Vlasništvo", "Broj vlasnika", "owner") || (/\b1\.\s*vlasnik\b|\bprvi vlasnik\b/i.test(rawText) ? "1. vlasnik" : undefined),
     vin: field("VIN", "Broj šasije"),
   };
 }

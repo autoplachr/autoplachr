@@ -9,6 +9,7 @@ import type {
   Profile,
 } from "../../../app/account-api";
 import { emptyEquipment, modelPhotos, type Vehicle } from "../../../app/catalog";
+import { canonicalEquipmentLabel, equipmentCategoryFor } from "../../../app/search";
 import { formatHours, presetHours, validHours, type WorkingHours } from "../../data/working-hours";
 import { normalizePhone, profileErrors } from "../../data/profile-validation";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "./client";
@@ -27,12 +28,20 @@ function slugifySubdomain(name: string): string {
 function mapListingRow(row: Record<string, unknown>, profileRow?: Record<string, unknown>): OwnedListing {
   const year = Number(row.year) || 2021;
   const month = String(Number(row.month) || 6).padStart(2, "0");
-  const rawEquip = Array.isArray(row.equipment) ? row.equipment.filter((x): x is string => typeof x === "string") : [];
+  const rawEquip = Array.isArray(row.equipment) ? row.equipment : [];
   const rawImages = Array.isArray(row.images)
     ? row.images.map(img => (typeof img === "string" ? { src: img } : img as { src: string })).filter(p => p?.src)
     : [];
   const eq = emptyEquipment();
-  eq.Eksterijer = rawEquip.filter(x => !x.startsWith("eq:"));
+  for (const raw of rawEquip) {
+    const label = typeof raw === "string" ? raw : String((raw as { label?: unknown })?.label ?? "");
+    const clean = label.startsWith("eq:") ? label.slice(3) : label;
+    if (!clean) continue;
+    const canonical = canonicalEquipmentLabel(clean);
+    const storedCategory = typeof raw === "object" ? String((raw as { category?: unknown })?.category ?? "") : "";
+    const category = (storedCategory in eq ? storedCategory : equipmentCategoryFor(canonical)) as keyof typeof eq;
+    if (!eq[category].includes(canonical)) eq[category].push(canonical);
+  }
   const flags: Vehicle["flags"] = [];
   if (row.vat_deductible) flags.push("pdv");
   if (row.on_buyer_name) flags.push("kupac");
@@ -64,6 +73,9 @@ function mapListingRow(row: Record<string, unknown>, profileRow?: Record<string,
     cc: Number(row.engine_cc) || 0,
     co2: Number(row.co2) || 0,
     cylinders: typeof row.cylinders === "number" ? row.cylinders : undefined,
+    doors: typeof row.doors === "number" ? row.doors : undefined,
+    seats: typeof row.seats === "number" ? row.seats : undefined,
+    ownership: typeof row.ownership === "string" ? row.ownership : undefined,
     registrationUntil: typeof row.registration_until === "string" ? row.registration_until : undefined,
     fuel: (String(row.fuel || "Dizel") as Vehicle["fuel"]),
     gear: (String(row.transmission || "Automatski") as Vehicle["gear"]),
@@ -464,9 +476,11 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
     const vehicle = data.vehicle as Vehicle;
     const status = String(data.status ?? "active") as ListingStatus;
     const [yearStr, monthStr] = String(vehicle.date || "2022-06").split("-");
-    const equipArr = [
+    const equipArr: unknown[] = [
       ...(vehicle.catalogEquipment ?? []),
-      ...Object.values(vehicle.equipment ?? {}).flat(),
+      ...Object.entries(vehicle.equipment ?? {}).flatMap(([category, items]) =>
+        items.map(label => ({ label, category })),
+      ),
     ].slice(0, 80);
 
     const { data: existingRow } = await supabase
@@ -514,6 +528,9 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
       engine_cc: Math.round(vehicle.cc || 0),
       co2: Math.round(vehicle.co2 || 0),
       cylinders: vehicle.cylinders ?? null,
+      doors: vehicle.doors ?? null,
+      seats: vehicle.seats ?? null,
+      ownership: vehicle.ownership ?? null,
       registration_until: vehicle.registrationUntil || null,
       color: vehicle.color ?? null,
       vin: vehicle.vin || null,

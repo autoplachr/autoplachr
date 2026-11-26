@@ -98,9 +98,11 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
       const target = normalizePhone(result.phone).replace(/\D/g, "");
       if (!target) throw new Error("WhatsApp broj nije dostupan.");
       if (vehicle.demo) { onNotice("Ogledni WhatsApp upit je zabilježen."); return; }
-      window.location.assign("https://wa.me/" + target + "?text=" + encodeURIComponent(
+      const url = "https://wa.me/" + target + "?text=" + encodeURIComponent(
         "Pozdrav, zanima me " + vehicle.title + ". " + SITE_URL + vehicleListingPath(vehicle.id),
-      ));
+      );
+      const opened = window.open(url, "_blank", "noopener,noreferrer");
+      if (!opened) window.location.assign(url);
     } catch (error) { onNotice(error instanceof Error ? error.message : "WhatsApp nije dostupan."); }
     finally { setRevealing(false); }
   }
@@ -172,7 +174,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
   const keySpecs = [
     ["Kilometraža", number(vehicle.km) + " km"], ["Prva registracija", registered(vehicle.date)],
     ["Snaga", power(vehicle.kw).replace(" (", " / ").replace(")", "")], ["Gorivo", vehicle.fuel], ["Mjenjač", vehicle.gear],
-    ["Vlasništvo", vehicle.history?.find(item => /vlasnik/i.test(item)) ?? "Nije navedeno"],
+    ["Vlasništvo", vehicle.ownership ?? vehicle.history?.find(item => /vlasnik/i.test(item)) ?? "Nije navedeno"],
   ];
   const specs = [
     ["Marka", vehicle.make], ["Model", vehicle.model], ["Generacija / Šasija", vehicle.generation],
@@ -245,7 +247,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
     const url = new URL(vehicleListingPath(vehicle.id), window.location.origin);
     try {
       await navigator.clipboard.writeText(url.href);
-      onNotice("Poveznica oglasa je kopirana.");
+      onNotice("Link oglasa je kopiran");
     } catch {
       setShareUrl(url.href);
     }

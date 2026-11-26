@@ -11,6 +11,8 @@ type ImportResult = {
   requestedPhotos?: number;
   storageMisses?: number;
   blocked?: boolean;
+  bannerOnFirst?: boolean;
+  bestCoverIndex?: number;
   message?: string;
   content?: string;
   source?: string;

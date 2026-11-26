@@ -1111,6 +1111,21 @@ export default function Marketplace({
   const filters = <FilterControls search={search} count={results.length} update={update} apply={apply}/>;
   const activeHeaderRoute = path.startsWith("/autokuce/") ? "/autokuce"
     : path === "/" && (dealerOnly || savedOnly || detailId || dealerId) ? "" : path;
+  useEffect(() => {
+    const detail = detailId ? allVehicles.find(vehicle => vehicle.id === detailId) : undefined;
+    const titles: Record<string, string> = {
+      "/": "AUTOPLAC.HR — Rabljena vozila i provjera cijena",
+      "/racun": "Moj račun | AUTOPLAC.HR",
+      "/prijava": "Prijava na račun | AUTOPLAC.HR",
+      "/registracija": "Registracija računa | AUTOPLAC.HR",
+      "/predaj-oglas": "Predaj oglas | AUTOPLAC.HR",
+      "/autokuce": "Autokuće i saloni | AUTOPLAC.HR",
+      "/ppmv-kalkulator": "PPMV Kalkulator 2026 | AUTOPLAC.HR",
+      "/procjena-cijene": "Procjena tržišne cijene vozila | AUTOPLAC.HR",
+    };
+    document.title = detail ? `${detail.title} | AUTOPLAC.HR`
+      : titles[path] ?? (path.startsWith("/autokuce/") ? "Autokuće i saloni | AUTOPLAC.HR" : "AUTOPLAC.HR");
+  }, [path, detailId, allVehicles]);
   return <div className="min-h-screen flex flex-col overflow-x-clip">
     <Navbar
       activeRoute={activeHeaderRoute}

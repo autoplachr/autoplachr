@@ -144,7 +144,7 @@ function ListingGallery({
       onTouchEnd={handleTouchEnd}
       onTouchCancel={() => { swipe.current = null; }}
     >
-      <CarImage className="listing-photo-layer" layer photo={photos[0]} alt={vehicle.title} eager={eager}
+      <CarImage className="listing-photo-layer" layer dim={displayIndex > 0} photo={photos[0]} alt={vehicle.title} eager={eager}
         onUnavailable={total ? () => handleUnavailable(0) : undefined} />
       {active > 0 && (
         <CarImage key={active} className="listing-photo-layer" layer photo={photos[active]} alt="" eager

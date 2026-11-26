@@ -65,20 +65,29 @@ export async function hasWhiteBottomBanner(src: string): Promise<boolean> {
   try {
     const image = new Image();
     image.crossOrigin = "anonymous";
+    image.decoding = "async";
     image.src = src;
     await image.decode();
     const canvas = document.createElement("canvas");
     canvas.width = 64;
-    canvas.height = 16;
+    canvas.height = 14;
     const context = canvas.getContext("2d", { willReadFrequently: true });
     if (!context) return false;
-    context.drawImage(image, 0, image.height * 0.82, image.width, image.height * 0.18, 0, 0, 64, 16);
-    const pixels = context.getImageData(0, 0, 64, 16).data;
-    let white = 0;
-    for (let index = 0; index < pixels.length; index += 4) {
-      if (pixels[index] > 240 && pixels[index + 1] > 240 && pixels[index + 2] > 240) white++;
+    // Dealer banners (e.g. AC BIMMER) sit in the bottom 22% as a full-width strip.
+    context.drawImage(image, 0, image.height * 0.78, image.width, image.height * 0.22, 0, 0, 64, 14);
+    const { data } = context.getImageData(0, 0, 64, 14);
+    let bright = 0, brightRows = 0;
+    for (let row = 0; row < 14; row++) {
+      let rowBright = 0;
+      for (let column = 0; column < 64; column++) {
+        const index = (row * 64 + column) * 4;
+        if (data[index] > 232 && data[index + 1] > 232 && data[index + 2] > 232) {
+          bright++; rowBright++;
+        }
+      }
+      if (rowBright >= 38) brightRows++;
     }
-    return white / (64 * 16) > 0.62;
+    return bright / (64 * 14) > 0.5 && brightRows >= 7;
   } catch {
     return false;
   }

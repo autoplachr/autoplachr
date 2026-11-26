@@ -94,6 +94,9 @@ function categorizeEquipment(text: string, extra: string[] = []) {
     const rule = EQUIPMENT_RULES.find(([, label]) => label === canonical);
     if (rule) push(rule[0], canonical);
   }
+  if (grouped["Sigurnost i asistencije"].includes("360° kamera")) {
+    grouped["Sigurnost i asistencije"] = grouped["Sigurnost i asistencije"].filter(label => label !== "Kamera za vožnju unatrag");
+  }
   const flat = [...new Set(Object.values(grouped).flat())];
   return { flat, grouped };
 }
@@ -172,18 +175,35 @@ function canonicalize(input: {
   return { make, model, generation, bodyType, badge, fuel, drive, cc, cylinders };
 }
 
+const DESCRIPTION_BOILERPLATE = [
+  /karta\s*\n\s*napomena:\s*prikazana je približna lokacija/i,
+  /dodatne informacije/i, /prati oglašivača/i, /korisnik je verificirao broj telefona/i,
+  /nazovi oglašivača/i, /unatoč pažljivom unosu podataka moguće su pogreške/i,
+  /oglas iz usluge/i, /mjesto sigurne i povoljne kupnje/i, /najbrzi put do vašeg/i,
+  /auto\s*centar\s*bi[/\s-]*mer/i, /^cijena:\s*[\d.,\s]+e?\s*fix\b/im,
+];
+
 function cleanDescription(description: string) {
-  const markers = [
-    /karta\s*\n\s*napomena:\s*prikazana je približna lokacija/i,
-    /dodatne informacije/i, /prati oglašivača/i, /korisnik je verificirao broj telefona/i,
-    /nazovi oglašivača/i, /unatoč pažljivom unosu podataka moguće su pogreške/i,
-  ];
-  let cut = description.length;
-  for (const marker of markers) {
-    const index = description.search(marker);
+  let text = description.replace(/\n{3,}/g, "\n\n");
+  const opremaStart = text.search(/^\s*oprema\s*:/im);
+  if (opremaStart >= 0) {
+    const head = text.slice(0, opremaStart);
+    const tail = text.slice(opremaStart).split("\n").filter(line => {
+      const trimmed = line.trim();
+      if (/^(?:oprema\s*:|[-•]\s*$)/i.test(trimmed)) return false;
+      if (DESCRIPTION_BOILERPLATE.some(marker => marker.test(trimmed))) return false;
+      // Keep genuine service / mechanical notes written by the seller.
+      if (/(?:ugradjen|ugrađen|lanac|servis|koristi|pregled|motor sa|novi lanac)/i.test(trimmed)) return true;
+      return !/^\s*[-•]\s*/.test(trimmed);
+    }).join("\n");
+    text = head + tail;
+  }
+  let cut = text.length;
+  for (const marker of DESCRIPTION_BOILERPLATE) {
+    const index = text.search(marker);
     if (index > 0) cut = Math.min(cut, index);
   }
-  return description.slice(0, cut).replace(/\n{3,}/g, "\n\n").trim();
+  return text.slice(0, cut).replace(/\n{3,}/g, "\n\n").trim();
 }
 
 function meta(html: string, name: string): string {
@@ -398,6 +418,7 @@ export function parseListing(content: string, base?: string): ParsedListing {
     city: field("Lokacija vozila") || "",
     seller: field("Prodavatelj") || field("Prodavač") || "",
     condition: field("Stanje") || "",
+    ownership: field("Vlasništvo") || field("Broj vlasnika") || (/\b(?:1\.\s*vlasnik|prvi vlasnik)\b/i.test(text) ? "1. vlasnik" : ""),
     equipment: [...new Set([...(analysis.equipment ?? []).map(canonicalEquipmentLabel), ...equipmentFlat])],
     equipmentByCategory,
   };

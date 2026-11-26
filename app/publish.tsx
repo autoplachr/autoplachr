@@ -25,7 +25,7 @@ import { selectedMakeOptions } from "./make-equipment";
 import { describeMarketDelta, evaluateMarketPrice } from "../src/lib/price-engine";
 import { calculateCo2, ksToKw, kwToKs, resolveVehicleSpecs, toCatalogFuel, type SpecFuel } from "../src/lib/spec-resolver";
 import { analyzeListingPhotos, firstCleanCoverIndex, prepareListingPhoto, type ListingAnalysis } from "./listing-analysis";
-import { canonicalEquipmentLabel, parseListingText } from "./search";
+import { canonicalEquipmentLabels, equipmentCategoryFor, parseListingText } from "./search";
 import { importClassifieds, type ImportedFacts } from "./classifieds-import";
 import { croatianLocations, normalizeLocation } from "../src/data/croatia-locations";
 import { sanitizeStringArray, sanitizeText } from "../src/lib/sanitize";
@@ -190,7 +190,7 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
   }
 
   function importEquipment(labels: string[]) {
-    const canonical = [...new Map(labels.map(canonicalEquipmentLabel).map(label => [labelKey(label), label])).values()];
+    const canonical = canonicalEquipmentLabels(labels);
     setSuggestions(old => [...new Map([...old, ...canonical].map(label => [labelKey(label), label])).values()]);
     setSelectedSuggestions(old => [...new Set([...old, ...canonical.map(labelKey)])]);
     const ids = canonical.map(equipmentId);
@@ -198,7 +198,7 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
     setValues(old => ({ ...old, catalogEquipment: [...new Set([...(old.catalogEquipment ?? []), ...ids])] }));
   }
 
-  function applyFacts(facts: ListingAnalysis & Partial<Pick<ImportedFacts, "title" | "description" | "drive" | "vin" | "city" | "generation">>) {
+  function applyFacts(facts: ListingAnalysis & Partial<Pick<ImportedFacts, "title" | "description" | "drive" | "vin" | "city" | "generation" | "doors" | "seats" | "ownership">>) {
     const inferred = parseListingText([facts.make, facts.model, facts.variant].filter(Boolean).join(" "));
     const make = CAR_MAKES.find(make => labelKey(make) === labelKey(facts.make || inferred.make || "")) || values.make;
     const availableModels = modelsFor(make, false);
@@ -241,6 +241,7 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
           return location ? { city: location.city, county: location.county, postalCode: location.postalCode } : {};
         })(),
         color: color ?? old.color, bodyType: bodyType ?? old.bodyType,
+        doors: facts.doors ?? old.doors, seats: facts.seats ?? old.seats, ownership: facts.ownership ?? old.ownership,
         fuel: fuel ?? old.fuel, gear: gear ?? old.gear, cylinders: cylinders ?? old.cylinders,
       };
       return { ...next, co2: manualCo2 ? old.co2 : calculateCo2(next) };
@@ -286,8 +287,10 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
         photoRevision.current++;
         manualCover.current = true;
         const photos = [...result.photos];
-        const clean = await firstCleanCoverIndex(photos);
-        if (clean !== undefined && clean > 0) photos.unshift(...photos.splice(clean, 1));
+        const clean = result.bannerOnFirst && typeof result.bestCoverIndex === "number" && result.bestCoverIndex > 0
+          ? result.bestCoverIndex
+          : await firstCleanCoverIndex(photos);
+        if (clean !== undefined && clean > 0 && photos[clean]) photos.unshift(...photos.splice(clean, 1));
         set("photos", photos);
       }
       setImportFallback(false);
@@ -380,22 +383,31 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
       const finalModel = sanitizeText(values.model === OTHER_MODEL ? customModel : values.model, 80);
       const finalVariant = sanitizeText(values.variant === customVariant ? customVersion : values.variant, 100);
       const vehicleForEquip = { ...values, model: finalModel, variant: finalVariant };
-      const sanitizedEquipment = {
-        Sigurnost: sanitizeStringArray(values.equipment.Sigurnost, 40, 150),
-        Udobnost: sanitizeStringArray(values.equipment.Udobnost, 40, 150),
-        Multimedija: sanitizeStringArray(values.equipment.Multimedija, 40, 150),
-        Eksterijer: sanitizeStringArray(values.equipment.Eksterijer, 40, 150),
+      const sanitizedEquipment: typeof values.equipment = {
+        Sigurnost: [], Udobnost: [], Multimedija: [], Eksterijer: [],
       };
+      const addEquipment = (raw: string, preferred?: keyof typeof values.equipment) => {
+        const cleanLabel = sanitizeText(raw, 100);
+        if (!cleanLabel) return;
+        const canonical = canonicalEquipmentLabels([cleanLabel])[0] ?? cleanLabel;
+        const category = preferred ?? equipmentCategoryFor(canonical);
+        if (!sanitizedEquipment[category].some(item => item.toLowerCase() === canonical.toLowerCase())) {
+          sanitizedEquipment[category].push(canonical);
+        }
+      };
+      // Keep the 4 canonical categories computed during import / AI analysis.
+      for (const [category, items] of Object.entries(values.equipment) as Array<[keyof typeof values.equipment, string[]]>) {
+        items.forEach(item => addEquipment(item, category));
+      }
       const selectedCatalog = equipmentFor(vehicleForEquip);
       for (const label of suggestions) {
-        if (selectedCatalog.some(item => item.id === equipmentId(label))) continue;
         if (!selectedSuggestions.includes(labelKey(label))) continue;
-        const cleanLabel = sanitizeText(label, 100);
-        if (!cleanLabel) continue;
-        const group = /sjedal|kož/i.test(cleanLabel) ? "Udobnost"
-          : /navigacij|kardon|display|kamera/i.test(cleanLabel) ? "Multimedija"
-          : /tempomat/i.test(cleanLabel) ? "Sigurnost" : "Eksterijer";
-        if (!sanitizedEquipment[group].includes(cleanLabel)) sanitizedEquipment[group].push(cleanLabel);
+        if (selectedCatalog.some(item => item.id === equipmentId(label))) continue;
+        addEquipment(label);
+      }
+      for (const id of values.catalogEquipment ?? []) {
+        const match = selectedCatalog.find(item => item.id === id);
+        if (match) addEquipment(match.label);
       }
       await onPublish({
         ...values,

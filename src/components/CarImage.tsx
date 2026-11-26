@@ -10,6 +10,7 @@ type Props = {
   sizes?: string;
   className?: string;
   layer?: boolean;
+  dim?: boolean;
   onUnavailable?: () => void;
   onReady?: () => void;
 };
@@ -25,6 +26,7 @@ function CarImageSource({
   sizes = "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 420px",
   className = "",
   layer = false,
+  dim = false,
   onUnavailable,
   onReady,
 }: Props) {
@@ -63,7 +65,7 @@ function CarImageSource({
   const src = options[0];
 
   return (
-    <div className={`vehicle-photo ${className}`.trim()}>
+    <div className={`vehicle-photo ${className}`.trim()} style={dim ? { opacity: 0 } : undefined}>
       {!failed && src ? (
         <>
           <img
