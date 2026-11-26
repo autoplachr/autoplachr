@@ -25,8 +25,8 @@ import { Dialog, ListingOptions, Rating, Select, VehiclePhoto } from "./ui";
 import { selectedMakeOptions } from "./make-equipment";
 import { describeMarketDelta, evaluateMarketPrice } from "../src/lib/price-engine";
 import { calculateCo2, ksToKw, kwToKs, resolveVehicleSpecs, toCatalogFuel, type SpecFuel } from "../src/lib/spec-resolver";
-import { analyzeListingPhotos, firstCleanCoverIndex, prepareListingPhoto, type ListingAnalysis } from "./listing-analysis";
-import { canonicalEquipmentLabels, equipmentCategoryFor, parseListingText } from "./search";
+import { analyzeListingPhotos, orderImportedPhotos, prepareListingPhoto, type ListingAnalysis } from "./listing-analysis";
+import { canonicalEquipmentLabels, equipmentCategoryFor, inferStandardEquipment, parseListingText } from "./search";
 import { importClassifieds, type ImportedFacts } from "./classifieds-import";
 import { croatianLocations, normalizeLocation } from "../src/data/croatia-locations";
 import { sanitizeStringArray, sanitizeText } from "../src/lib/sanitize";
@@ -249,6 +249,23 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
       };
       return { ...next, co2: manualCo2 ? old.co2 : calculateCo2(next) };
     });
+    // Baseline factory equipment (ABS, airbags, ESP…) follows the year/segment:
+    // fill the 4-column equipment and check the matching Step 2 catalog boxes.
+    const inferredStandard = inferStandardEquipment({ year, make, gear: facts.gear, fuel: facts.fuel, text: facts.description });
+    if (inferredStandard.length) {
+      const inferredIds = inferredStandard.map(equipmentId);
+      setAiSuggestedIds(old => [...new Set([...old, ...inferredIds])]);
+      setValues(old => {
+        const equipment = { ...old.equipment };
+        for (const label of inferredStandard) {
+          const category = equipmentCategoryFor(label);
+          if (!(equipment[category] ?? []).some(item => item.toLowerCase() === label.toLowerCase())) {
+            equipment[category] = [...(equipment[category] ?? []), label];
+          }
+        }
+        return { ...old, equipment, catalogEquipment: [...new Set([...(old.catalogEquipment ?? []), ...inferredIds])] };
+      });
+    }
   }
 
   async function importFromClassifieds(paste = false) {
@@ -289,11 +306,10 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
       if (result.photos?.length) {
         photoRevision.current++;
         manualCover.current = true;
-        const photos = [...result.photos];
-        const clean = result.bannerOnFirst && typeof result.bestCoverIndex === "number" && result.bestCoverIndex > 0
-          ? result.bestCoverIndex
-          : await firstCleanCoverIndex(photos);
-        if (clean !== undefined && clean > 0 && photos[clean]) photos.unshift(...photos.splice(clean, 1));
+        const photos = await orderImportedPhotos([...result.photos], {
+          bannerOnFirst: result.bannerOnFirst,
+          bestCoverIndex: result.bestCoverIndex,
+        });
         set("photos", photos);
       }
       setImportFallback(false);

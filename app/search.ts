@@ -99,20 +99,24 @@ export function canonicalizeImported(input: {
 
 const IMPORT_EQUIPMENT_RULES: readonly (readonly [string, string, RegExp])[] = [
   ["Sigurnost", "360° kamera", /\b(?:360\s*°?\s*kamere?|kamera\s*360|area\s*view)\b/i],
+  // Specific full-coverage sensors must be tested before the generic front+rear rule.
+  ["Sigurnost", "Prednji, stražnji i bočni parking senzori", /\b(?:360\s*senzor\w*|senzor\w*\s+360|parkirni\s+senzori[^.\n]{0,40}bo[cč]n\w*|bo[cč]n\w*[^.\n]{0,40}parkirni\s+senzori)\b/i],
   ["Sigurnost", "Prednji i stražnji parking senzori", /\b(?:parkirni\s+senzori|parking\s+senzori)\b/i],
   ["Sigurnost", "Tempomat", /\b(?:tempomat|adaptivni\s+tempomat|\bacc\b)\b/i],
   ["Sigurnost", "Head-Up Display", /\b(?:head\s*up\s*display|projekcijski\s+zaslon|\bhud\b)\b/i],
-  ["Udobnost", "Kožna sjedala s memorijom", /\b(?:(?:kožna|kozna)\s+sjedal\w*(?:\s+s\s*memorijom)?|memorija\s+sjedala)\b/i],
+  ["Udobnost", "Kožna sjedala s memorijom", /\b(?:(?:kožna|kozna)\s+sjedal\w*(?:\s+s\s*memorijom)?|memorija\s+sjedala|full\s+struja)\b/i],
+  ["Udobnost", "El. podesiva sjedala", /\b(?:full\s+struja|el\.?\s*podesiv\w*\s+sjedal\w*|podesiv\w*\s+sjedal\w*|elektri[cč]n\w*\s+sjedal\w*)\b/i],
   ["Udobnost", "M Sport sjedala", /\bm[\s-]*sport\s+sjedal\w*\b/i],
   ["Udobnost", "M Sport upravljač", /\b(?:m[\s-]*volan|m[\s-]*sport[\s-]*(?:upravljač|volan))\b/i],
-  ["Udobnost", "F1 ručice na volanu", /\b(?:f1\s*(?:saltarice|ručice)|polugice\s+za\s+promjenu\s+stupnja)\b/i],
+  ["Udobnost", "F1 ručice na volanu", /\b(?:f1\s*(?:saltarice|ru[cč]ice)|ru[cč]ice\s+na\s+volanu|polugice\s+za\s+promjenu\s+stupnja)\b/i],
   ["Udobnost", "Crna obloga krova", /\b(?:crna\s+obloga\s+krova|crno\s+nebo)\b/i],
-  ["Udobnost", "Električno sklopivi retrovizori", /\b(?:el\.?\s*sklopivi\s+retrovizori|električno\s+sklopivi\s+retrovizori)\b/i],
   ["Udobnost", "Zatamnjena stražnja stakla", /\b(?:zatamnjena\s+(?:stražnja|straznja)\s+stakla|zatamnjena\s+stakla)\b/i],
   ["Multimedija", "Harman/Kardon ozvučenje", /\bharman\s*\/?\s*kardon\b/i],
   ["Multimedija", "Navigacija Professional", /\b(?:navigacija\s+professional|velika\s+navigacij\w*|navigacij\w*)\b/i],
   ["Eksterijer", "Adaptivna LED svjetla", /\b(?:led\s+adaptivn\w*\s+svijetla|adaptivna\s+led|led\s+svjetla)\b/i],
-  ["Eksterijer", "M Sport paket", /\b(?:m[\s-]*sport\s+paket|m\s*paket|m[\s-]*sport)\b/i],
+  ["Eksterijer", "LED osvjetljenje vanjskih kvaka", /\b(?:led\s+(?:kavk\w*|kvak\w*)|osvjetljenj\w*\s+kvak\w*|kvak\w*\s+s\s*led\s*osvjetljenj\w*)\b/i],
+  ["Eksterijer", "El. sklopivi i zatamnjivi retrovizori", /\b(?:el\.?\s*sklopivi\s+retrovizori|sklopivi\s+retrovizori|fotosenzibiln\w*\s+retrovizor\w*|elektri[cč]no\s+sklapanj\w*\s+retrovizor\w*|zatamnjen\w*\s+retrovizor\w*)\b/i],
+  ["Eksterijer", "M Sport paket", /\b(?:m[\s-]*sport\s+paket|m\s*paket|m[\s-]*branici|m[\s-]*pragovi|m[\s-]*lajsne|m[\s-]*sport)\b/i],
   ["Eksterijer", 'Alu naplatci 20"', /\b(?:alu\s+(?:felge|naplatci)\s*20|aluminijski\s+naplatci\s*20)\b/i],
 ];
 
@@ -124,10 +128,64 @@ export function canonicalEquipmentLabel(raw: string): string {
   return raw.trim().slice(0, 100);
 }
 
-/** Canonicalize a list once, dropping generic rear-camera labels when a 360° chip exists. */
+/** Canonicalize a list once, dropping labels superseded by a more specific variant. */
 export function canonicalEquipmentLabels(labels: string[]): string[] {
   const unique = [...new Set(labels.map(canonicalEquipmentLabel).filter(Boolean))];
+  if (unique.includes("Prednji, stražnji i bočni parking senzori")) {
+    const index = unique.indexOf("Prednji i stražnji parking senzori");
+    if (index >= 0) unique.splice(index, 1);
+  }
+  if (unique.includes("El. sklopivi i zatamnjivi retrovizori")) {
+    const index = unique.indexOf("Električno sklopivi retrovizori");
+    if (index >= 0) unique.splice(index, 1);
+  }
   return unique.includes("360° kamera") ? unique.filter(label => label !== "Kamera za vožnju unatrag") : unique;
+}
+
+/** Category for the 4-column detail layout of every inferred baseline item. */
+const STANDARD_EQUIPMENT_CATEGORY: Record<string, "Sigurnost" | "Udobnost" | "Multimedija" | "Eksterijer"> = {
+  "ABS": "Sigurnost",
+  "Zračni jastuci": "Sigurnost",
+  "ESP / Kontrola stabilnosti": "Sigurnost",
+  "ISOFIX": "Sigurnost",
+  "Senzor tlaka u gumama": "Sigurnost",
+  "Servo upravljač": "Udobnost",
+  "Daljinsko centralno zaključavanje": "Udobnost",
+  "Električni podizači stakala": "Udobnost",
+  "Automatska klima": "Udobnost",
+  "Putno računalo": "Multimedija",
+  "Bluetooth": "Multimedija",
+  "Start-Stop sustav": "Multimedija",
+};
+
+const PREMIUM_EQUIPMENT_MAKES = new Set(["bmw", "audi", "mercedesbenz", "volkswagen", "volvo", "skoda", "porsche", "tesla", "mazda", "cupra"]);
+const STANDARD_EQUIPMENT_EXCLUSIONS: readonly (readonly [string, RegExp])[] = [
+  ["ABS", /\bbez\s*abs\b/],
+  ["Zračni jastuci", /\bbez\s*jastuk\w*\b/],
+  ["ESP / Kontrola stabilnosti", /\bbez\s*esp\b/],
+  ["ISOFIX", /\bbez\s*isofix\b/],
+  ["Senzor tlaka u gumama", /\bbez\s*senzor\w*\s*tlaka\b/],
+  ["Start-Stop sustav", /\b(?:bez|isklju[cč]en)\s*start[\s-]*stop\b/],
+  ["Automatska klima", /\b(?:bez\s*klime|manueln\w*\s*klima|ru[cč]n\w*\s*klima)\b/],
+  ["Bluetooth", /\bbez\s*bluetooth\b/],
+];
+
+/**
+ * Deterministic baseline factory equipment by year and segment, so an imported
+ * 2017 BMW can never publish looking like it lacks ABS or airbags. Explicit
+ * seller exclusions ("bez klime", …) always win.
+ */
+export function inferStandardEquipment(facts: { year?: number; make?: string; gear?: string; fuel?: string; text?: string }): string[] {
+  const year = Number(facts.year);
+  if (!Number.isInteger(year) || year < 2004) return [];
+  const labels = ["ABS", "Zračni jastuci", "Servo upravljač", "Daljinsko centralno zaključavanje", "Električni podizači stakala"];
+  if (year >= 2011) labels.push("ESP / Kontrola stabilnosti", "Putno računalo", "ISOFIX");
+  if (year >= 2014) labels.push("Senzor tlaka u gumama", "Start-Stop sustav");
+  if (year >= 2012 && PREMIUM_EQUIPMENT_MAKES.has(normalizeLocation(facts.make ?? "").replace(/[^a-z]/g, ""))) {
+    labels.push("Automatska klima", "Bluetooth");
+  }
+  const signal = normalizeLocation(facts.text ?? "");
+  return labels.filter(label => !STANDARD_EQUIPMENT_EXCLUSIONS.some(([excluded, pattern]) => excluded === label && pattern.test(signal)));
 }
 
 const EQUIPMENT_DETAIL_CATEGORY: Record<string, "Sigurnost" | "Udobnost" | "Multimedija" | "Eksterijer"> = {
@@ -135,6 +193,8 @@ const EQUIPMENT_DETAIL_CATEGORY: Record<string, "Sigurnost" | "Udobnost" | "Mult
 };
 
 export function equipmentCategoryFor(raw: string): "Sigurnost" | "Udobnost" | "Multimedija" | "Eksterijer" {
+  const standard = STANDARD_EQUIPMENT_CATEGORY[raw.trim()];
+  if (standard) return standard;
   const text = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   for (const [category, , pattern] of IMPORT_EQUIPMENT_RULES) {
     if (pattern.test(text)) return EQUIPMENT_DETAIL_CATEGORY[category];
@@ -442,7 +502,7 @@ export function parseListingText(rawText: string) {
   const equipment = listingEquipmentPatterns.filter(([pattern]) => pattern.test(text)).map(([,label]) => label);
   const wheels = text.match(/\b(?:alu(?:minijske)?\s+felge|aluminijski naplatci)\s*(\d{2})\s*(?:"|”|cola)?/);
   if (wheels) equipment.push('Alu felge ' + wheels[1] + '"');
-  const color = ["Bijela", "Crna", "Siva", "Srebrna", "Plava", "Crvena", "Zelena", "Žuta", "Narančasta"].find(matches);
+  const color = ["Bijela", "Crna", "Siva", "Srebrna", "Tamno plava", "Plava", "Crvena", "Zelena", "Žuta", "Narančasta"].find(matches);
   return {
     make, model, variant: engine, year, km, kw: kw ?? (ks === undefined ? undefined : Math.round(ks / 1.35962)), ks,
     cc: readNumber(text.match(new RegExp("\\b" + amount + "\\s*(?:cm\\s*[³3]|cc)(?!\\w)"))),
@@ -479,7 +539,10 @@ const DESCRIPTION_BOILERPLATE = [
   /auto\s*centar\s*bi[/\s-]*mer/i, /^cijena:\s*[\d.,\s]+e?\s*fix\b/im,
 ];
 
-/** Strip raw equipment bullet blocks and dealer footers while keeping seller service notes. */
+/** Bullet lines that only repeat specs already parsed into the form ("- 2017", "- 190kw", "- reg. 12/2026"). */
+const SPEC_ONLY_BULLET = /^\s*[-•*]\s*(?:(?:19|20)\d{2}\b|(?:\d{1,3}(?:[.\s]\d{3})+|\d{2,7})\s*(?:t\s*km|km)\b|\d{2,4}\s*(?:kw|ks)\b|\d{3,5}\s*(?:cm[³3]|ccm|cc)\b|reg(?:istriran(?:\s*do)?)?\.?\s*(?:do\s*)?\d{1,2}\s*[./]\s*(?:19|20)\d{2}|(?:19|20)\d{2}\s*[./]\s*\d{1,2}|dizel|diesel|benzin(?:ski)?|gas\b|lpg|tdi|struja|elektri[cč]n\w*|hibrid|plug.?in|automatik|automatsk\w*|ru[cč]n\w*|manual\w*|steptronic|dsg|bijel\w*|crn\w*|siv\w*|srebrn\w*|plav\w*|crven\w*|zelen\w*|[žz]ut\w*|naran[cč]ast\w*|narandžast\w*|smeđ\w*|smeđast\w*|bež|\d\s*[/–-]\s*\d\s*(?:vrata|sjedala)|\d{3}\s*[die]\b|\d[.,]\d\s*(?:tdi|tsi|tfsi|dci|cdti|crdi|jtd))\s*$/i;
+
+/** Strip raw equipment bullet blocks, spec-only bullets and dealer footers while keeping seller service notes. */
 export function cleanImportedDescription(raw: string): string {
   let text = raw.replace(/\n{3,}/g, "\n\n");
   const opremaStart = text.search(/^\s*oprema\s*:/im);
@@ -495,6 +558,8 @@ export function cleanImportedDescription(raw: string): string {
     }).join("\n");
     text = head + tail;
   }
+  // Drop bullet lines that only repeat specs already structured into Step 2.
+  text = text.split("\n").filter(line => !SPEC_ONLY_BULLET.test(line)).join("\n");
   let cut = text.length;
   for (const marker of DESCRIPTION_BOILERPLATE) {
     const index = text.search(marker);
@@ -540,7 +605,7 @@ export function normalizeImportedVehicle(source: {
     field("Godina proizvodnje", "Godište", "year") && "Godište: " + field("Godina proizvodnje", "Godište", "year"),
     field("Registriran do", "registrationUntil") && "Registriran do " + field("Registriran do", "registrationUntil"),
     field("Prva registracija", "firstRegistration") && "Prva registracija " + field("Prva registracija", "firstRegistration"),
-    field("Boja", "color"),
+    field("Boja", "Boja vozila", "Vanjska boja", "color"),
   ].filter(Boolean).join("\n"));
   // Structured Njuškalo specs are extracted from the full raw text before stripping boilerplate.
   const rawText = [title, rawDescription, ...[...fields.values()]].filter(Boolean).join("\n");
@@ -601,8 +666,27 @@ export function normalizeImportedVehicle(source: {
   if (equipmentByCategory["Sigurnost i asistencije"].includes("360° kamera")) {
     equipmentByCategory["Sigurnost i asistencije"] = equipmentByCategory["Sigurnost i asistencije"].filter(label => label !== "Kamera za vožnju unatrag");
   }
+  if (equipmentByCategory["Sigurnost i asistencije"].includes("Prednji, stražnji i bočni parking senzori")) {
+    equipmentByCategory["Sigurnost i asistencije"] = equipmentByCategory["Sigurnost i asistencije"].filter(label => label !== "Prednji i stražnji parking senzori");
+  }
+  if (equipmentByCategory["Eksterijer i ovjes"].includes("El. sklopivi i zatamnjivi retrovizori")) {
+    equipmentByCategory["Eksterijer i ovjes"] = equipmentByCategory["Eksterijer i ovjes"].filter(label => label !== "Električno sklopivi retrovizori");
+  }
+  // M Sport ovjes only when the M exterior package pairs with M interior parts.
+  if (equipmentByCategory["Eksterijer i ovjes"].includes("M Sport paket")
+    && (equipmentByCategory["Udobnost i interijer"].includes("M Sport sjedala") || equipmentByCategory["Udobnost i interijer"].includes("M Sport upravljač"))
+    && !equipmentByCategory["Eksterijer i ovjes"].includes("M Sport ovjes")) {
+    equipmentByCategory["Eksterijer i ovjes"].push("M Sport ovjes");
+  }
+  // Baseline factory equipment (ABS, airbags, ESP…) inferred from year and segment.
+  const inferredEquipment = inferStandardEquipment({ year: facts.year ?? parsed.year, make: canonical.make || make, text: rawText });
+  for (const label of inferredEquipment) {
+    const target = categoryNames[STANDARD_EQUIPMENT_CATEGORY[label] ?? "Eksterijer"];
+    if (target && !equipmentByCategory[target].includes(label)) equipmentByCategory[target].push(label);
+  }
   return {
-    ...parsed, make: canonical.make || make, model: canonical.model || model, title, description, equipment,
+    ...parsed, make: canonical.make || make, model: canonical.model || model, title, description,
+    equipment: [...new Set([...equipment, ...inferredEquipment])],
     cylinders: canonical.cylinders ?? cylinders,
     generation: canonical.generation || (make && model ? chassisFromTitle(make, model, title) : undefined),
     variant: canonical.badge || badge || parsed.variant,

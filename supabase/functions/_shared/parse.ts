@@ -56,22 +56,73 @@ const CANONICAL_ALIASES: CanonicalAlias[] = [
 const EQUIPMENT_CATEGORIES = ["Sigurnost i asistencije", "Udobnost i interijer", "Multimedija i navigacija", "Eksterijer i ovjes"] as const;
 const EQUIPMENT_RULES: Array<[string, string, RegExp]> = [
   ["Sigurnost i asistencije", "360° kamera", /\b(?:360\s*°?\s*kamere?|kamera\s*360|area\s*view|around\s*view)\b/i],
+  // Specific full-coverage sensors must be tested before the generic front+rear rule.
+  ["Sigurnost i asistencije", "Prednji, stražnji i bočni parking senzori", /\b(?:360\s*senzor\w*|senzor\w*\s+360|parkirni\s+senzori[^.\n]{0,40}bo[cč]n\w*|bo[cč]n\w*[^.\n]{0,40}parkirni\s+senzori)\b/i],
   ["Sigurnost i asistencije", "Prednji i stražnji parking senzori", /\b(?:parkirni\s+senzori|parking\s+senzori|parking\s+sensors)\b/i],
   ["Sigurnost i asistencije", "Tempomat", /\b(?:tempomat|adaptivni\s+tempomat|\bacc\b)\b/i],
   ["Sigurnost i asistencije", "Head-Up Display", /\b(?:head\s*up\s*display|projekcijski\s+zaslon|\bhud\b)\b/i],
-  ["Udobnost i interijer", "Kožna sjedala s memorijom", /\b(?:(?:kožna|kozna)\s+sjedal\w*(?:\s+s\s*memorijom)?|memorija\s+sjedala)\b/i],
+  ["Udobnost i interijer", "Kožna sjedala s memorijom", /\b(?:(?:kožna|kozna)\s+sjedal\w*(?:\s+s\s*memorijom)?|memorija\s+sjedala|full\s+struja)\b/i],
+  ["Udobnost i interijer", "El. podesiva sjedala", /\b(?:full\s+struja|el\.?\s*podesiv\w*\s+sjedal\w*|podesiv\w*\s+sjedal\w*|elektri[cč]n\w*\s+sjedal\w*)\b/i],
   ["Udobnost i interijer", "M Sport sjedala", /\bm[\s-]*sport\s+sjedal\w*\b/i],
   ["Udobnost i interijer", "M Sport upravljač", /\b(?:m[\s-]*volan|m[\s-]*sport[\s-]*(?:upravljač|volan))\b/i],
-  ["Udobnost i interijer", "F1 ručice na volanu", /\b(?:f1\s*(?:saltarice|ručice)|polugice\s+za\s+promjenu\s+stupnja)\b/i],
+  ["Udobnost i interijer", "F1 ručice na volanu", /\b(?:f1\s*(?:saltarice|ru[cč]ice)|ru[cč]ice\s+na\s+volanu|polugice\s+za\s+promjenu\s+stupnja)\b/i],
   ["Udobnost i interijer", "Crna obloga krova", /\b(?:crna\s+obloga\s+krova|crno\s+nebo)\b/i],
-  ["Udobnost i interijer", "Električno sklopivi retrovizori", /\b(?:el\.?\s*sklopivi\s+retrovizori|električno\s+sklopivi\s+retrovizori)\b/i],
   ["Udobnost i interijer", "Zatamnjena stražnja stakla", /\b(?:zatamnjena\s+(?:stražnja|straznja)\s+stakla|zatamnjena\s+stakla)\b/i],
   ["Multimedija i navigacija", "Harman/Kardon ozvučenje", /\bharman\s*\/?\s*kardon\b/i],
   ["Multimedija i navigacija", "Navigacija Professional", /\b(?:navigacija\s+professional|velika\s+navigacij\w*|navigacij\w*)\b/i],
   ["Eksterijer i ovjes", "Adaptivna LED svjetla", /\b(?:led\s+adaptivn\w*\s+svijetla|adaptivna\s+led|led\s+svjetla)\b/i],
-  ["Eksterijer i ovjes", "M Sport paket", /\b(?:m[\s-]*sport\s+paket|m\s*paket|m[\s-]*sport)\b/i],
+  ["Eksterijer i ovjes", "LED osvjetljenje vanjskih kvaka", /\b(?:led\s+(?:kavk\w*|kvak\w*)|osvjetljenj\w*\s+kvak\w*|kvak\w*\s+s\s*led\s*osvjetljenj\w*)\b/i],
+  ["Eksterijer i ovjes", "El. sklopivi i zatamnjivi retrovizori", /\b(?:el\.?\s*sklopivi\s+retrovizori|sklopivi\s+retrovizori|fotosenzibiln\w*\s+retrovizor\w*|elektri[cč]no\s+sklapanj\w*\s+retrovizor\w*|zatamnjen\w*\s+retrovizor\w*)\b/i],
+  ["Eksterijer i ovjes", "M Sport paket", /\b(?:m[\s-]*sport\s+paket|m\s*paket|m[\s-]*branici|m[\s-]*pragovi|m[\s-]*lajsne|m[\s-]*sport)\b/i],
   ["Eksterijer i ovjes", 'Alu naplatci 20"', /\b(?:alu\s+(?:felge|naplatci)\s*20|aluminijski\s+naplatci\s*20)\b/i],
 ];
+
+/** Category of every inferred baseline item in the 4-column detail layout. */
+const STANDARD_EQUIPMENT_CATEGORY: Record<string, (typeof EQUIPMENT_CATEGORIES)[number]> = {
+  "ABS": "Sigurnost i asistencije",
+  "Zračni jastuci": "Sigurnost i asistencije",
+  "ESP / Kontrola stabilnosti": "Sigurnost i asistencije",
+  "ISOFIX": "Sigurnost i asistencije",
+  "Senzor tlaka u gumama": "Sigurnost i asistencije",
+  "Servo upravljač": "Udobnost i interijer",
+  "Daljinsko centralno zaključavanje": "Udobnost i interijer",
+  "Električni podizači stakala": "Udobnost i interijer",
+  "Automatska klima": "Udobnost i interijer",
+  "Putno računalo": "Multimedija i navigacija",
+  "Bluetooth": "Multimedija i navigacija",
+  "Start-Stop sustav": "Multimedija i navigacija",
+};
+
+const PREMIUM_EQUIPMENT_MAKES = new Set(["bmw", "audi", "mercedesbenz", "volkswagen", "volvo", "skoda", "porsche", "tesla", "mazda", "cupra"]);
+const STANDARD_EQUIPMENT_EXCLUSIONS: Array<[string, RegExp]> = [
+  ["ABS", /bezabs/],
+  ["Zračni jastuci", /bezjastuk/],
+  ["ESP / Kontrola stabilnosti", /bezesp/],
+  ["ISOFIX", /bezisofix/],
+  ["Senzor tlaka u gumama", /bezsenzoratlaka/],
+  ["Start-Stop sustav", /bezstartstop|startstopiskljucen/],
+  ["Automatska klima", /bezklime|manuelnaklima|rucnaklima/],
+  ["Bluetooth", /bezbluetooth/],
+];
+
+/**
+ * Deterministic baseline factory equipment by year and segment, so an imported
+ * 2017 BMW can never publish looking like it lacks ABS or airbags. Explicit
+ * seller exclusions ("bez klime", …) always win. Shared contract with
+ * `inferStandardEquipment` in app/search.ts.
+ */
+export function inferStandardEquipment(facts: { year?: number; make?: string; gear?: string; fuel?: string; text?: string }): string[] {
+  const year = Number(facts.year);
+  if (!Number.isInteger(year) || year < 2004) return [];
+  const labels = ["ABS", "Zračni jastuci", "Servo upravljač", "Daljinsko centralno zaključavanje", "Električni podizači stakala"];
+  if (year >= 2011) labels.push("ESP / Kontrola stabilnosti", "Putno računalo", "ISOFIX");
+  if (year >= 2014) labels.push("Senzor tlaka u gumama", "Start-Stop sustav");
+  if (year >= 2012 && PREMIUM_EQUIPMENT_MAKES.has(norm(facts.make ?? ""))) {
+    labels.push("Automatska klima", "Bluetooth");
+  }
+  const signal = norm(facts.text ?? "");
+  return labels.filter(label => !STANDARD_EQUIPMENT_EXCLUSIONS.some(([excluded, pattern]) => excluded === label && pattern.test(signal)));
+}
 
 export function canonicalEquipmentLabel(raw: string): string {
   const text = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -93,9 +144,21 @@ function categorizeEquipment(text: string, extra: string[] = []) {
     const canonical = canonicalEquipmentLabel(item);
     const rule = EQUIPMENT_RULES.find(([, label]) => label === canonical);
     if (rule) push(rule[0], canonical);
+    else if (STANDARD_EQUIPMENT_CATEGORY[canonical]) push(STANDARD_EQUIPMENT_CATEGORY[canonical], canonical);
   }
   if (grouped["Sigurnost i asistencije"].includes("360° kamera")) {
     grouped["Sigurnost i asistencije"] = grouped["Sigurnost i asistencije"].filter(label => label !== "Kamera za vožnju unatrag");
+  }
+  if (grouped["Sigurnost i asistencije"].includes("Prednji, stražnji i bočni parking senzori")) {
+    grouped["Sigurnost i asistencije"] = grouped["Sigurnost i asistencije"].filter(label => label !== "Prednji i stražnji parking senzori");
+  }
+  if (grouped["Eksterijer i ovjes"].includes("El. sklopivi i zatamnjivi retrovizori")) {
+    grouped["Eksterijer i ovjes"] = grouped["Eksterijer i ovjes"].filter(label => label !== "Električno sklopivi retrovizori");
+  }
+  // M Sport ovjes only when the M exterior package pairs with M interior parts.
+  if (grouped["Eksterijer i ovjes"].includes("M Sport paket")
+    && (grouped["Udobnost i interijer"].includes("M Sport sjedala") || grouped["Udobnost i interijer"].includes("M Sport upravljač"))) {
+    push("Eksterijer i ovjes", "M Sport ovjes");
   }
   const flat = [...new Set(Object.values(grouped).flat())];
   return { flat, grouped };
@@ -183,6 +246,35 @@ const DESCRIPTION_BOILERPLATE = [
   /auto\s*centar\s*bi[/\s-]*mer/i, /^cijena:\s*[\d.,\s]+e?\s*fix\b/im,
 ];
 
+/** Bullet lines that only repeat specs already parsed into structured fields ("- 2017", "- 190kw", "- reg. 12/2026"). */
+const SPEC_ONLY_BULLET = /^\s*[-•*]\s*(?:(?:19|20)\d{2}\b|(?:\d{1,3}(?:[.\s]\d{3})+|\d{2,7})\s*(?:t\s*km|km)\b|\d{2,4}\s*(?:kw|ks)\b|\d{3,5}\s*(?:cm[³3]|ccm|cc)\b|reg(?:istriran(?:\s*do)?)?\.?\s*(?:do\s*)?\d{1,2}\s*[./]\s*(?:19|20)\d{2}|(?:19|20)\d{2}\s*[./]\s*\d{1,2}|dizel|diesel|benzin(?:ski)?|gas\b|lpg|tdi|struja|elektri[cč]n\w*|hibrid|plug.?in|automatik|automatsk\w*|ru[cč]n\w*|manual\w*|steptronic|dsg|bijel\w*|crn\w*|siv\w*|srebrn\w*|plav\w*|crven\w*|zelen\w*|[žz]ut\w*|naran[cč]ast\w*|narandžast\w*|smeđ\w*|smeđast\w*|bež|\d\s*[/–-]\s*\d\s*(?:vrata|sjedala)|\d{3}\s*[die]\b|\d[.,]\d\s*(?:tdi|tsi|tfsi|dci|cdti|crdi|jtd))\s*$/i;
+
+/** Canonical exterior colors matching the publish form options. */
+const CANONICAL_COLORS: Array<[RegExp, string]> = [
+  [/\btamno\s*plav\w*\b/i, "Tamno plava"],
+  [/\bbijel\w*\b/i, "Bijela"],
+  [/\bcrn\w*\b/i, "Crna"],
+  [/\bsrebrn\w*\b/i, "Srebrna"],
+  [/\bsiv\w*\b/i, "Siva"],
+  [/\bplav\w*\b/i, "Plava"],
+  [/\bcrven\w*\b/i, "Crvena"],
+  [/\bzelen\w*\b/i, "Zelena"],
+  [/\bžut\w*\b/i, "Žuta"],
+  [/\bnaran[cč]ast\w*\b/i, "Narančasta"],
+  [/\bsmeđ\w*\b/i, "Smeđa / Bež"],
+  [/\bbež\b/i, "Smeđa / Bež"],
+];
+
+function canonicalColor(value: string): string {
+  if (!value.trim()) return "";
+  return CANONICAL_COLORS.find(([pattern]) => pattern.test(value))?.[1] ?? value.trim().slice(0, 40);
+}
+
+function colorFromText(text: string): string {
+  const described = text.match(/\bboj\w*(?:\s+(?:vozila|vanjska))?\s*[:=]?\s*(bijel\w*|crn\w*|siv\w*|srebrn\w*|tamno\s*plav\w*|plav\w*|crven\w*|zelen\w*|žut\w*|naran[čc]ast\w*|narandžast\w*|smeđ\w*|bež)\b/i);
+  return described ? canonicalColor(described[1]) : "";
+}
+
 function cleanDescription(description: string) {
   let text = description.replace(/\n{3,}/g, "\n\n");
   const opremaStart = text.search(/^\s*oprema\s*:/im);
@@ -198,6 +290,8 @@ function cleanDescription(description: string) {
     }).join("\n");
     text = head + tail;
   }
+  // Drop bullet lines that only repeat specs already parsed into structured fields.
+  text = text.split("\n").filter(line => !SPEC_ONLY_BULLET.test(line)).join("\n");
   let cut = text.length;
   for (const marker of DESCRIPTION_BOILERPLATE) {
     const index = text.search(marker);
@@ -348,7 +442,7 @@ export function parseListing(content: string, base?: string): ParsedListing {
       .replace(/<\/?(?:br|p|li|tr|h[1-6]|dt|dd|div)\b[^>]*>/gi, "\n").replace(/<[^>]*>/g, " "))
     : content;
   const lines = body.split(/\r?\n/).map(line => line.replace(/\s+/g, " ").trim()).filter(Boolean);
-  const labelPattern = /^(Lokacija vozila|Marka automobila|Model automobila|Tip automobila|Marka|Model|Godina proizvodnje|Godište|Godiste|Registriran do|Registracija do|Prva registracija|Prijeđeni kilometri|Prijedeni kilometri|Kilometraža|Kilometraza|Motor|Motorizacija|Gorivo|Snaga motora|Radni obujam|Mjenjač|Mjenjac|Pogon|Vrsta pogona|Oblik karoserije|Broj vrata|Broj sjedala|Karoserija|Stanje|Cijena|Boja|Prodavatelj|Prodavač|VIN|Cilindri)(?:\s*[:\t]\s*|\s+|$)(.*)$/i;
+  const labelPattern = /^(Lokacija vozila|Marka automobila|Model automobila|Tip automobila|Marka|Model|Godina proizvodnje|Godište|Godiste|Registriran do|Registracija do|Prva registracija|Prijeđeni kilometri|Prijedeni kilometri|Kilometraža|Kilometraza|Motor|Motorizacija|Gorivo|Snaga motora|Radni obujam|Mjenjač|Mjenjac|Pogon|Vrsta pogona|Oblik karoserije|Broj vrata|Broj sjedala|Karoserija|Stanje|Cijena|Boja|Boja vozila|Vanjska boja|Prodavatelj|Prodavač|VIN|Cilindri)(?:\s*[:\t]\s*|\s+|$)(.*)$/i;
   const indexed = lines.map((line, index) => ({ line, next: lines[index + 1] ?? "" }));
   indexed.forEach(({ line, next }) => {
     const match = line.match(labelPattern);
@@ -389,7 +483,8 @@ export function parseListing(content: string, base?: string): ParsedListing {
     bodyType: field("Oblik karoserije") || field("Tip automobila") || field("Karoserija") || analysis.bodyType || "",
     cc, drive: field("Vrsta pogona") || field("Pogon") || "", fields,
   });
-  const { flat: equipmentFlat, grouped: equipmentByCategory } = categorizeEquipment(text);
+  const { flat: equipmentFlat, grouped: equipmentByCategory } = categorizeEquipment(text,
+    inferStandardEquipment({ year, make: canonical.make, gear: field("Mjenjač"), fuel: canonical.fuel, text }));
   const priceText = field("Cijena");
   const currency = field("Valuta");
   const vehicle = {
@@ -400,7 +495,7 @@ export function parseListing(content: string, base?: string): ParsedListing {
     generation: canonical.generation || "",
     variant: canonical.badge || field("Motorizacija") || field("Motor") || analysis.variant || "",
     bodyType: canonical.bodyType || field("Oblik karoserije") || field("Tip automobila") || "",
-    color: field("Boja") || analysis.color || "",
+    color: canonicalColor(field("Boja") || field("Boja vozila") || field("Vanjska boja")) || analysis.color || colorFromText(description),
     fuel: canonical.fuel || field("Gorivo") || analysis.fuel || "",
     gear: field("Mjenjač") || analysis.gear || "",
     drive: canonical.drive || field("Pogon") || "",

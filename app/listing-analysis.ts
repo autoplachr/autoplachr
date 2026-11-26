@@ -68,29 +68,78 @@ export async function hasWhiteBottomBanner(src: string): Promise<boolean> {
     image.decoding = "async";
     image.src = src;
     await image.decode();
-    const canvas = document.createElement("canvas");
-    canvas.width = 64;
-    canvas.height = 14;
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    if (!context) return false;
-    // Dealer banners (e.g. AC BIMMER) sit in the bottom 22% as a full-width strip.
-    context.drawImage(image, 0, image.height * 0.78, image.width, image.height * 0.22, 0, 0, 64, 14);
-    const { data } = context.getImageData(0, 0, 64, 14);
-    let bright = 0, brightRows = 0;
-    for (let row = 0; row < 14; row++) {
-      let rowBright = 0;
-      for (let column = 0; column < 64; column++) {
-        const index = (row * 64 + column) * 4;
-        if (data[index] > 232 && data[index + 1] > 232 && data[index + 2] > 232) {
-          bright++; rowBright++;
-        }
-      }
-      if (rowBright >= 38) brightRows++;
-    }
-    return bright / (64 * 14) > 0.5 && brightRows >= 7;
+    return inspectWhiteBanner(image).banner;
   } catch {
     return false;
   }
+}
+
+type PhotoInspection = {
+  /** True when a solid bright-white dealer banner (e.g. AC BI///MER) spans the bottom strip. */
+  banner: boolean;
+  width: number;
+  height: number;
+  /** 64-bit average-hash over the banner-free upper crop, for near-duplicate detection. */
+  hash: number[];
+};
+
+function inspectWhiteBanner(image: HTMLImageElement): PhotoInspection {
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return { banner: false, width: image.width, height: image.height, hash: [] };
+  // Dealer banners sit in the bottom ~22% as a full-width white strip.
+  canvas.width = 64;
+  canvas.height = 14;
+  context.drawImage(image, 0, image.height * 0.78, image.width, image.height * 0.22, 0, 0, 64, 14);
+  const { data } = context.getImageData(0, 0, 64, 14);
+  let bright = 0, brightRows = 0;
+  for (let row = 0; row < 14; row++) {
+    let rowBright = 0;
+    for (let column = 0; column < 64; column++) {
+      const index = (row * 64 + column) * 4;
+      if (data[index] > 232 && data[index + 1] > 232 && data[index + 2] > 232) {
+        bright++; rowBright++;
+      }
+    }
+    if (rowBright >= 38) brightRows++;
+  }
+  // Perceptual signature from the upper 72% only, so banner overlays never affect it.
+  canvas.width = 8;
+  canvas.height = 8;
+  context.drawImage(image, 0, 0, image.width, image.height * 0.72, 0, 0, 8, 8);
+  const pixels = context.getImageData(0, 0, 8, 8).data;
+  const gray: number[] = [];
+  for (let pixel = 0; pixel < 64; pixel++) {
+    gray.push(0.299 * pixels[pixel * 4] + 0.587 * pixels[pixel * 4 + 1] + 0.114 * pixels[pixel * 4 + 2]);
+  }
+  const mean = gray.reduce((total, value) => total + value, 0) / gray.length;
+  return {
+    banner: bright / (64 * 14) > 0.5 && brightRows >= 7,
+    width: image.width,
+    height: image.height,
+    hash: gray.map(value => (value > mean ? 1 : 0)),
+  };
+}
+
+async function inspectPhoto(src: string): Promise<PhotoInspection | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.decoding = "async";
+    image.src = src;
+    await image.decode();
+    return inspectWhiteBanner(image);
+  } catch {
+    return null;
+  }
+}
+
+function hammingDistance(a: number[], b: number[]): number {
+  if (!a.length || a.length !== b.length) return Number.MAX_SAFE_INTEGER;
+  let distance = 0;
+  for (let index = 0; index < a.length; index++) if (a[index] !== b[index]) distance++;
+  return distance;
 }
 
 export async function firstCleanCoverIndex(photos: Array<{ src: string }>): Promise<number | undefined> {
@@ -102,6 +151,62 @@ export async function firstCleanCoverIndex(photos: Array<{ src: string }>): Prom
     }
   } catch { /* Keep the original cover. */ }
   return undefined;
+}
+
+/**
+ * Order an imported gallery so the first clean exterior photo becomes the cover:
+ * near-duplicate copies of the same angle are dropped (the clean copy wins over
+ * the dealer-banner copy) and every photo with a bottom banner (`hasBottomBanner`)
+ * is moved behind the clean photos. Falls back to the server/AI hint when the
+ * canvas is unavailable (e.g. cross-origin restrictions).
+ */
+export async function orderImportedPhotos<T extends { src: string }>(
+  photos: T[],
+  hint?: { bannerOnFirst?: boolean; bestCoverIndex?: number },
+): Promise<T[]> {
+  if (photos.length < 2) return photos;
+  const scan = Math.min(photos.length, 10);
+  const inspections = await Promise.all(photos.slice(0, scan).map(photo => inspectPhoto(photo.src)));
+  const anyInspected = inspections.some(inspection => inspection !== null);
+  const signatures: PhotoInspection[] = inspections.map((inspection, index) =>
+    inspection ?? { banner: false, width: -index - 1, height: 0, hash: [] });
+
+  if (!anyInspected) {
+    // Canvas blocked: trust the Edge Function / AI vision hint instead.
+    if (hint?.bannerOnFirst && typeof hint.bestCoverIndex === "number" && hint.bestCoverIndex > 0 && photos[hint.bestCoverIndex]) {
+      return [photos[hint.bestCoverIndex], ...photos.filter((_, index) => index !== hint.bestCoverIndex!)];
+    }
+    return photos;
+  }
+
+  // Same angle twice (one copy often carries the white dealer banner): keep one.
+  const keep: boolean[] = signatures.map(() => true);
+  for (let i = 0; i < signatures.length; i++) {
+    if (!keep[i]) continue;
+    for (let j = i + 1; j < signatures.length; j++) {
+      if (!keep[j]) continue;
+      const a = signatures[i], b = signatures[j];
+      if (a.width === b.width && a.height === b.height && hammingDistance(a.hash, b.hash) <= 8) {
+        keep[a.banner && !b.banner ? i : j] = false;
+      }
+    }
+  }
+  const keptIndices = [...Array(scan).keys()].filter(index => keep[index]);
+  const bannerIndices = keptIndices.filter(index => signatures[index].banner);
+  if (!bannerIndices.length) {
+    // Client canvas found no white banner; still honor the server hint when the
+    // hinted photo survived dedupe, without resurrecting dropped duplicates.
+    const hintIndex = typeof hint?.bestCoverIndex === "number" && hint.bestCoverIndex > 0 && hint.bestCoverIndex < scan
+      ? hint.bestCoverIndex : -1;
+    if (hint?.bannerOnFirst && hintIndex >= 0 && keep[hintIndex]) {
+      return [photos[hintIndex], ...keptIndices.filter(index => index !== hintIndex).map(index => photos[index]), ...photos.slice(scan)];
+    }
+    return keptIndices.length === scan ? photos : [...keptIndices.map(index => photos[index]), ...photos.slice(scan)];
+  }
+  // Clean photos first (original order), banner photos moved behind the cover.
+  const cleanIndices = keptIndices.filter(index => !signatures[index].banner);
+  const order = cleanIndices.length ? [...cleanIndices, ...bannerIndices] : keptIndices;
+  return [...order.map(index => photos[index]), ...photos.slice(scan)];
 }
 
 export async function analyzeListingPhotos(photos: { src: string; name?: string }[], description: string, signal: AbortSignal): Promise<ListingAnalysis> {

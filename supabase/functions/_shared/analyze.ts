@@ -82,6 +82,30 @@ export function deterministicAnalysis(input: AnalysisInput): Analysis {
     : /\b(?:kabriolet|cabrio|roadster)\b/.test(lower) ? "Cabrio / Roadster"
     : /\b(?:limuzina|sedan|limousine)\b/.test(lower) ? "Limuzina" : undefined;
 
+  // Exterior color: prefer labeled attributes ("Boja: Bijela"), then a "boja <color>"
+  // phrase in the description. Bare color words are never trusted ("crno nebo").
+  const CANONICAL_COLORS: Array<[RegExp, string]> = [
+    [/\btamno\s*plav\w*\b/i, "Tamno plava"],
+    [/\bbijel\w*\b/i, "Bijela"],
+    [/\bcrn\w*\b/i, "Crna"],
+    [/\bsrebrn\w*\b/i, "Srebrna"],
+    [/\bsiv\w*\b/i, "Siva"],
+    [/\bplav\w*\b/i, "Plava"],
+    [/\bcrven\w*\b/i, "Crvena"],
+    [/\bzelen\w*\b/i, "Zelena"],
+    [/\bžut\w*\b/i, "Žuta"],
+    [/\bnaran[cč]ast\w*\b/i, "Narančasta"],
+    [/\bsmeđ\w*\b/i, "Smeđa / Bež"],
+    [/\bbež\b/i, "Smeđa / Bež"],
+  ];
+  const colorLabeled = labeled("Boja", "Boja vozila", "Vanjska boja", "color");
+  let color: string | undefined;
+  if (colorLabeled) color = CANONICAL_COLORS.find(([pattern]) => pattern.test(colorLabeled))?.[1];
+  if (!color) {
+    const described = text.match(/\bboj\w*(?:\s+(?:vozila|vanjska))?\s*[:=]?\s*(bijel\w*|crn\w*|siv\w*|srebrn\w*|tamno\s*plav\w*|plav\w*|crven\w*|zelen\w*|žut\w*|naran[čc]ast\w*|narandžast\w*|smeđ\w*|bež)\b/i);
+    if (described) color = CANONICAL_COLORS.find(([pattern]) => pattern.test(described[1]))?.[1];
+  }
+
   const equipmentPatterns: Array<[RegExp, string]> = [
     [/\bm\s*sport\b/, "M Sport paket"], [/\b(?:led|xenon)\b/, "LED svjetla"],
     [/\b(?:head.?up|hud)\b/, "Head-Up Display"], [/\b(?:kamera(?: za vožnju unatrag)?|360°?)\b/, "Kamera za vožnju unatrag"],
@@ -101,7 +125,7 @@ export function deterministicAnalysis(input: AnalysisInput): Analysis {
     if (clean > 0) bestCoverIndex = clean;
   }
 
-  return { year, km, kw, cc, cylinders, price, fuel, gear, bodyType, equipment, bestCoverIndex, bannerOnFirst, source: "text" };
+  return { year, km, kw, cc, cylinders, price, color, fuel, gear, bodyType, equipment, bestCoverIndex, bannerOnFirst, source: "text" };
 }
 
 function visionEndpoint(env: Record<string, string | undefined>) {

@@ -210,7 +210,7 @@ Deno.serve(async request => {
     let bestCoverIndex: number | undefined;
     if (photos.length > 1) {
       try {
-        const analysis = await analyzeListing({ imageUrls: photos.slice(0, 6).map(photo => photo.src), rawText: String(parsed.vehicle.description ?? "") }, env());
+        const analysis = await analyzeListing({ imageUrls: photos.slice(0, 8).map(photo => photo.src), rawText: String(parsed.vehicle.description ?? "") }, env());
         bannerOnFirst = Boolean(analysis.bannerOnFirst);
         bestCoverIndex = analysis.bestCoverIndex;
         if (bannerOnFirst && typeof bestCoverIndex === "number" && bestCoverIndex > 0 && photos[bestCoverIndex]) {
