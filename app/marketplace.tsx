@@ -5,7 +5,7 @@ import { Navbar } from "../src/components/Navbar";
 import { ListingPhoto } from "../src/components/ListingPhoto";
 import { BrandLogo } from "../src/components/BrandLogo";
 import { AdSlot } from "../src/components/AdSlot";
-import { ArrowDown, ArrowRight, Bike, Car, Caravan, Truck, Zap, Check, Leaf, Grid2X2, List, Navigation, RotateCcw, Search as SearchIcon, SlidersHorizontal, X } from "lucide-react";
+import { ArrowDown, ArrowRight, Bike, Car, Caravan, Truck, Zap, Check, Leaf, Grid2X2, List, Navigation, Pause, Play, RotateCcw, Search as SearchIcon, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { SEO_CITIES, TOP_FOOTER_BRANDS, slugifyHr, vehicleIdFromPath, vehicleListingPath } from "../src/lib/seo";
@@ -310,6 +310,7 @@ function FilterControls({ search, count, update, apply, compact = false }: {
         make:search.marka, model:search.model, generation:search.generacija, catalogEquipment:search.oprema,
       }} onChange={oprema => update({...search,oprema:[...search.oprema.filter(id => !id.startsWith("eq:")), ...oprema.filter(id => id.startsWith("eq:"))]})}/>}
       <ListingOptions selected={search.opcije} onChange={opcije => update({ ...search, opcije })} />
+      {!compact && <LeasingEstimate />}
     </div>
     <ActiveFilters search={search} update={update} />
     <div className="search-actions">
@@ -505,21 +506,68 @@ function HeroSearch({ search, count, activeCount, update, onSubmit, onQuery }: {
   );
 }
 
-function PromoBanner() {
+function PartnerStrip() {
+  const affiliateUrl = process.env.NEXT_PUBLIC_CARVERTICAL_AFFILIATE_URL?.trim();
   return (
-    <section className="shell marketplace-home seller-promo" aria-labelledby="seller-promo-title">
-      <div className="promo-banner">
-        <img src="/cars/porsche-macan-1.webp" alt="" loading="lazy" decoding="async" />
-        <div className="promo-banner-copy">
-          <span className="promo-banner-tag">AUTOPLAC B2B &amp; PRIVATNO</span>
-          <h2 id="seller-promo-title">Prodajete auto ili vodite autokuću?</h2>
-          <p>Besplatna objava za privatne osobe · Automatski uvoz lagera i A4 cjenik za staklo za salone</p>
-        </div>
-        <div className="promo-banner-actions">
-          <a className="btn primary" href="/predaj-oglas">+ Predaj oglas 0 €</a>
+    <section className="shell partner-strip" aria-label="Objava oglasa i provjera povijesti vozila">
+      <section className="partner-strip-cell" aria-labelledby="dealer-partner-title">
+        <h2 id="dealer-partner-title">Za autokuće i privatne prodavatelje</h2>
+        <p>Automatski uvoz lagera i A4 cjenik za staklo</p>
+        <div className="partner-strip-actions">
           <a className="btn secondary" href="/autokuce">Za autokuće <ArrowRight size={15} aria-hidden="true" /></a>
+          <a className="btn quiet" href="/predaj-oglas">Predaj oglas · 0 €</a>
         </div>
+      </section>
+      <section className="partner-strip-cell" aria-labelledby="vin-partner-title">
+        <div className="partner-strip-heading">
+          <h2 id="vin-partner-title">
+            <ShieldCheck size={19} aria-hidden="true" />
+            <span className="partner-wordmark" role="img" aria-label="carVertical" />
+          </h2>
+          <span className="partner-strip-tag">Službeni partner · -20% popusta</span>
+        </div>
+        <form className="partner-vin-form" action="https://www.carvertical.com/hr/precheck" method="get" target="_blank" rel="noopener noreferrer"
+          onSubmit={event => {
+            const vin = String(new FormData(event.currentTarget).get("vin")).toUpperCase();
+            const url = new URL(affiliateUrl || event.currentTarget.action, event.currentTarget.action);
+            url.searchParams.set("vin", vin);
+            event.preventDefault();
+            window.open(url.toString(), "_blank", "noopener,noreferrer");
+          }}>
+          <input type="text" name="vin" aria-label="Broj šasije (VIN)"
+            placeholder="Unesite 17-znamenkasti broj šasije (VIN)..."
+            title="Unesite 17 slova ili znamenki. Slova I, O i Q nisu dopuštena."
+            autoComplete="off" autoCapitalize="characters" spellCheck={false}
+            minLength={17} maxLength={17} pattern="[A-HJ-NPR-Za-hj-npr-z0-9]{17}" required />
+          <button type="submit" className="btn primary">Provjeri povijest <ArrowRight size={15} aria-hidden="true" /></button>
+        </form>
+      </section>
+    </section>
+  );
+}
+
+function LeasingEstimate() {
+  const [price, setPrice] = useState(15000);
+  return (
+    <section className="leasing-estimate" aria-label="Financiranje i B2B">
+      <p className="leasing-label">Financiranje i B2B</p>
+      <h2>Brzi izračun rate leasinga</h2>
+      <div className="leasing-presets" role="group" aria-label="Cijena vozila">
+        {[15000, 20000].map(amount => (
+          <button key={amount} type="button" aria-pressed={price === amount} onClick={() => setPrice(amount)}>
+            {euro(amount)}
+          </button>
+        ))}
       </div>
+      <div className="leasing-rate" aria-live="polite">
+        <strong>{euro(price * 0.8 / 60, true)} / mj.</strong>
+        <span>60 mj. · 20% učešća</span>
+      </div>
+      <p className="leasing-note">Glavnica bez kamata i naknada</p>
+      <ul className="leasing-partners" aria-label="Leasing kuće">
+        {["OTP", "Erste", "Porsche Leasing"].map(partner => <li key={partner}>{partner}</li>)}
+      </ul>
+      <a href="/ppmv-kalkulator">Izračunaj PPMV <ArrowRight size={15} aria-hidden="true" /></a>
     </section>
   );
 }
@@ -601,37 +649,64 @@ function PopularBrandsStrip({
   selectedBrand: string;
   onSelectBrand: (brand: string) => void;
 }) {
+  const [paused, setPaused] = useState(false);
+  const railRef = useRef<HTMLDivElement>(null);
   return (
     <section className="home-section shell scroll-mt-20 overflow-visible" aria-labelledby="brands-title">
-      <div className="home-section-head">
-        <div>
-          <h2 id="brands-title">Popularne marke</h2>
+      <div className="home-section-head brand-rail-head">
+        <h2 id="brands-title">Popularne marke</h2>
+        <div className="brand-rail-controls">
+          <button type="button" className="brand-rail-toggle"
+            aria-label={paused ? "Pokreni pomicanje marki" : "Zaustavi pomicanje marki"}
+            onClick={() => {
+              if (paused && railRef.current) railRef.current.scrollLeft = 0;
+              setPaused(!paused);
+            }}>
+            {paused ? <Play size={16} aria-hidden="true" /> : <Pause size={16} aria-hidden="true" />}
+          </button>
+          <button type="button" className="brand-rail-all" aria-pressed={!selectedBrand} onClick={() => onSelectBrand("")}>
+            Sve marke <ArrowRight size={14} aria-hidden="true" />
+          </button>
         </div>
       </div>
-      <div className="brand-rail" role="group" aria-label="Filtriraj po marki">
-        {popularBrands.map(brand => {
-          const active = selectedBrand === brand;
-          return (
-            <button
-              key={brand}
-              type="button"
-              aria-pressed={active}
-              className={"brand-rail-item" + (active ? " active" : "")}
-              onClick={() => onSelectBrand(active ? "" : brand)}
-            >
-              <BrandLogo make={brand} size="sm" className="brand-rail-emblem" />
-              <span>{brand}</span>
-            </button>
-          );
-        })}
-        <button
-          type="button"
-          className="brand-rail-all"
-          aria-pressed={!selectedBrand}
-          onClick={() => onSelectBrand("")}
-        >
-          Sve marke <ArrowRight size={14} aria-hidden="true" />
-        </button>
+      <div className="brand-rail" data-paused={paused} role="group" aria-label="Filtriraj po marki" ref={railRef}
+        onFocus={event => {
+          if (!event.target.matches(":focus-visible")) return;
+          const rail = event.currentTarget;
+          const pill = event.target;
+          rail.scrollLeft = Math.min(Math.max(rail.scrollLeft, pill.offsetLeft + pill.offsetWidth + 12 - rail.clientWidth), pill.offsetLeft - 12);
+        }}
+        onBlur={event => {
+          if (!paused && !event.currentTarget.contains(event.relatedTarget) &&
+            !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            event.currentTarget.scrollLeft = 0;
+          }
+        }}>
+        <div className="brand-rail-track">
+          {[false, true].map(copy => (
+            <div className="brand-rail-group" key={String(copy)} aria-hidden={copy || undefined}>
+              {popularBrands.map(brand => {
+                const active = selectedBrand === brand;
+                return (
+                  <button
+                    key={brand}
+                    type="button"
+                    tabIndex={copy ? -1 : undefined}
+                    aria-pressed={copy ? undefined : active}
+                    onMouseDown={copy ? event => event.preventDefault() : undefined}
+                    className={"brand-rail-item" + (active ? " active" : "")}
+                    onClick={() => onSelectBrand(active ? "" : brand)}
+                  >
+                    <span className="brand-rail-pill">
+                      <BrandLogo make={brand} size="sm" className="brand-rail-emblem" />
+                      <span>{brand}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -1242,8 +1317,7 @@ export default function Marketplace({
               scrollResults();
             }}
           />
-          <PromoBanner />
-          <AdSlot placement="hero-leaderboard" routeKey={path + search.marka} />
+          <PartnerStrip />
         </>
       )}
       <main id="svi-oglasi" className="shell market">
@@ -1252,7 +1326,7 @@ export default function Marketplace({
             <h2 id="filter-title">Filteri</h2>
             <FilterControls search={search} count={results.length} update={update} apply={apply} compact />
           </aside>
-          <AdSlot placement="sidebar-square" routeKey={path + search.marka} onAction={() => setPanel("tax")} />
+          <LeasingEstimate />
         </div>
         <section className="results" id="vozila" aria-labelledby="results-title">
           {dealerProfile && <section className="detail-panel seller-card dealership-profile" aria-label="Profil autokuće">
