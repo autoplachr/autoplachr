@@ -1,5 +1,6 @@
 "use client";
 
+import { boostPlans, hasActiveBoost } from "./listing-boost";
 import { MonthYearField } from "./month-year-field";
 import { ArrowLeft, ArrowRight, Camera, Check, ImagePlus, Plus, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
@@ -63,8 +64,10 @@ const steps = ["Fotografije i AI prepoznavanje", "Tehnički podaci i oprema", "C
 
 const labelKey = (label: string) => normalizeLocation(label).replace(/[^a-z0-9]+/g, "");
 
-export default function PublishForm({ onClose, onPublish, existing, contact }: { onClose: () => void; onPublish: (v: Vehicle, status: ListingStatus) => Promise<void>; existing?: Vehicle & { status?: ListingStatus }; contact: { phone: string; email: string; city: string; postalCode?: string; county: string; name: string; type: string }; }) {
+export default function PublishForm({ onClose, onPublish, existing, contact }: { onClose: () => void; onPublish: (v: Vehicle, status: ListingStatus, requestBoost: boolean) => Promise<void>; existing?: Vehicle & { status?: ListingStatus }; contact: { phone: string; email: string; city: string; postalCode?: string; county: string; name: string; type: string }; }) {
   const [step, setStep] = useState(0);
+  const [requestBoost, setRequestBoost] = useState(false);
+  const listingId = useRef(existing?.id);
   const [locationRevision, setLocationRevision] = useState(0);
   const existingFuel: SpecFuel = existing?.fuel === "Struja" ? "Električni" : (existing?.fuel ?? "Dizel");
   const [values, setValues] = useState<Publish>({
@@ -425,10 +428,10 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
         email: sanitizeText(values.email, 254),
         phone: sanitizeText(values.phone, 40),
         equipment: sanitizedEquipment,
-        id: existing?.id ?? crypto.randomUUID(),
+        id: listingId.current ??= crypto.randomUUID(),
         demo: false,
         catalogEquipment: equipmentFor(vehicleForEquip).filter(item => values.catalogEquipment?.includes(item.id)).map(item => item.id),
-      }, action);
+      }, action, action === "active" && requestBoost);
     } catch (problem) { setError(problem instanceof Error ? problem.message : "Oglas nije spremljen."); }
     finally { setBusy(false); }
   }
@@ -843,6 +846,12 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
             <p className="fine-print">{contact.name} · {contact.phone}</p>
             <LocationFields key={locationRevision} initial={values} onChange={location => setValues(old => ({...old,...location}))}/>
           </div>
+          {existing?.status !== "sold" && (!existing || !hasActiveBoost(existing)) && (
+            <label className="publish-boost-option tabular">
+              <input type="checkbox" checked={requestBoost} onChange={event => setRequestBoost(event.target.checked)} />
+              <span>Istakni oglas u gornjem redu 7 dana ({euro(boostPlans.top_7d.price, true)} — {euro(0)} u promo periodu)</span>
+            </label>
+          )}
           <p className="fine-print">Objavom potvrđujete da su podaci o vozilu točni. Nacrt je vidljiv samo na vašem računu.</p>
         </>}
         {error && <p className="form-error" role="alert">{error}</p>}

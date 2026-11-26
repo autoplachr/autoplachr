@@ -67,6 +67,9 @@ function mapListingRow(row: Record<string, unknown>, profileRow?: Record<string,
     price: Number(row.price_eur) || 0,
     previousPriceEur: row.previous_price_eur ? Number(row.previous_price_eur) : undefined,
     date: `${year}-${month}`,
+    isBoosted: row.is_boosted === true,
+    boostTier: row.boost_tier === "boost_72h" || row.boost_tier === "top_7d" ? row.boost_tier : "none",
+    boostExpiresAt: typeof row.boost_expires_at === "string" ? row.boost_expires_at : null,
     listedAt: typeof row.created_at === "string" ? row.created_at : undefined,
     km: Number(row.mileage) || 0,
     kw: Number(row.power_kw) || 0,
@@ -99,7 +102,7 @@ function mapListingRow(row: Record<string, unknown>, profileRow?: Record<string,
     color: row.color ? String(row.color) : undefined,
     photos: rawImages.length ? rawImages : modelPhotos("bmw-g20").slice(0, 1),
     equipment: eq,
-    catalogEquipment: rawEquip.filter(x => x.startsWith("eq:")),
+    catalogEquipment: rawEquip.filter(x => typeof x === "string" && x.startsWith("eq:")),
     status: (String(row.status || "active") as ListingStatus),
     views: Number(row.views_count) || 0,
     reveals: 0,
@@ -551,6 +554,15 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
 
     const { error } = await supabase.from("listings").upsert(payload, { onConflict: "id" });
     if (error) throw new Error("Spremanje oglasa nije uspjelo.");
+    return { ok: true };
+  }
+
+  if (endpoint === "listing/boost") {
+    const { error } = await supabase.rpc("activate_listing_boost", { listing_id: data.id, tier: data.tier });
+    if (error) {
+      if (error.code === "PGRST202") throw new Error("Isticanje oglasa trenutačno nije dostupno.");
+      throw new Error(error.message);
+    }
     return { ok: true };
   }
 

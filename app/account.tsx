@@ -23,6 +23,8 @@ import {
   ShieldCheck,
   TrendingDown,
   UserRound,
+  X,
+  Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
@@ -42,6 +44,7 @@ import { importClassifieds, importedDealerVehicle } from "./classifieds-import";
 import { demoCredentials, localDemo } from "./local-demo";
 import { profileErrors, type FieldErrors } from "../src/data/profile-validation";
 import { euro, marketValuation, number, registered, type Vehicle } from "./catalog";
+import { boostPlans, hasActiveBoost, type PaidBoostTier } from "./listing-boost";
 import { LocationFields, HoursFields } from "./dealership-fields";
 import { AnalyticsOverview, emptyAnalytics, LeadInbox, TrialReport } from "./seller-analytics";
 import { WindshieldSheet } from "./windshield-sheet";
@@ -804,6 +807,12 @@ export function AccountPage({
 
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [boostNotice, setBoostNotice] = useState("");
+  useEffect(() => {
+    if (!boostNotice) return;
+    const timeout = window.setTimeout(() => setBoostNotice(""), 6000);
+    return () => window.clearTimeout(timeout);
+  }, [boostNotice]);
   const [error, setError] = useState("");
   const [confirm, setConfirm] = useState<Confirm>();
   const [profileIssues, setProfileIssues] = useState<FieldErrors>({});
@@ -864,9 +873,13 @@ export function AccountPage({
     setProfileIssues({});
     try {
       await api(endpoint, data);
+      if (endpoint === "listing/boost") {
+        setBoostNotice(success);
+        setConfirm(undefined);
+      }
       await refresh();
       if (endpoint === "moderation") setReports(await api<Report[]>("moderation"));
-      setMessage(success);
+      if (endpoint !== "listing/boost") setMessage(success);
       setConfirm(undefined);
     } catch (problem) {
       const fields = (problem as { fields?: FieldErrors }).fields;
@@ -981,6 +994,11 @@ export function AccountPage({
       setBusy(false);
     }
   }
+  function openBoost(listing: OwnedListing) {
+    setError("");
+    setConfirm({ kind: "boost", listing });
+  }
+
   function changeStatus(listing: OwnedListing, status: ListingStatus) {
     return mutate("listing/save", { vehicle: listing, status }, "Status oglasa je ažuriran.");
   }
@@ -1150,6 +1168,9 @@ export function AccountPage({
         )}
       </nav>
 
+      {boostNotice && <div className="toast" role="status"><Check size={17} aria-hidden="true" />{boostNotice}
+        <button type="button" className="icon-btn listing-boost-action" aria-label="Zatvori obavijest" onClick={() => setBoostNotice("")}><X size={15} aria-hidden="true" /></button>
+      </div>}
       {message && (
         <p className="calculation !m-0" role="status">
           {message}
@@ -1163,7 +1184,7 @@ export function AccountPage({
 
       {analyticsError && (tab === "pregled" || tab === "poruke" || tab === "b2b") && <p className="form-error" role="alert">{analyticsError}</p>}
       {tab === "pregled" && <AnalyticsOverview data={analytics} account={account} open={openAnalyticsListing}
-        onEdit={onPublish} onSheet={setSheet} onPause={listing => void changeStatus(listing, "paused")}
+        onEdit={onPublish} onSheet={setSheet} onBoost={openBoost} onPause={listing => void changeStatus(listing, "paused")}
         onDelete={listing => setConfirm({ kind: "delete-listing", listing })} onManage={() => setTab("oglasi")} />}
       {sheet && <WindshieldSheet vehicle={sheet} phone={account.profile.phone} onClose={() => setSheet(undefined)} />}
 
@@ -1318,9 +1339,9 @@ export function AccountPage({
                       <div className="flex flex-wrap items-center gap-3 text-[12px] text-[var(--muted)] tabular-nums">
                         <span>👁 {listing.views} pregleda</span>
                         <span>💬 {listing.inquiriesCount ?? 0} upita</span>
-                        {listing.status === "active" && (listing.boostedUntil ?? 0) > Date.now() / 1000 && (
-                          <span className="text-[#2563EB] font-semibold">
-                            Istaknut do {new Date(listing.boostedUntil! * 1000).toLocaleDateString("hr-HR")}
+                        {listing.status === "active" && hasActiveBoost(listing) && (
+                          <span className="font-semibold">
+                            Istaknuto{listing.boostExpiresAt ? " do " + new Date(listing.boostExpiresAt).toLocaleDateString("hr-HR", { timeZone: "Europe/Zagreb" }) : ""}
                           </span>
                         )}
                       </div>
@@ -1341,6 +1362,11 @@ export function AccountPage({
                       <button type="button" className="btn secondary text-[12.5px]" onClick={() => onPublish(listing)}>
                         Uredi oglas
                       </button>
+                      {listing.status === "active" && (
+                        <button className="btn secondary listing-boost-action" type="button" disabled={busy} onClick={() => openBoost(listing)}>
+                          <Zap size={15} aria-hidden="true" /> Istakni oglas
+                        </button>
+                      )}
                       {listing.status === "active" && (
                         <button
                           type="button"
@@ -2021,38 +2047,46 @@ export function AccountPage({
         />
       )}
 
-      {confirm && (
-        <Dialog
-          title={
-            confirm.kind === "delete-account"
-              ? "Trajno brisanje računa"
-              : confirm.kind === "boost"
-              ? "Istakni oglas"
-              : "Obriši oglas"
-          }
-          variant="form-dialog"
-          onClose={() => setConfirm(undefined)}
-        >
+      {confirm?.kind === "boost" && (
+        <Dialog title="Istakni oglas" variant="form-dialog" onClose={() => setConfirm(undefined)}>
+          <div className="dialog-content form-stack">
+            <p className="font-semibold">{confirm.listing.title}</p>
+            {hasActiveBoost(confirm.listing) ? <p>Oglas već ima aktivno isticanje.</p> : (
+              <>
+                <p>Promo aktivacija je besplatna. Naplate nema.</p>
+                <div className="listing-boost-plans">
+                  {(Object.entries(boostPlans) as [PaidBoostTier, (typeof boostPlans)[PaidBoostTier]][]).map(([tier, plan]) => (
+                    <section key={tier} className="listing-boost-plan">
+                      <h3 className="tabular">{plan.name} · <s>{euro(plan.price, true)}</s> <strong>{euro(0)}</strong></h3>
+                      <p>{plan.description}</p>
+                      <button className="btn secondary listing-boost-action" type="button" disabled={busy} onClick={() =>
+                        void mutate("listing/boost", { id: confirm.listing.id, tier }, "Isticanje je aktivirano · " + plan.name + ".")}>
+                        Aktiviraj · {plan.name}
+                      </button>
+                    </section>
+                  ))}
+                </div>
+              </>
+            )}
+            {error && <p className="form-error" role="alert">{error}</p>}
+          </div>
+        </Dialog>
+      )}
+
+      {confirm && confirm.kind !== "boost" && (
+        <Dialog title={confirm.kind === "delete-account" ? "Trajno brisanje računa" : "Obriši oglas"}
+          variant="form-dialog" onClose={() => setConfirm(undefined)}>
           <form
             className="dialog-content form-stack"
             onSubmit={event => {
               event.preventDefault();
               if (confirm.kind === "delete-account") void mutate("account/delete", formData(event), "Račun je obrisan.");
-              else
-                void mutate(
-                  confirm.kind === "boost" ? "listing/boost" : "listing/delete",
-                  { id: confirm.listing.id },
-                  confirm.kind === "boost" ? "Ogledno isticanje aktivno je 7 dana." : "Oglas je obrisan.",
-                );
+              else void mutate("listing/delete", { id: confirm.listing.id }, "Oglas je obrisan.");
             }}
           >
-            <p>
-              {confirm.kind === "delete-account"
-                ? "Račun, svi vaši oglasi i spremljena vozila bit će trajno obrisani."
-                : confirm.kind === "boost"
-                ? "Isticanje traje 7 dana. Ovo je ogledna aktivacija usluge od 6 €. Naplate nema."
-                : "Oglas će biti trajno uklonjen iz vašeg računa."}
-            </p>
+            <p>{confirm.kind === "delete-account"
+              ? "Račun, svi vaši oglasi i spremljena vozila bit će trajno obrisani."
+              : "Oglas će biti trajno uklonjen iz vašeg računa."}</p>
             {confirm.kind === "delete-account" && (
               <label className="field">
                 <span>Potvrdite lozinku</span>
@@ -2069,7 +2103,7 @@ export function AccountPage({
                 Odustani
               </button>
               <button className="btn primary" disabled={busy}>
-                {confirm.kind === "boost" ? "Aktiviraj ogledno isticanje" : "Trajno obriši"}
+                Trajno obriši
               </button>
             </div>
           </form>

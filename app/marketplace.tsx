@@ -5,7 +5,7 @@ import { Navbar } from "../src/components/Navbar";
 import { ListingPhoto } from "../src/components/ListingPhoto";
 import { BrandLogo } from "../src/components/BrandLogo";
 import { AdSlot } from "../src/components/AdSlot";
-import { ArrowDown, ArrowRight, Bike, Car, Caravan, Truck, Zap, Check, Leaf, Grid2X2, List, Navigation, Pause, Play, RotateCcw, Search as SearchIcon, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
+import { ArrowDown, ArrowRight, Bike, Car, Caravan, ChevronLeft, ChevronRight, Truck, Zap, Check, Leaf, Grid2X2, List, Navigation, Pause, Play, RotateCcw, Search as SearchIcon, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { SEO_CITIES, TOP_FOOTER_BRANDS, slugifyHr, vehicleIdFromPath, vehicleListingPath } from "../src/lib/seo";
@@ -31,6 +31,7 @@ import { CookieConsent, LegalPage, ReportDialog, legalLinks, type LegalPath } fr
 import { dealershipHoursToday } from "../src/data/working-hours";
 import { croatianCounties } from "../src/data/croatia-locations";
 import { EquipmentSelector } from "./equipment-selector";
+import { getTopFeaturedListings, hasActiveBoost } from "./listing-boost";
 
 type Panel = "filters" | "publish" | "tax" | null;
 const storageKeys = { saved: "autoplac.saved", inventory: "autoplac.inventory" };
@@ -595,46 +596,105 @@ function DiscoveryBar({ search, onApply }: { search: Search; onApply: (next: Sea
   );
 }
 
-function RecommendedStrip({
+function FeaturedListingsRail({
   vehicles: allList,
+  now,
   savedIds,
   onOpen,
   onSave,
   onShowAll,
 }: {
   vehicles: Vehicle[];
+  now: number;
   savedIds: string[];
   onOpen: (event: MouseEvent<HTMLAnchorElement>, id: string) => void;
   onSave: (id: string) => void;
   onShowAll: () => void;
 }) {
-  const recommended = useMemo(() => {
-    return allList
-      .map(vehicle => {
-        const val = marketValuation(vehicle);
-        const tierScore = val.rating.rank === 0 ? 40 : val.rating.rank === 1 ? 26 : val.rating.rank === 2 ? 10 : 0;
-        const trustScore = (vehicle.flags.includes("cvh") ? 12 : 0) + (vehicle.verified ? 10 : 0) + (vehicle.flags.includes("pdv") ? 4 : 0);
-        const dealBonus = Math.max(-10, Math.min(20, -val.deltaPercent));
-        return { vehicle, val, score: tierScore + trustScore + dealBonus };
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 8);
-  }, [allList]);
+  const railRef = useRef<HTMLDivElement>(null);
+  const interaction = useRef({ hover: false, touch: false, resumeAt: 0, autoUntil: 0 });
+  const [paused, setPaused] = useState(false);
+  const featured = useMemo(() => getTopFeaturedListings(allList, now), [allList, now]);
 
-  if (!recommended.length) return null;
+  function stepRail(direction: -1 | 1, automatic = false) {
+    const rail = railRef.current;
+    const first = rail?.children[0] as HTMLElement | undefined;
+    const second = rail?.children[1] as HTMLElement | undefined;
+    if (!rail || !first || !second) return;
+    const max = rail.scrollWidth - rail.clientWidth;
+    if (max < 2) return;
+    const stride = second.offsetLeft - first.offsetLeft;
+    const wrap = direction === 1 ? rail.scrollLeft >= max - 1 : rail.scrollLeft <= 1;
+    const left = wrap ? (direction === 1 ? 0 : max)
+      : Math.max(0, Math.min(max, (Math.round(rail.scrollLeft / stride) + direction) * stride));
+    const smooth = !wrap && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (automatic) interaction.current.autoUntil = performance.now() + 700;
+    rail.scrollTo({ left, behavior: smooth ? "smooth" : "instant" });
+  }
+
+  function stopAutoScroll() {
+    const rail = railRef.current;
+    const state = interaction.current;
+    const time = performance.now();
+    if (rail && time < state.autoUntil) rail.scrollTo({ left: rail.scrollLeft, behavior: "instant" });
+    state.autoUntil = 0;
+    state.resumeAt = time + 4500;
+  }
+
+  useEffect(() => {
+    if (paused || featured.length <= 1) return;
+    const interval = window.setInterval(() => {
+      const rail = railRef.current;
+      const state = interaction.current;
+      if (document.hidden || state.hover || state.touch || state.resumeAt > performance.now()
+        || rail?.parentElement?.contains(document.activeElement)
+        || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      stepRail(1, true);
+    }, 4500);
+    return () => window.clearInterval(interval);
+  }, [paused, featured.length]);
+
+  if (!featured.length) return null;
 
   return (
-    <section className="home-section home-section-first shell marketplace-home scroll-mt-20 overflow-visible mt-5" aria-labelledby="recommended-title">
-      <div className="home-section-head">
-        <h2 id="recommended-title">Top <span className="opportunity-pill">PRILIKE</span> za vas</h2>
-        <button type="button" className="text-link home-more-link" onClick={onShowAll}>
-          Prikaži sve oglase (<span className="tabular">{allList.length}</span>) <ArrowDown size={15} aria-hidden="true" />
-        </button>
+    <section className="home-section home-section-first shell marketplace-home featured-section scroll-mt-20 mt-5" aria-labelledby="featured-title"
+      onMouseEnter={() => { interaction.current.hover = true; stopAutoScroll(); }}
+      onMouseLeave={() => { interaction.current.hover = false; }}
+      onFocus={stopAutoScroll}>
+      <div className="home-section-head featured-heading">
+        <div>
+          <h2 id="featured-title">Izdvojene ponude</h2>
+          <p>Boostani i najpovoljniji oglasi na tržištu</p>
+        </div>
+        <div className="featured-controls">
+          <button type="button" className="featured-motion-toggle" aria-label="Pauziraj automatsko pomicanje" aria-pressed={paused}
+            onClick={() => { stopAutoScroll(); setPaused(!paused); }}>
+            {paused ? <Play size={16} aria-hidden="true" /> : <Pause size={16} aria-hidden="true" />}
+          </button>
+          <button type="button" aria-label="Prethodna ponuda" aria-controls="featured-rail" onClick={() => stepRail(-1)}>
+            <ChevronLeft size={19} aria-hidden="true" />
+          </button>
+          <button type="button" aria-label="Sljedeća ponuda" aria-controls="featured-rail" onClick={() => stepRail(1)}>
+            <ChevronRight size={19} aria-hidden="true" />
+          </button>
+          <a href="#svi-oglasi" className="text-link home-more-link" onClick={event => {
+            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            onShowAll();
+          }}>Prikaži sve oglase (<span className="tabular">{number(allList.length)}</span>) <ArrowDown size={15} aria-hidden="true" /></a>
+        </div>
       </div>
-
-      <div className="recommended-grid overflow-visible">
-        {recommended.map(({ vehicle, val }, index) => (
-          <Listing key={vehicle.id} vehicle={vehicle} valuation={val} saved={savedIds.includes(vehicle.id)}
+      <div id="featured-rail" ref={railRef} className="featured-rail"
+        onWheel={stopAutoScroll}
+        onPointerDown={stopAutoScroll}
+        onTouchStart={() => { interaction.current.touch = true; stopAutoScroll(); }}
+        onTouchEnd={() => { interaction.current.touch = false; stopAutoScroll(); }}
+        onTouchCancel={() => { interaction.current.touch = false; stopAutoScroll(); }}
+        onScroll={() => {
+          if (performance.now() >= interaction.current.autoUntil) interaction.current.resumeAt = performance.now() + 4500;
+        }}>
+        {featured.map(({ vehicle, valuation }, index) => (
+          <Listing key={vehicle.id} vehicle={vehicle} valuation={valuation} now={now} saved={savedIds.includes(vehicle.id)}
             onSave={() => onSave(vehicle.id)} eager={index < 4} onOpen={event => onOpen(event, vehicle.id)} />
         ))}
       </div>
@@ -722,7 +782,7 @@ function scrollToTop() {
   document.body.scrollTop = 0;
 }
 
-function Listing({ vehicle, saved, onOpen, onSave, eager, horizontal = false, valuation = marketValuation(vehicle) }: {
+function Listing({ vehicle, saved, onOpen, onSave, eager, horizontal = false, valuation = marketValuation(vehicle), now = Date.now() }: {
   vehicle: Vehicle;
   saved: boolean;
   onOpen: (event: MouseEvent<HTMLAnchorElement>) => void;
@@ -730,13 +790,15 @@ function Listing({ vehicle, saved, onOpen, onSave, eager, horizontal = false, va
   eager: boolean;
   horizontal?: boolean;
   valuation?: ReturnType<typeof marketValuation>;
+  now?: number;
 }) {
   const href = listingUrl(vehicle.id);
   const oldPrice = vehicle.previousPriceEur;
   const gear = vehicle.gear === "Automatski" ? "Automatik" : vehicle.gear;
   const specs = [registered(vehicle.date), number(vehicle.km) + " km", power(vehicle.kw), gear, vehicle.fuel];
   const seller = [vehicle.city, vehicle.seller || (vehicle.dealer ? "Autokuća" : "Privatni prodavač")].filter(Boolean).join(" • ");
-  const highlighted = Boolean(vehicle.isFeatured) || (vehicle.boostedUntil ?? 0) > Date.now() / 1000;
+  const boosted = hasActiveBoost(vehicle, now);
+  const highlighted = boosted || vehicle.isFeatured;
   const photo = <ListingPhoto className="vehicle-card-media" vehicle={vehicle} saved={saved} onSave={onSave}
     eager={eager} compact href={href} onOpen={onOpen} />;
   const title = <h3 className="vehicle-card-title">
@@ -770,7 +832,7 @@ function Listing({ vehicle, saved, onOpen, onSave, eager, horizontal = false, va
         <div>
           <div className="vehicle-list-title">
             {title}
-            {highlighted && <span className="vehicle-card-featured">Istaknuti oglas</span>}
+            {highlighted && <span className="vehicle-card-featured" data-boosted={boosted}>{boosted ? "ISTAKNUTO" : "Istaknuti oglas"}</span>}
           </div>
           <p className="vehicle-list-specs tabular">{specs.join(" • ")}</p>
           {(equipment || trust) && <div className="vehicle-list-metadata tabular">
@@ -820,7 +882,7 @@ function Listing({ vehicle, saved, onOpen, onSave, eager, horizontal = false, va
       </div>
       <footer className="vehicle-card-seller">
         {sellerLine}
-        {highlighted && <span className="vehicle-card-featured">Istaknuti oglas</span>}
+        {highlighted && <span className="vehicle-card-featured" data-boosted={boosted}>{boosted ? "ISTAKNUTO" : "Istaknuti oglas"}</span>}
       </footer>
     </div>
   </article>;
@@ -1054,6 +1116,18 @@ export default function Marketplace({
     }
     return [...unique.values()];
   }, [remote, published]);
+  const [boostClock, setBoostClock] = useState(0);
+  useEffect(() => {
+    const now = Date.now();
+    if (!boostClock) setBoostClock(now);
+    const expiry = allVehicles.reduce((next, vehicle) => {
+      const end = vehicle.boostExpiresAt ? Date.parse(vehicle.boostExpiresAt) : (vehicle.boostedUntil ?? 0) * 1000;
+      return end > boostClock && end < next ? end : next;
+    }, Infinity);
+    if (!Number.isFinite(expiry)) return;
+    const timeout = window.setTimeout(() => setBoostClock(Date.now()), Math.max(0, Math.min(expiry - now, 2147483647)));
+    return () => window.clearTimeout(timeout);
+  }, [allVehicles, boostClock]);
   const savedIds = account ? account.favorites.map(item => item.id) : saved;
   const dealerProfile = dealerId && allVehicles.find(vehicle => vehicle.dealershipId === dealerId);
   const dealerMakes = dealerId ? [...new Set(allVehicles.filter(vehicle => vehicle.dealershipId === dealerId).map(vehicle => vehicle.make))] : [];
@@ -1101,7 +1175,7 @@ export default function Marketplace({
   }
   const goToResults = () => { if (detailId) backToResults(); };
   const inventory = useMemo(() => allVehicles.filter(v => (!savedOnly || savedIds.includes(v.id)) && (!dealerOnly || v.dealer) && (!dealerId || v.dealershipId === dealerId)), [allVehicles, savedIds, savedOnly, dealerOnly, dealerId]);
-  const results = useMemo(() => matchVehicles(inventory, search), [inventory, search]);
+  const results = useMemo(() => matchVehicles(inventory, search, boostClock), [inventory, search, boostClock]);
   const savedCount = allVehicles.filter(v => savedIds.includes(v.id)).length;
   const activeCount = searchFilterCount(search);
   const update = (next: Search) => { setSearch(next); writeSearch(next); };
@@ -1162,11 +1236,24 @@ export default function Marketplace({
     }
     setEditing(listing);setPanel("publish");
   }
-  async function publish(vehicle: Vehicle, status: ListingStatus) {
+  async function publish(vehicle: Vehicle, status: ListingStatus, requestBoost: boolean) {
     await api("listing/save",{vehicle,status});
-    await refresh();
+    let message = status === "active" ? "Oglas je objavljen." : "Oglas je spremljen.";
+    if (requestBoost && status === "active") {
+      try {
+        await api("listing/boost", { id: vehicle.id, tier: "top_7d" });
+        message = "Oglas je objavljen i istaknut na 7 dana.";
+      } catch {
+        message = "Oglas je objavljen. Isticanje nije aktivirano. Pokušajte ponovno u Mojem računu.";
+      }
+    }
+    try {
+      await refresh();
+    } catch {
+      message += " Osvježite stranicu za prikaz najnovijeg statusa.";
+    }
     setPanel(null);setEditing(undefined);setPublishAfterLogin(false);
-    setNotice(status === "active" ? "Oglas je objavljen." : "Oglas je spremljen.");
+    setNotice(message);
     if (path !== "/racun") navigate(status === "active" ? "/" : "/racun");
   }
   useEffect(() => {
@@ -1291,8 +1378,9 @@ export default function Marketplace({
               scrollResults();
             }}
           />
-          <RecommendedStrip
+          <FeaturedListingsRail
             vehicles={allVehicles}
+            now={boostClock}
             savedIds={savedIds}
             onOpen={openListing}
             onSave={id => void toggleSaved(id)}

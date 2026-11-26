@@ -895,9 +895,60 @@ html.dark .body-filter:has(input:checked) { color: #fff; }
 .home-more-link { font-size: 13.5px; font-weight: 680; color: var(--accent); }
 .home-more-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 
-.recommended-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
-@media (min-width: 600px) { .recommended-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 1024px) { .recommended-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.featured-section { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.featured-heading { align-items: center; gap: 4px 16px; }
+.featured-heading p { margin-top: 3px; color: var(--muted); font-size: 13px; }
+.featured-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.featured-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--module-border);
+  border-radius: 7px;
+  background: var(--module-surface);
+  color: var(--spec);
+}
+.featured-controls button:hover { background: var(--hover); color: var(--text); }
+.featured-controls .home-more-link { gap: 4px; padding-inline: 5px; white-space: nowrap; }
+.featured-rail {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 85%;
+  gap: 16px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  padding-block: 3px 6px;
+}
+.featured-rail > * { scroll-snap-align: start; }
+@media (min-width: 600px) {
+  .featured-rail { grid-auto-columns: calc(50% - 8px); }
+}
+@media (min-width: 1024px) {
+  .featured-rail { grid-auto-columns: calc(25% - 12px); }
+}
+:is(.featured-controls :is(button, a), .listing-boost-action, .publish-boost-option):focus-visible,
+.publish-boost-option:has(input:focus-visible) {
+  outline: 2px solid #2563EB;
+  outline-offset: 2px;
+}
+:is(.featured-controls :is(button, a), .listing-boost-action, .publish-boost-option):active { transform: scale(.98); }
+@media (prefers-reduced-motion: reduce) {
+  .featured-controls .featured-motion-toggle { display: none; }
+  :is(.featured-controls :is(button, a), .listing-boost-action, .publish-boost-option):active { transform: none; }
+}
+.listing-boost-action { min-height: 44px; }
+.listing-boost-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 8px; }
+.listing-boost-plan { display: grid; align-content: space-between; gap: 8px; padding: 12px; border: 1px solid var(--module-border); border-radius: 8px; background: var(--module-surface); }
+.listing-boost-plan h3 { font-size: 14px; font-weight: 720; }
+.listing-boost-plan s, .listing-boost-plan p { color: var(--muted); font-size: 13px; }
+.publish-boost-option { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 10px; border: 1px solid var(--module-border); border-radius: 8px; color: var(--spec); font-size: 13px; cursor: pointer; }
+.publish-boost-option input { width: 16px; height: 16px; flex: none; accent-color: var(--accent); }
+.vehicle-card-featured[data-boosted="true"] { padding: 1px 5px; border: 1px solid var(--catalog-border); border-radius: 4px; color: var(--spec); font-weight: 750; letter-spacing: .035em; }
 
 .rec-card {
   position: relative;

@@ -2,6 +2,7 @@ import { normalizePhone, profileErrors } from "../src/data/profile-validation";
 import { formatHours, presetHours, validHours } from "../src/data/working-hours";
 import type { Account, Conversation, LeadEvent, ListingLead, OwnedListing, Profile, SellerAnalytics } from "./account-api";
 import { modelPhotos, vehicles, type Vehicle } from "./catalog";
+import { boostPriority, hasActiveBoost } from "./listing-boost";
 
 type LocalAccount = Account & {
   salt: string;
@@ -322,8 +323,9 @@ export async function localApi(endpoint: string, input: object = {}): Promise<un
     return withInboxStats(account);
   }
   if (endpoint === "inventory") {
+    const now = Date.now();
     return owners()
-      .sort((a, b) => Number((b.item.boostedUntil ?? 0) > Date.now() / 1000) - Number((a.item.boostedUntil ?? 0) > Date.now() / 1000))
+      .sort((a, b) => boostPriority(b.item, now) - boostPriority(a.item, now))
       .map(({ item, owner }) => publicListing(item, owner));
   }
   if (endpoint === "view" || endpoint === "phone") {
@@ -537,7 +539,11 @@ export async function localApi(endpoint: string, input: object = {}): Promise<un
         dealershipId: account.profile.type === "dealer" ? account.id : undefined,
         views: old?.views ?? 14,
         reveals: old?.reveals ?? 1,
+        listedAt: old?.listedAt ?? new Date().toISOString(),
         boostedUntil: old?.boostedUntil,
+        isBoosted: old?.isBoosted,
+        boostTier: old?.boostTier,
+        boostExpiresAt: old?.boostExpiresAt,
         sellerAddress: address(account.profile),
         sellerHours: account.profile.hours,
         sellerWorkingHours: account.profile.workingHours,
@@ -551,10 +557,19 @@ export async function localApi(endpoint: string, input: object = {}): Promise<un
       account.listings = account.listings.filter(item => item.id !== data.id);
       state.leads = state.leads?.filter(item => item.sellerId !== account.id || item.listing_id !== data.id);
       break;
-    case "listing/boost":
+    case "listing/boost": {
       if (listing?.status !== "active") throw new Error("Samo aktivni oglasi mogu se istaknuti.");
-      listing.boostedUntil = Date.now() / 1000 + 604800;
+      const tier = data.tier;
+      if (tier !== "boost_72h" && tier !== "top_7d") throw new Error("Odaberite valjanu opciju isticanja.");
+      if (hasActiveBoost(listing)) {
+        if (listing.boostTier !== tier) throw new Error("Oglas već ima aktivno isticanje.");
+        break;
+      }
+      listing.isBoosted = true;
+      listing.boostTier = tier;
+      listing.boostExpiresAt = new Date(Date.now() + (tier === "top_7d" ? 7 : 3) * 86400000).toISOString();
       break;
+    }
     case "conversation/start": {
       const vehicleId = String(data.vehicleId ?? "");
       const vehicleTitle = String(data.vehicleTitle ?? "Vozilo");

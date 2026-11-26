@@ -1,5 +1,6 @@
 "use client";
 
+import { Zap } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { euro, number } from "./catalog";
 import { api, type Account, type ListingLead, type OwnedListing, type SellerAnalytics } from "./account-api";
@@ -18,9 +19,9 @@ function stamp(value: string) {
   return (day.format(date) === day.format(new Date()) ? "Danas" : day.format(date)) + " u " + time.format(date);
 }
 
-export function AnalyticsOverview({ data, account, open, onEdit, onSheet, onPause, onDelete, onManage }: {
+export function AnalyticsOverview({ data, account, open, onEdit, onSheet, onPause, onBoost, onDelete, onManage }: {
   data: SellerAnalytics; account: Account; open: (id: string) => void; onEdit: (listing: OwnedListing) => void;
-  onSheet: (listing: OwnedListing) => void; onPause: (listing: OwnedListing) => void; onDelete: (listing: OwnedListing) => void; onManage: () => void;
+  onSheet: (listing: OwnedListing) => void; onPause: (listing: OwnedListing) => void; onBoost: (listing: OwnedListing) => void; onDelete: (listing: OwnedListing) => void; onManage: () => void;
 }) {
   const { views, phone, whatsapp, messages } = totals(data);
   const listings = new Map(account.listings.map(item => [item.id, item]));
@@ -54,6 +55,9 @@ export function AnalyticsOverview({ data, account, open, onEdit, onSheet, onPaus
             <td>{number(metric?.whatsapp ?? 0)}</td><td>{number(metric?.messages ?? 0)}</td>
             <td>{conversion === null ? "—" : new Intl.NumberFormat("hr-HR", { maximumFractionDigits: 1 }).format(conversion) + " %"}</td>
             <td><div className="seller-table-actions">
+              <button className="btn secondary listing-boost-action" type="button" onClick={() => onBoost(listing)}>
+                <Zap size={15} aria-hidden="true" /> Istakni oglas
+              </button>
               <button className="btn secondary" type="button" onClick={() => onSheet(listing)}>A4 Cjenik za staklo</button>
               <button className="btn quiet" type="button" onClick={() => onEdit(listing)}>Uredi</button>
               <button className="btn quiet" type="button" onClick={() => onPause(listing)}>Pauziraj</button>

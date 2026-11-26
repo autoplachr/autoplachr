@@ -140,7 +140,13 @@ function profileFrom(body, type) {
 }
 
 function readListing(row) {
-  return { ...parse(row.vehicle), id: row.id, status: row.status, views: row.views, reveals: row.reveals, boostedUntil: row.boosted_until };
+  const vehicle = parse(row.vehicle);
+  return { ...vehicle, id: row.id, status: row.status, views: row.views, reveals: row.reveals,
+    listedAt: new Date(row.created * 1000).toISOString(), boostedUntil: row.boosted_until,
+    isBoosted: row.boosted_until != null,
+    boostTier: row.boosted_until == null ? "none" : vehicle.boostTier ?? "top_7d",
+    boostExpiresAt: row.boosted_until == null ? null : new Date(row.boosted_until * 1000).toISOString(),
+  };
 }
 
 function publicListing(row) {
@@ -226,6 +232,7 @@ async function saveListing(env, account, body) {
   const data = JSON.stringify(clean);
   requireValue(encoder.encode(data).length <= 1500000, "Fotografije su prevelike. Uklonite jednu ili više fotografija.");
   requireValue(existing || status !== "sold", "Najprije spremite oglas.");
+  const updatedVehicle = "CASE WHEN listing.boosted_until IS NULL THEN excluded.vehicle ELSE json_set(excluded.vehicle,'$.boostTier',COALESCE(json_extract(listing.vehicle,'$.boostTier'),'top_7d')) END";
   if (status === "active") {
     requireValue(!existing?.moderated, "Oglas je povučen odlukom moderatora.", 403);
     requireValue(account.verified || profile.type === "dealer", "Potvrdite telefon prije objave.", 403);
@@ -233,11 +240,11 @@ async function saveListing(env, account, body) {
     const ledger = stmt(env, "INSERT INTO publication SELECT ?,?,? WHERE ?='dealer' OR (SELECT COUNT(*) FROM publication WHERE account_id=? AND year=?)<2 ON CONFLICT(id) DO NOTHING", id, account.id, year, profile.type, account.id, year);
     const verifiedNow = "EXISTS (SELECT 1 FROM account WHERE id=? AND (verified=1 OR ?='dealer'))";
     const listing = stmt(env, "INSERT INTO listing(id,account_id,vehicle,status,created) SELECT ?,?,?,'active',? WHERE EXISTS (SELECT 1 FROM publication WHERE id=? AND account_id=?) AND " + verifiedNow +
-      " ON CONFLICT(id) DO UPDATE SET vehicle=excluded.vehicle,status='active' WHERE listing.account_id=excluded.account_id AND listing.moderated=0", id, account.id, data, now(), id, account.id, account.id, profile.type);
+      " ON CONFLICT(id) DO UPDATE SET vehicle=" + updatedVehicle + ",status='active' WHERE listing.account_id=excluded.account_id AND listing.moderated=0", id, account.id, data, now(), id, account.id, account.id, profile.type);
     const response = await env.DB.batch([ledger, listing]);
     requireValue(response[1].meta.changes, "Iskoristili ste dva besplatna oglasa za ovu kalendarsku godinu ili oglas nije moguće objaviti.", 409);
   } else {
-    await stmt(env, "INSERT INTO listing(id,account_id,vehicle,status,created) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET vehicle=excluded.vehicle,status=excluded.status WHERE listing.account_id=excluded.account_id", id, account.id, data, status, now()).run();
+    await stmt(env, "INSERT INTO listing(id,account_id,vehicle,status,created) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET vehicle=" + updatedVehicle + ",status=excluded.status WHERE listing.account_id=excluded.account_id", id, account.id, data, status, now()).run();
   }
 }
 
@@ -522,8 +529,18 @@ export async function api(request, env) {
         break;
       case "listing/boost": {
         requireValue(env.DEMO_BOOST !== "off", "Naplata isticanja trenutačno nije dostupna.", 503);
-        const result = await stmt(env, "UPDATE listing SET boosted_until=? WHERE id=? AND account_id=? AND status='active'", now()+7*day, value(body,"id",100), account.id).run();
-        requireValue(result.meta.changes, "Samo aktivni oglasi mogu se istaknuti.", 409);
+        const tier = body.tier;
+        requireValue(tier === "boost_72h" || tier === "top_7d", "Odaberite valjanu opciju isticanja.");
+        const at = now();
+        const id = value(body,"id",100);
+        const result = await stmt(env, "UPDATE listing SET boosted_until=?, vehicle=json_set(vehicle,'$.boostTier',?) WHERE id=? AND account_id=? AND status='active' AND (boosted_until IS NULL OR boosted_until<=?)",
+          at+(tier === "top_7d" ? 7 : 3)*day, tier, id, account.id, at).run();
+        if (!result.meta.changes) {
+          const listing = await stmt(env, "SELECT status, vehicle, boosted_until FROM listing WHERE id=? AND account_id=?", id, account.id).first();
+          requireValue(listing?.status === "active", "Samo aktivni oglasi mogu se istaknuti.", 409);
+          const activeTier = parse(listing.vehicle).boostTier ?? "top_7d";
+          requireValue(listing.boosted_until > at && activeTier === tier, "Oglas već ima aktivno isticanje.", 409);
+        }
         break;
       }
       case "favorite": {

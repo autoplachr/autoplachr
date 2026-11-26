@@ -1,3 +1,4 @@
+import { boostPriority } from "./listing-boost";
 import { croatianCounties, normalizeLocation } from "../src/data/croatia-locations";
 import { equipmentFor, equipmentId } from "../src/data/equipment-catalog";
 import { cities, countyByCity, flags, fuels, gears, marketValuation, type Flag, type Vehicle } from "./catalog";
@@ -348,7 +349,7 @@ export function matchesCollection(v: Vehicle, collection: CollectionId): boolean
       return Number(v.date.slice(0, 4)) >= 2022 || Boolean(v.isFeatured);
   }
 }
-export function matchVehicles(vehicles: Vehicle[], s: Search) {
+export function matchVehicles(vehicles: Vehicle[], s: Search, now = Date.now()) {
   const queryTerms = normalizeLocation(s.upit).split(/\s+/).filter(Boolean);
   const variantTerms = normalizeLocation(s.varijanta).split(/[^\p{L}\d]+/u).filter(Boolean);
   const selectedBodies = bodyFilters.filter(body => s.karoserija.includes(body.id));
@@ -404,8 +405,7 @@ export function matchVehicles(vehicles: Vehicle[], s: Search) {
         return va.rating.rank - vb.rating.rank || va.deltaPercent - vb.deltaPercent;
       });
     default: {
-      const nowSec = Date.now() / 1000;
-      const featuredRank = (v: Vehicle) => Number(Boolean(v.isFeatured) || (v.boostedUntil ?? 0) > nowSec);
+      const featuredRank = (v: Vehicle) => boostPriority(v, now) || Number(Boolean(v.isFeatured)) * 0.5;
       return matching.sort((a, b) => featuredRank(b) - featuredRank(a));
     }
   }

@@ -1,3 +1,4 @@
+import type { BoostTier } from "./listing-boost";
 import { evaluateVehiclePrice, type MarketValuationResult, type PriceRatingTier } from "../src/lib/price-engine";
 import type { WorkingHours } from "../src/data/working-hours";
 import { buildMockVehicles } from "../src/data/mock-vehicles";
@@ -88,7 +89,7 @@ export type Vehicle = {
   dealer: boolean; verified: boolean; phone: string; email?: string; flags: Flag[];
   doors?: number; seats?: number; cylinders?: number; color?: string; colorFinish?: string; registrationUntil?: string; ownership?: string;
   postalCode?: string; county?: string; sellerWorkingHours?: WorkingHours; dealershipId?: string; sellerAddress?: string; sellerHours?: string; sellerRating?: { score: number; reviews: number };
-  photos: Photo[]; photoCount?: number; previousPriceEur?: number; isFeatured?: boolean; equipment: Equipment; makeEquipment?: string[]; catalogEquipment?: string[]; contactAvailable?: boolean; boostedUntil?: number | null; range?: [number, number]; demo?: boolean; history?: string[]; sellerNote?: string;
+  photos: Photo[]; photoCount?: number; previousPriceEur?: number; isFeatured?: boolean; isBoosted?: boolean; boostTier?: BoostTier; boostExpiresAt?: string | null; equipment: Equipment; makeEquipment?: string[]; catalogEquipment?: string[]; contactAvailable?: boolean; boostedUntil?: number | null; range?: [number, number]; demo?: boolean; history?: string[]; sellerNote?: string;
 };
 
 const photos = photoData as Record<string, Photo[]>;
