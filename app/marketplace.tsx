@@ -2,7 +2,7 @@
 
 import { Checkbox } from "../src/components/Checkbox";
 import { Navbar } from "../src/components/Navbar";
-import { ListingPhoto } from "../src/components/ListingPhoto";
+import { VehicleCard } from "./vehicle-card";
 import { BrandLogo } from "../src/components/BrandLogo";
 import { AdSlot } from "../src/components/AdSlot";
 import { ArrowDown, ArrowRight, Bike, Car, Caravan, ChevronLeft, ChevronRight, Truck, Zap, Check, Leaf, Grid2X2, List, Navigation, Pause, Play, RotateCcw, Search as SearchIcon, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
@@ -12,11 +12,11 @@ import { SEO_CITIES, TOP_FOOTER_BRANDS, slugifyHr, vehicleIdFromPath, vehicleLis
 import { CAR_MAKES } from "../src/data/car-catalog";
 import { FaqAccordion } from "./faq-accordion";
 import { DealershipDirectoryView } from "./autokuce-directory";
-import { restoreListingPhotos, cities, euro, fuels, gears, marketValuation, number, power, quick, registered, vehicles, type Flag, type Vehicle } from "./catalog";
+import { restoreListingPhotos, cities, euro, fuels, gears, number, quick, vehicles, type Flag, type Vehicle } from "./catalog";
 import { bodyFilters, doorOptions, seatOptions, categories, colorFinishes, cylinderCounts, distances, initialSearch, matchVehicles, parseVehicleQuery, prices, readSearch, searchFilterCount, sorts, validEquipmentFilters, writeSearch, years, type CategoryId, type Search } from "./search";
 import { equipmentFor } from "../src/data/equipment-catalog";
 import { Dialog, ListingOptions, MakeEquipmentOptions, Select } from "./ui";
-import { makeOptions, vehicleMakeOptions } from "./make-equipment";
+import { makeOptions } from "./make-equipment";
 import { TaxCalculator } from "./buyer-tools";
 import Detail from "./detail";
 import PublishForm from "./publish";
@@ -31,7 +31,7 @@ import { CookieConsent, LegalPage, ReportDialog, legalLinks, type LegalPath } fr
 import { dealershipHoursToday } from "../src/data/working-hours";
 import { croatianCounties } from "../src/data/croatia-locations";
 import { EquipmentSelector } from "./equipment-selector";
-import { getTopFeaturedListings, hasActiveBoost } from "./listing-boost";
+import { getTopFeaturedListings } from "./listing-boost";
 
 type Panel = "filters" | "publish" | "tax" | null;
 const storageKeys = { saved: "autoplac.saved", inventory: "autoplac.inventory" };
@@ -663,8 +663,8 @@ function FeaturedListingsRail({
       onFocus={stopAutoScroll}>
       <div className="home-section-head featured-heading">
         <div>
-          <h2 id="featured-title">Izdvojene ponude</h2>
-          <p>Boostani i najpovoljniji oglasi na tržištu</p>
+          <h2 id="featured-title">Istaknuta vozila</h2>
+          <p>Provjerene ponude autokuća i privatnih prodavača</p>
         </div>
         <div className="featured-controls">
           <button type="button" className="featured-motion-toggle" aria-label="Pauziraj automatsko pomicanje" aria-pressed={paused}
@@ -693,8 +693,8 @@ function FeaturedListingsRail({
         onScroll={() => {
           if (performance.now() >= interaction.current.autoUntil) interaction.current.resumeAt = performance.now() + 4500;
         }}>
-        {featured.map(({ vehicle, valuation }, index) => (
-          <Listing key={vehicle.id} vehicle={vehicle} valuation={valuation} now={now} saved={savedIds.includes(vehicle.id)}
+        {featured.map(({ vehicle }, index) => (
+          <VehicleCard key={vehicle.id} vehicle={vehicle} inRail now={now} saved={savedIds.includes(vehicle.id)}
             onSave={() => onSave(vehicle.id)} eager={index < 4} onOpen={event => onOpen(event, vehicle.id)} />
         ))}
       </div>
@@ -772,120 +772,10 @@ function PopularBrandsStrip({
   );
 }
 
-function listingUrl(id: string) {
-  return vehicleListingPath(id);
-}
-
 function scrollToTop() {
   window.scrollTo({ top:0,left:0,behavior:"instant" });
   document.documentElement.scrollTop = 0;
   document.body.scrollTop = 0;
-}
-
-function Listing({ vehicle, saved, onOpen, onSave, eager, horizontal = false, valuation = marketValuation(vehicle), now = Date.now() }: {
-  vehicle: Vehicle;
-  saved: boolean;
-  onOpen: (event: MouseEvent<HTMLAnchorElement>) => void;
-  onSave: () => void;
-  eager: boolean;
-  horizontal?: boolean;
-  valuation?: ReturnType<typeof marketValuation>;
-  now?: number;
-}) {
-  const href = listingUrl(vehicle.id);
-  const oldPrice = vehicle.previousPriceEur;
-  const gear = vehicle.gear === "Automatski" ? "Automatik" : vehicle.gear;
-  const specs = [registered(vehicle.date), number(vehicle.km) + " km", power(vehicle.kw), gear, vehicle.fuel];
-  const seller = [vehicle.city, vehicle.seller || (vehicle.dealer ? "Autokuća" : "Privatni prodavač")].filter(Boolean).join(" • ");
-  const boosted = hasActiveBoost(vehicle, now);
-  const highlighted = boosted || vehicle.isFeatured;
-  const photo = <ListingPhoto className="vehicle-card-media" vehicle={vehicle} saved={saved} onSave={onSave}
-    eager={eager} compact href={href} onOpen={onOpen} />;
-  const title = <h3 className="vehicle-card-title">
-    <a className="card-link" href={href} onClick={onOpen} title={vehicle.title}><span>{vehicle.title}</span></a>
-  </h3>;
-  const sellerLine = <>
-    <span className="vehicle-card-seller-name" title={seller}>{seller}</span>
-    {vehicle.verified && <Check size={14} strokeWidth={1.75} role="img"
-      aria-label={vehicle.dealer ? "Verificirana autokuća" : "Verificirani prodavač"} />}
-  </>;
-
-  if (horizontal) {
-    const equipment = [...new Set([
-      ...vehicleMakeOptions(vehicle).map(option => option.label),
-      ...Object.values(vehicle.equipment).flat(),
-    ].filter(Boolean))].slice(0, 4).join(" • ");
-    const trust = [...new Set([
-      ...(vehicle.history ?? []),
-      ...vehicle.flags.map(flag => quick[flag]),
-    ].filter(Boolean))].join(" • ");
-    const tax = vehicle.flags.includes("pdv") ? "Uključen PDV (R1)" : vehicle.flags.includes("kupac") ? "Na ime kupca" : "";
-    const discount = oldPrice !== undefined && oldPrice > vehicle.price ? oldPrice - vehicle.price : null;
-    const { rating, deltaEur } = valuation;
-    const marketDelta = deltaEur < 0
-      ? euro(-deltaEur) + " ispod prosjeka RH"
-      : deltaEur > 0 ? euro(deltaEur) + " iznad prosjeka RH" : "U prosjeku RH";
-
-    return <article className="vehicle-card vehicle-list-row">
-      {photo}
-      <div className="vehicle-list-body">
-        <div>
-          <div className="vehicle-list-title">
-            {title}
-            {highlighted && <span className="vehicle-card-featured" data-boosted={boosted}>{boosted ? "ISTAKNUTO" : "Istaknuti oglas"}</span>}
-          </div>
-          <p className="vehicle-list-specs tabular">{specs.join(" • ")}</p>
-          {(equipment || trust) && <div className="vehicle-list-metadata tabular">
-            {equipment && <p title={equipment}><strong>Oprema:</strong> {equipment}</p>}
-            {trust && <p title={trust}>{trust}</p>}
-          </div>}
-        </div>
-        <footer className="vehicle-card-seller vehicle-list-seller">{sellerLine}</footer>
-      </div>
-      <div className="vehicle-list-price">
-        <div className="vehicle-list-amount tabular">
-          {discount !== null && oldPrice !== undefined && <div className="vehicle-list-discount">
-            <del>{euro(oldPrice)}</del> <span className="verified-price-savings">−{euro(discount)}</span>
-          </div>}
-          <strong>{euro(vehicle.price)}</strong>
-          {tax && <p>{tax}</p>}
-        </div>
-        <div className="vehicle-list-market" data-below-market={rating.rank <= 1 && deltaEur < 0}>
-          <div className="vehicle-list-gauge">
-            <span className="vehicle-list-bars" aria-hidden="true">
-              {Array.from({ length: 5 }, (_, index) => <span key={index} data-filled={index < rating.bars} />)}
-            </span>
-            <strong>{rating.label}</strong>
-          </div>
-          <p className="tabular">{marketDelta}</p>
-        </div>
-        <a className="vehicle-list-details" href={href} onClick={onOpen} aria-label={"Detalji oglasa: " + vehicle.title}>
-          Detalji oglasa <ArrowRight size={14} aria-hidden="true" />
-        </a>
-      </div>
-    </article>;
-  }
-
-  return <article className="vehicle-card">
-    {photo}
-    <div className="vehicle-card-body">
-      {title}
-      <p className="vehicle-card-specs tabular">{specs.join(" • ")}</p>
-      <div className="vehicle-card-price">
-        <div className="vehicle-card-amount tabular">
-          <strong>{euro(vehicle.price)}</strong>
-          {oldPrice !== undefined && oldPrice > vehicle.price && <del>{euro(oldPrice)}</del>}
-        </div>
-        <span className="vehicle-market-rating" data-below-market={valuation.rating.rank <= 1 && valuation.deltaEur < 0}>
-          {valuation.rating.label}
-        </span>
-      </div>
-      <footer className="vehicle-card-seller">
-        {sellerLine}
-        {highlighted && <span className="vehicle-card-featured" data-boosted={boosted}>{boosted ? "ISTAKNUTO" : "Istaknuti oglas"}</span>}
-      </footer>
-    </div>
-  </article>;
 }
 
 export default function Marketplace({
@@ -1443,7 +1333,7 @@ export default function Marketplace({
           </div>
           {results.length ? <div className={"listings " + (search.prikaz === "lista" ? "list-view" : "grid-view")}>{results.map((vehicle, index) => (
             <Fragment key={vehicle.id}>
-              <Listing vehicle={vehicle} saved={savedIds.includes(vehicle.id)} eager={index < 3}
+              <VehicleCard vehicle={vehicle} saved={savedIds.includes(vehicle.id)} eager={index < 3}
                 horizontal={search.prikaz === "lista"} onOpen={event => openListing(event, vehicle.id)} onSave={() => toggleSaved(vehicle.id)} />
               {(index + 1) % 6 === 0 && (
                 <div className="col-span-full">

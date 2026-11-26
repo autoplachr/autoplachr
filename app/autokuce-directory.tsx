@@ -3,7 +3,7 @@
 import { ArrowLeft, ArrowRight, Check, Clock, MapPin, MessageSquare, Phone, Search, ShieldCheck, Star } from "lucide-react";
 import { useMemo, useState, type MouseEvent } from "react";
 import { BrandLogo } from "../src/components/BrandLogo";
-import { ListingPhoto } from "../src/components/ListingPhoto";
+import { VehicleCard } from "./vehicle-card";
 import {
   DEALERSHIP_DIRECTORY,
   DIRECTORY_CITIES,
@@ -11,9 +11,7 @@ import {
   type DealershipDirectoryEntry,
 } from "../src/data/dealerships";
 import { dealershipHoursToday } from "../src/data/working-hours";
-import { vehicleListingPath } from "../src/lib/seo";
-import { euro, marketValuation, number, power, registered, type Vehicle } from "./catalog";
-import { Rating, ratingSavingsLabel } from "./ui";
+import { euro, number, type Vehicle } from "./catalog";
 
 export function DealershipDirectoryView({
   vehicles,
@@ -222,71 +220,11 @@ export function DealershipDirectoryView({
 
           {dealerVehicles.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {dealerVehicles.map((vehicle, index) => {
-                const val = marketValuation(vehicle);
-                const isSaved = savedIds.includes(vehicle.id);
-                const hasPriceDrop = Boolean(vehicle.previousPriceEur && vehicle.previousPriceEur > vehicle.price);
-                const dropAmount = hasPriceDrop ? (vehicle.previousPriceEur ?? 0) - vehicle.price : 0;
-                const href = vehicleListingPath(vehicle.id);
-                const tag = vehicle.flags.includes("cvh")
-                  ? "CVH potvrđeni km"
-                  : vehicle.flags.includes("pdv")
-                  ? "Sustav PDV-a (R1)"
-                  : null;
-                return (
-                  <article key={vehicle.id} className="rec-card flex flex-col h-full">
-                    <ListingPhoto
-                      className="rec-media rounded-t-[9px]"
-                      vehicle={vehicle}
-                      saved={isSaved}
-                      onSave={() => onSave(vehicle.id)}
-                      eager={index < 4}
-                      status={tag}
-                      href={href}
-                      onOpen={e => onOpenListing(e, vehicle.id)}
-                    />
-                    <div className="rec-body flex flex-col flex-1 p-3.5 min-w-0">
-                      <h3 className="h-[44px] flex items-start overflow-hidden">
-                        <a
-                          className="card-link flex items-start gap-[7px] w-full text-left"
-                          href={href}
-                          onClick={e => onOpenListing(e, vehicle.id)}
-                        >
-                          <BrandLogo make={vehicle.make} size="xs" />
-                          <span className="line-clamp-2 text-[14.5px] font-bold leading-[1.35] text-[var(--text)]">
-                            {vehicle.title}
-                          </span>
-                        </a>
-                      </h3>
-                      <p className="rec-specs tabular h-[36px] line-clamp-2 text-[12px] leading-[1.4] mt-1.5 text-[var(--spec)]">
-                        {registered(vehicle.date)} • {number(vehicle.km)} km • {power(vehicle.kw)} • {vehicle.gear} •{" "}
-                        {vehicle.fuel}
-                      </p>
-                      <div className="mt-auto pt-3 flex flex-col gap-1">
-                        {hasPriceDrop && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[12px] line-through text-[var(--muted)] tabular-nums">
-                              {euro(vehicle.previousPriceEur!)}
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded bg-emerald-500/12 border border-emerald-500/25 text-emerald-700 dark:text-emerald-400 text-[10.5px] font-bold tabular-nums">
-                              -{euro(dropAmount)}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between gap-2">
-                          <strong className="text-[20px] font-extrabold tracking-[-0.03em] text-[var(--text)] tabular-nums whitespace-nowrap">
-                            {euro(vehicle.price)}
-                          </strong>
-                          <Rating valuation={val} align="right" />
-                        </div>
-                        <span className="text-[11.5px] font-medium text-[var(--muted)] truncate">
-                          {ratingSavingsLabel(val)}
-                        </span>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
+              {dealerVehicles.map((vehicle, index) => (
+                <VehicleCard key={vehicle.id} vehicle={vehicle} saved={savedIds.includes(vehicle.id)}
+                  onSave={() => onSave(vehicle.id)} eager={index < 4}
+                  onOpen={event => onOpenListing(event, vehicle.id)} />
+              ))}
             </div>
           ) : (
             <div className="empty-state">

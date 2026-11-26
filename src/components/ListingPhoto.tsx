@@ -16,6 +16,8 @@ type ListingPhotoProps = {
   eager?: boolean;
   status?: string | null;
   compact?: boolean;
+  featured?: boolean;
+  allowPhotoSwipe?: boolean;
   className: string;
   href?: string;
   onOpen?: (event: MouseEvent<HTMLAnchorElement>) => void;
@@ -28,6 +30,8 @@ function ListingGallery({
   eager,
   status,
   compact = false,
+  featured = false,
+  allowPhotoSwipe = true,
   className,
   href,
   onOpen,
@@ -117,7 +121,7 @@ function ListingGallery({
   }
 
   function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
-    swipe.current = event.touches.length === 1 && hasGallery
+    swipe.current = allowPhotoSwipe && event.touches.length === 1 && hasGallery
       ? { x: event.touches[0].clientX, y: event.touches[0].clientY }
       : null;
   }
@@ -137,6 +141,7 @@ function ListingGallery({
     <div
       ref={mediaRef}
       className={`${className} listing-photo${compact ? " listing-photo-compact" : ""}`}
+      data-swipe-photos={allowPhotoSwipe}
       onPointerEnter={preview}
       onPointerMove={preview}
       onPointerLeave={cancelHover}
@@ -155,6 +160,7 @@ function ListingGallery({
         if (Date.now() < suppressClickUntil.current) event.preventDefault();
         else onOpen?.(event);
       }} />}
+      {featured && <span className="vehicle-card-featured">ISTAKNUTO</span>}
       {!compact && status && <span className="listing-photo-status !z-[4]">{status}</span>}
       <button
         className={"icon-btn heart-button !z-[4]" + (saved ? " saved" : "")}
@@ -187,7 +193,7 @@ function ListingGallery({
         </>
       )}
 
-      {hasGallery && (
+      {!compact && hasGallery && (
         <div className="listing-photo-dots" aria-hidden="true">
           {Array.from({ length: Math.min(5, total - Math.floor(displayIndex / 5) * 5) }, (_, dot) => (
             <span key={dot} data-active={dot === displayIndex % 5} />

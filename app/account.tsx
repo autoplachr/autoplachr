@@ -1066,7 +1066,6 @@ export function AccountPage({
           ) : (
             <div className="flex flex-col gap-3">
               {filteredListings.map(listing => {
-                const val = marketValuation(listing);
                 const badge = statusLabels[listing.status] ?? statusLabels.active;
                 return (
                   <article
@@ -1110,7 +1109,6 @@ export function AccountPage({
                         <strong className="text-[16px] font-extrabold tabular-nums text-[var(--text)] !m-0">
                           {euro(listing.price)}
                         </strong>
-                        <Rating valuation={val} align="left" interactive={false} />
                         <span className="text-[12px] text-[var(--muted)] tabular-nums">
                           {registered(listing.date)} · {number(listing.km)} km
                         </span>
