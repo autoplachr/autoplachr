@@ -96,6 +96,33 @@ export function canonicalizeImported(input: {
   return { make, model, generation, bodyType, badge, fuel, drive, cc, cylinders };
 }
 
+const IMPORT_EQUIPMENT_RULES: readonly (readonly [string, string, RegExp])[] = [
+  ["Sigurnost", "360° kamera", /\b(?:360\s*°?\s*kamere?|kamera\s*360|area\s*view)\b/i],
+  ["Sigurnost", "Prednji i stražnji parking senzori", /\b(?:parkirni\s+senzori|parking\s+senzori)\b/i],
+  ["Sigurnost", "Tempomat", /\b(?:tempomat|adaptivni\s+tempomat|\bacc\b)\b/i],
+  ["Sigurnost", "Head-Up Display", /\b(?:head\s*up\s*display|projekcijski\s+zaslon|\bhud\b)\b/i],
+  ["Udobnost", "Kožna sjedala s memorijom", /\b(?:(?:kožna|kozna)\s+sjedal\w*(?:\s+s\s*memorijom)?|memorija\s+sjedala)\b/i],
+  ["Udobnost", "M Sport sjedala", /\bm[\s-]*sport\s+sjedal\w*\b/i],
+  ["Udobnost", "M Sport upravljač", /\b(?:m[\s-]*volan|m[\s-]*sport[\s-]*(?:upravljač|volan))\b/i],
+  ["Udobnost", "F1 ručice na volanu", /\b(?:f1\s*(?:saltarice|ručice)|polugice\s+za\s+promjenu\s+stupnja)\b/i],
+  ["Udobnost", "Crna obloga krova", /\b(?:crna\s+obloga\s+krova|crno\s+nebo)\b/i],
+  ["Udobnost", "Električno sklopivi retrovizori", /\b(?:el\.?\s*sklopivi\s+retrovizori|električno\s+sklopivi\s+retrovizori)\b/i],
+  ["Udobnost", "Zatamnjena stražnja stakla", /\b(?:zatamnjena\s+(?:stražnja|straznja)\s+stakla|zatamnjena\s+stakla)\b/i],
+  ["Multimedija", "Harman/Kardon ozvučenje", /\bharman\s*\/?\s*kardon\b/i],
+  ["Multimedija", "Navigacija Professional", /\b(?:navigacija\s+professional|velika\s+navigacij\w*|navigacij\w*)\b/i],
+  ["Eksterijer", "Adaptivna LED svjetla", /\b(?:led\s+adaptivn\w*\s+svijetla|adaptivna\s+led|led\s+svjetla)\b/i],
+  ["Eksterijer", "M Sport paket", /\b(?:m[\s-]*sport\s+paket|m\s*paket|m[\s-]*sport)\b/i],
+  ["Eksterijer", 'Alu naplatci 20"', /\b(?:alu\s+(?:felge|naplatci)\s*20|aluminijski\s+naplatci\s*20)\b/i],
+];
+
+export function canonicalEquipmentLabel(raw: string): string {
+  const text = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  for (const [, label, pattern] of IMPORT_EQUIPMENT_RULES) {
+    if (pattern.test(text)) return label;
+  }
+  return raw.trim().slice(0, 100);
+}
+
 export const prices = [5000, 10000, 15000, 20000, 25000, 30000, 50000];
 export const years = Array.from({ length: 12 }, (_, index) => 2026 - index);
 export const distances = [50000, 100000, 150000, 200000];
@@ -516,20 +543,20 @@ export function normalizeImportedVehicle(source: {
   const equipment = [...new Set([...parsed.equipment, ...catalogEquipment.filter(item => {
     const label = normalizeLocation(item.label);
     return label.length >= 3 && (" " + signal.replace(/[.,;:]/g, " ") + " ").includes(" " + label + " ");
-  }).map(item => item.label), ...(source.equipment ?? []).map(clean).filter(Boolean)])].slice(0, 60);
+  }).map(item => item.label), ...(source.equipment ?? []).map(clean).filter(Boolean)].map(canonicalEquipmentLabel))].slice(0, 60);
   const registration = field("firstRegistration");
   const equipmentByCategory: Record<string, string[]> = {
     "Sigurnost i asistencije": [], "Udobnost i interijer": [], "Multimedija i navigacija": [], "Eksterijer i ovjes": [],
   };
-  const equipmentRules: Array<[string, RegExp]> = [
-    ["Sigurnost i asistencije", /\b(?:360\s*°?\s*kamere?|parkirni senzori|adaptivni tempomat|asistent trake|nadzor mrtvog kuta|kamera za vožnju unatrag|iso\s*fix)\b/i],
-    ["Udobnost i interijer", /\b(?:el\.?\s*sklopivi retrovizori|(?:kožna|kozna) sjedal\w*|m sport sjedal\w*|m volan|f1 saltarice|grijana sjedal\w*|tempomat|digitalni kokpit|crno nebo|panoramski krov)\b/i],
-    ["Multimedija i navigacija", /\b(?:harman\s*\/?\s*kardon|velika navigacij\w*|navigacij\w*|head up display|apple carplay|android auto|hud)\b/i],
-    ["Eksterijer i ovjes", /\b(?:led adaptivn\w* svijetla|led kvake|m paket|m sport paket|alu felge \d{2}|zatamnjena stražnja stakla|sportski ovjes)\b/i],
-  ];
-  for (const [category, pattern] of equipmentRules) {
-    const found = rawText.match(pattern);
-    if (found) equipmentByCategory[category].push(found[0].trim());
+  const categoryNames: Record<string, string> = {
+    Sigurnost: "Sigurnost i asistencije", Udobnost: "Udobnost i interijer",
+    Multimedija: "Multimedija i navigacija", Eksterijer: "Eksterijer i ovjes",
+  };
+  for (const [category, label, pattern] of IMPORT_EQUIPMENT_RULES) {
+    if (pattern.test(rawText)) {
+      const target = categoryNames[category];
+      if (!equipmentByCategory[target].includes(label)) equipmentByCategory[target].push(label);
+    }
   }
   return {
     ...parsed, make: canonical.make || make, model: canonical.model || model, title, description, equipment,

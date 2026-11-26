@@ -152,7 +152,7 @@ Deno.serve(async request => {
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50)
       + "-" + (await hash(finalUrl.hostname + finalUrl.pathname)).slice(0, 12);
     const candidates = parsed.images.slice(0, 32);
-    const downloaded: Array<{ bytes: Uint8Array; contentType: string; score: number; fingerprint: string }> = [];
+    const downloaded: Array<{ bytes: Uint8Array; contentType: string; score: number; fingerprint: string; nearKey: string }> = [];
     for (let index = 0; index < candidates.length; index += 4) {
       const batch = await Promise.all(candidates.slice(index, index + 4).map(async image => {
         for (const source of [image.url, image.fallback].filter(Boolean) as string[]) {
@@ -163,7 +163,11 @@ Deno.serve(async request => {
             if (!/^image\/(?:jpeg|png|webp|heic|avif)$/.test(type)) continue;
             const bytes = await readLimited(photoResponse, MAX_IMAGE_BYTES) as Uint8Array;
             if (bytes.byteLength < 4000) continue;
-            return { bytes, contentType: type, score: await scoreImage(image, bytes), fingerprint: (await hash(bytes)).slice(0, 24) };
+            const fingerprint = (await hash(bytes)).slice(0, 24);
+            // Njuškalo often serves the same angle twice (one copy with a white
+            // dealer banner). Same dimensions + same header bytes => near duplicate.
+            const nearKey = `${type}:${bytes.byteLength}:${(await hash(bytes.slice(0, 512))).slice(0, 16)}`;
+            return { bytes, contentType: type, score: await scoreImage(image, bytes), fingerprint, nearKey };
           } catch { /* Try the fallback resolution. */ }
         }
         return undefined;
@@ -171,7 +175,26 @@ Deno.serve(async request => {
       downloaded.push(...batch.filter((item): item is NonNullable<typeof item> => Boolean(item)));
     }
     // Keep the seller's original gallery order: photo 0 stays the default cover.
-    const unique = [...new Map(downloaded.map(item => [item.fingerprint, item])).values()].slice(0, MAX_PHOTOS);
+    // Remove exact duplicates first, then same-angle near duplicates (prefer the
+    // higher-scoring copy, i.e. the one without a dealer banner).
+    type DownloadedPhoto = (typeof downloaded)[number];
+    const byFingerprint = new Map<string, DownloadedPhoto>();
+    const byNear = new Map<string, DownloadedPhoto>();
+    for (const item of downloaded) {
+      if (byFingerprint.has(item.fingerprint)) continue;
+      const existingNear = byNear.get(item.nearKey);
+      if (existingNear) {
+        if (item.score > existingNear.score) {
+          byNear.set(item.nearKey, item);
+          byFingerprint.delete(existingNear.fingerprint);
+          byFingerprint.set(item.fingerprint, item);
+        }
+        continue;
+      }
+      byNear.set(item.nearKey, item);
+      byFingerprint.set(item.fingerprint, item);
+    }
+    const unique = [...byFingerprint.values()].slice(0, MAX_PHOTOS);
 
     const photos: Array<{ src: string }> = [];
     let storageMisses = 0;

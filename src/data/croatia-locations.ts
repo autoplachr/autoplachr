@@ -16,7 +16,7 @@ const groups: Record<string, string> = {
   "Požeško-slavonska": "Kutjevo:34340|Lipik:34551|Pakrac:34550|Pleternica:34310|Požega:34000",
   "Brodsko-posavska": "Nova Gradiška:35400|Slavonski Brod:35000",
   "Zadarska": "Benkovac:23420|Biograd na Moru:23210|Nin:23232|Obrovac:23450|Pag:23250|Zadar:23000",
-  "Osječko-baranjska": "Beli Manastir:31300|Belišće:31551|Donji Miholjac:31540|Đakovo:31400|Našice:31500|Osijek:31000|Valpovo:31550",
+  "Osječko-baranjska": "Beli Manastir:31300|Belišće:31551|Bilje:31327|Donji Miholjac:31540|Đakovo:31400|Našice:31500|Osijek:31000|Valpovo:31550",
   "Šibensko-kninska": "Drniš:22320|Knin:22300|Skradin:22222|Šibenik:22000|Vodice:22211",
   "Vukovarsko-srijemska": "Ilok:32236|Otok:32252|Vinkovci:32100|Vukovar:32000|Županja:32270",
   "Splitsko-dalmatinska": "Hvar:21450|Imotski:21260|Kaštela:21212|Komiža:21485|Makarska:21300|Omiš:21310|Sinj:21230|Solin:21210|Split:21000|Stari Grad:21460|Supetar:21400|Trilj:21240|Trogir:21220|Vis:21480|Vrgorac:21276|Vrlika:21236",

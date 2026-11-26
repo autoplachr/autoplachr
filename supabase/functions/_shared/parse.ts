@@ -53,23 +53,46 @@ const CANONICAL_ALIASES: CanonicalAlias[] = [
   [/\bmacan\b|\bcayenne\b/, (match) => match[0].charAt(0).toUpperCase() + match[0].slice(1), { bodyType: "SUV / Terenac" }],
 ];
 
-const EQUIPMENT_RULES: Array<[string, RegExp]> = [
-  ["Sigurnost i asistencije", /\b(?:360\s*°?\s*kamere?|kamera\s*360|parkirni\s+senzori|parking\s+sensors|adaptivni\s+tempomat|asistent\s+trake|nadzor\s+mrtvog\s+kuta|auto\s*\.?\s*parkiranje|kamera\s+za\s+vožnju\s+unatrag|iso\s*fix|abs|esp)\b/i],
-  ["Udobnost i interijer", /\b(?:el\.?\s*sklopivi\s+retrovizori|električno\s+sklopivi\s+retrovizori|(?:kožna|kozna)\s+sjedal\w*(?:\s+s\s*memorijom)?|m\s*sport\s+sjedal\w*|m\s*volan|f1\s*saltarice|grijana\s+sjedal\w*|tempomat|digitalni\s+kokpit|višenamjenski\s+volan|crno\s+nebo|panoramski\s+krov)\b/i],
-  ["Multimedija i navigacija", /\b(?:harman\s*\/?\s*kardon|velika\s+navigacij\w*|navigacij\w*|head\s*up\s*display|projekcijski\s+zaslon|apple\s+carplay|android\s+auto|hud)\b/i],
-  ["Eksterijer i ovjes", /\b(?:led\s+adaptivn\w*\s+svijetla|led\s+kva?k\w*|m\s*paket|m\s*sport\s+paket|alu\s+felge\s*\d{2}|zatamnjena\s+straznja\s+stakla|zatamnjena\s+stakla|sportski\s+ovjes|kuka\s+za\s+vuču)\b/i],
+const EQUIPMENT_CATEGORIES = ["Sigurnost i asistencije", "Udobnost i interijer", "Multimedija i navigacija", "Eksterijer i ovjes"] as const;
+const EQUIPMENT_RULES: Array<[string, string, RegExp]> = [
+  ["Sigurnost i asistencije", "360° kamera", /\b(?:360\s*°?\s*kamere?|kamera\s*360|area\s*view|around\s*view)\b/i],
+  ["Sigurnost i asistencije", "Prednji i stražnji parking senzori", /\b(?:parkirni\s+senzori|parking\s+senzori|parking\s+sensors)\b/i],
+  ["Sigurnost i asistencije", "Tempomat", /\b(?:tempomat|adaptivni\s+tempomat|\bacc\b)\b/i],
+  ["Sigurnost i asistencije", "Head-Up Display", /\b(?:head\s*up\s*display|projekcijski\s+zaslon|\bhud\b)\b/i],
+  ["Udobnost i interijer", "Kožna sjedala s memorijom", /\b(?:(?:kožna|kozna)\s+sjedal\w*(?:\s+s\s*memorijom)?|memorija\s+sjedala)\b/i],
+  ["Udobnost i interijer", "M Sport sjedala", /\bm[\s-]*sport\s+sjedal\w*\b/i],
+  ["Udobnost i interijer", "M Sport upravljač", /\b(?:m[\s-]*volan|m[\s-]*sport[\s-]*(?:upravljač|volan))\b/i],
+  ["Udobnost i interijer", "F1 ručice na volanu", /\b(?:f1\s*(?:saltarice|ručice)|polugice\s+za\s+promjenu\s+stupnja)\b/i],
+  ["Udobnost i interijer", "Crna obloga krova", /\b(?:crna\s+obloga\s+krova|crno\s+nebo)\b/i],
+  ["Udobnost i interijer", "Električno sklopivi retrovizori", /\b(?:el\.?\s*sklopivi\s+retrovizori|električno\s+sklopivi\s+retrovizori)\b/i],
+  ["Udobnost i interijer", "Zatamnjena stražnja stakla", /\b(?:zatamnjena\s+(?:stražnja|straznja)\s+stakla|zatamnjena\s+stakla)\b/i],
+  ["Multimedija i navigacija", "Harman/Kardon ozvučenje", /\bharman\s*\/?\s*kardon\b/i],
+  ["Multimedija i navigacija", "Navigacija Professional", /\b(?:navigacija\s+professional|velika\s+navigacij\w*|navigacij\w*)\b/i],
+  ["Eksterijer i ovjes", "Adaptivna LED svjetla", /\b(?:led\s+adaptivn\w*\s+svijetla|adaptivna\s+led|led\s+svjetla)\b/i],
+  ["Eksterijer i ovjes", "M Sport paket", /\b(?:m[\s-]*sport\s+paket|m\s*paket|m[\s-]*sport)\b/i],
+  ["Eksterijer i ovjes", 'Alu naplatci 20"', /\b(?:alu\s+(?:felge|naplatci)\s*20|aluminijski\s+naplatci\s*20)\b/i],
 ];
 
-function categorizeEquipment(text: string) {
-  const grouped: Record<string, string[]> = {
-    "Sigurnost i asistencije": [], "Udobnost i interijer": [],
-    "Multimedija i navigacija": [], "Eksterijer i ovjes": [],
+export function canonicalEquipmentLabel(raw: string): string {
+  const text = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  for (const [, label, pattern] of EQUIPMENT_RULES) {
+    if (pattern.test(text)) return label;
+  }
+  return raw.trim().slice(0, 100);
+}
+
+function categorizeEquipment(text: string, extra: string[] = []) {
+  const grouped: Record<string, string[]> = Object.fromEntries(EQUIPMENT_CATEGORIES.map(category => [category, [] as string[]]));
+  const push = (category: string, label: string) => {
+    if (label && !grouped[category].includes(label)) grouped[category].push(label);
   };
-  for (const [category, pattern] of EQUIPMENT_RULES) {
-    for (const match of text.matchAll(new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : pattern.flags + "g"))) {
-      const label = match[0].trim().slice(0, 100);
-      if (label && !grouped[category].includes(label)) grouped[category].push(label);
-    }
+  for (const [category, label, pattern] of EQUIPMENT_RULES) {
+    if (pattern.test(text)) push(category, label);
+  }
+  for (const item of extra) {
+    const canonical = canonicalEquipmentLabel(item);
+    const rule = EQUIPMENT_RULES.find(([, label]) => label === canonical);
+    if (rule) push(rule[0], canonical);
   }
   const flat = [...new Set(Object.values(grouped).flat())];
   return { flat, grouped };
@@ -77,7 +100,7 @@ function categorizeEquipment(text: string) {
 
 function canonicalize(input: {
   make: string; model: string; title: string; variant: string; year?: number;
-  bodyType: string; cc?: number; drive: string; fields: Record<string, string>;
+  bodyType: string; cc?: number; drive: string; fields: Record<string, string>; text?: string;
 }) {
   const text = [input.make, input.model, input.title, input.variant, input.text, Object.values(input.fields).join(" ")]
     .join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -375,7 +398,7 @@ export function parseListing(content: string, base?: string): ParsedListing {
     city: field("Lokacija vozila") || "",
     seller: field("Prodavatelj") || field("Prodavač") || "",
     condition: field("Stanje") || "",
-    equipment: [...new Set([...(analysis.equipment ?? []), ...equipmentFlat])],
+    equipment: [...new Set([...(analysis.equipment ?? []).map(canonicalEquipmentLabel), ...equipmentFlat])],
     equipmentByCategory,
   };
   return { vehicle, images: imageSources(isHtml ? content : "", base), fields };

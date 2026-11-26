@@ -24,8 +24,8 @@ import { Dialog, ListingOptions, Rating, Select, VehiclePhoto } from "./ui";
 import { selectedMakeOptions } from "./make-equipment";
 import { describeMarketDelta, evaluateMarketPrice } from "../src/lib/price-engine";
 import { calculateCo2, ksToKw, kwToKs, resolveVehicleSpecs, toCatalogFuel, type SpecFuel } from "../src/lib/spec-resolver";
-import { analyzeListingPhotos, prepareListingPhoto, type ListingAnalysis } from "./listing-analysis";
-import { parseListingText } from "./search";
+import { analyzeListingPhotos, firstCleanCoverIndex, prepareListingPhoto, type ListingAnalysis } from "./listing-analysis";
+import { canonicalEquipmentLabel, parseListingText } from "./search";
 import { importClassifieds, type ImportedFacts } from "./classifieds-import";
 import { croatianLocations, normalizeLocation } from "../src/data/croatia-locations";
 import { sanitizeStringArray, sanitizeText } from "../src/lib/sanitize";
@@ -65,6 +65,7 @@ const labelKey = (label: string) => normalizeLocation(label).replace(/[^a-z0-9]+
 
 export default function PublishForm({ onClose, onPublish, existing, contact }: { onClose: () => void; onPublish: (v: Vehicle, status: ListingStatus) => Promise<void>; existing?: Vehicle & { status?: ListingStatus }; contact: { phone: string; email: string; city: string; postalCode?: string; county: string; name: string; type: string }; }) {
   const [step, setStep] = useState(0);
+  const [locationRevision, setLocationRevision] = useState(0);
   const existingFuel: SpecFuel = existing?.fuel === "Struja" ? "Električni" : (existing?.fuel ?? "Dizel");
   const [values, setValues] = useState<Publish>({
     ...initial,
@@ -189,7 +190,7 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
   }
 
   function importEquipment(labels: string[]) {
-    const canonical = [...new Map(labels.map(label => [labelKey(label), label])).values()];
+    const canonical = [...new Map(labels.map(canonicalEquipmentLabel).map(label => [labelKey(label), label])).values()];
     setSuggestions(old => [...new Map([...old, ...canonical].map(label => [labelKey(label), label])).values()]);
     setSelectedSuggestions(old => [...new Set([...old, ...canonical.map(labelKey)])]);
     const ids = canonical.map(equipmentId);
@@ -234,7 +235,9 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
         ...(() => {
           if (!facts.city) return {};
           const city = facts.city.split(/[,;]/).map(labelKey);
-          const location = croatianLocations.find(place => city.includes(labelKey(place.city)));
+          const location = croatianLocations.find(place => city.includes(labelKey(place.city)))
+            ?? croatianLocations.find(place => labelKey(facts.city ?? "").includes(labelKey(place.city)));
+          if (location) setLocationRevision(revision => revision + 1);
           return location ? { city: location.city, county: location.county, postalCode: location.postalCode } : {};
         })(),
         color: color ?? old.color, bodyType: bodyType ?? old.bodyType,
@@ -282,7 +285,10 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
       if (result.photos?.length) {
         photoRevision.current++;
         manualCover.current = true;
-        set("photos", result.photos);
+        const photos = [...result.photos];
+        const clean = await firstCleanCoverIndex(photos);
+        if (clean !== undefined && clean > 0) photos.unshift(...photos.splice(clean, 1));
+        set("photos", photos);
       }
       setImportFallback(false);
       setSourceDetails([data.seller, data.city, data.condition].filter(Boolean).join(" · "));
@@ -823,7 +829,7 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
           <div className="form-grid">
             {numeric("Tražena cijena (€)", "price", 1, 100000000)}
             <p className="fine-print">{contact.name} · {contact.phone}</p>
-            <LocationFields initial={values} onChange={location => setValues(old => ({...old,...location}))}/>
+            <LocationFields key={locationRevision} initial={values} onChange={location => setValues(old => ({...old,...location}))}/>
           </div>
           <p className="fine-print">Objavom potvrđujete da su podaci o vozilu točni. Nacrt je vidljiv samo na vašem računu.</p>
         </>}

@@ -59,6 +59,42 @@ export async function prepareListingPhoto(file: File) {
   }
 }
 
+/** Bottom-strip white-banner check used when imported galleries repeat the first angle. */
+export async function hasWhiteBottomBanner(src: string): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  try {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.src = src;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 16;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return false;
+    context.drawImage(image, 0, image.height * 0.82, image.width, image.height * 0.18, 0, 0, 64, 16);
+    const pixels = context.getImageData(0, 0, 64, 16).data;
+    let white = 0;
+    for (let index = 0; index < pixels.length; index += 4) {
+      if (pixels[index] > 240 && pixels[index + 1] > 240 && pixels[index + 2] > 240) white++;
+    }
+    return white / (64 * 16) > 0.62;
+  } catch {
+    return false;
+  }
+}
+
+export async function firstCleanCoverIndex(photos: Array<{ src: string }>): Promise<number | undefined> {
+  if (photos.length < 2) return undefined;
+  try {
+    if (!(await hasWhiteBottomBanner(photos[0].src))) return undefined;
+    for (let index = 1; index < Math.min(photos.length, 8); index++) {
+      if (!(await hasWhiteBottomBanner(photos[index].src))) return index;
+    }
+  } catch { /* Keep the original cover. */ }
+  return undefined;
+}
+
 export async function analyzeListingPhotos(photos: { src: string; name?: string }[], description: string, signal: AbortSignal): Promise<ListingAnalysis> {
   const names = photos.map(photo => (photo.name ?? "").replace(/\.[^.]+$/, ""))
     .filter(name => !/^(?:img|dsc|pxl|photo|slika|screenshot|whatsapp)[\d_\s-]*$/i.test(name));
@@ -86,6 +122,10 @@ export async function analyzeListingPhotos(photos: { src: string; name?: string 
       }
     } catch {
       // The form can use explicit details in the filenames and description offline.
+    }
+    if (vision.bestCoverIndex === undefined) {
+      const clean = await firstCleanCoverIndex(photos);
+      if (clean !== undefined) vision = { ...vision, bestCoverIndex: clean };
     }
   }
   const definedText = Object.fromEntries(Object.entries(fromText).filter(([, value]) => value !== undefined));

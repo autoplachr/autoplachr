@@ -595,20 +595,30 @@ const EQUIPMENT_RULES: EquipRule[] = [
   { slot: "audio-top", label: "Harman Kardon / Burmester / B&O", value: 500, pattern: /harman[\s-]*kardon|burmester|bang\s*&\s*olufsen|bowers\s*&\s*wilkins|canton|dynaudio|bose|meridian|mark levinson|focal|beats|sennheiser|jbl/i },
   { slot: "cockpit", label: "Virtual / Live Cockpit Pro", value: 450, pattern: /virtual[\s-]*cockpit|live[\s-]*cockpit|digital[\s-]*cockpit|digitalni kokpit|mbux|widescreen|openr/i },
   { slot: "susp-air", label: "Zračni ovjes / DCC / PASM", value: 800, pattern: /zračni ovjes|airmatic|adaptive air|pasm|\bdcc\b|adaptivni ovjes/i },
-  { slot: "cam-360", label: "360° kamera", value: 350, pattern: /360°|area[\s-]*view|parking assistant plus|around view/i },
+  { slot: "cam-360", label: "360° kamera", value: 350, pattern: /360\s*°?\s*kamere?|area[\s-]*view|parking assistant plus|around view/i },
+  { slot: "parking", label: "Prednji i stražnji parking senzori", value: 220, pattern: /parkirni senzori|parking senzori|parkirni senzor/i },
   { slot: "hud", label: "Head-Up Display", value: 350, pattern: /head-up|\bhud\b|projekcijski zaslon/i },
+  { slot: "seats-memory", label: "Kožna sjedala s memorijom", value: 260, pattern: /(?:kožna|kozna)\s+sjedal\w*\s+s\s*memorijom|memorija sjedala/i },
+  { slot: "seats-msport", label: "M Sport sjedala", value: 260, pattern: /m[\s-]*sport\s+sjedal\w*|m-sport-sjedala/i },
+  { slot: "m-wheel", label: "M Sport upravljač", value: 180, pattern: /m[\s-]*volan|m[\s-]*sport[\s-]*upravljač|m[\s-]*sport[\s-]*volan/i },
+  { slot: "paddles", label: "F1 ručice na volanu", value: 220, pattern: /f1\s*(?:saltarice|ručice)|polugice za promjenu stupnja/i },
+  { slot: "headliner", label: "Crna obloga krova", value: 240, pattern: /crna obloga krova|crno nebo/i },
+  { slot: "mirrors-fold", label: "Električno sklopivi retrovizori", value: 180, pattern: /el\.?\s*sklopivi retrovizori|električno sklopivi retrovizori/i },
   { slot: "seats-vent", label: "Grijanje i ventilacija sjedala", value: 350, pattern: /ventilacija sjedala|hlađenje sjedala|ventilirana/i },
   { slot: "seats-heat", label: "Grijana sjedala", value: 180, pattern: /grijan[ae]\s+sjedala/i },
   { slot: "wheel-heat", label: "Grijanje volana", value: 160, pattern: /grijanje volana|grijani upravljač/i },
   { slot: "tow-elec", label: "Električna kuka", value: 300, pattern: /električna kuka|kuka na izvlačenje/i },
   { slot: "tow-std", label: "Kuka za vuču", value: 180, pattern: /kuka za vuču/i },
   { slot: "acc", label: "Adaptivni tempomat (ACC)", value: 260, pattern: /adaptivni tempomat|\bacc\b|distronic|travel assist|pilot assist|autopilot/i },
+  { slot: "cruise", label: "Tempomat", value: 180, pattern: /tempomat/i },
   { slot: "leather-sport", label: "Kožna / sportska sjedala", value: 280, pattern: /kožna sjedala|nappa|m sport sjedala|sportska sjedala|bmw-sport-seats|ergoactive/i },
   { slot: "keyless", label: "Keyless / Pristup bez ključa", value: 200, pattern: /keyless|kessy|pristup bez ključa/i },
   { slot: "tailgate", label: "Električna vrata prtljažnika", value: 200, pattern: /električna vrata prtljažnika/i },
   { slot: "cam-rear", label: "Kamera za vožnju unatrag", value: 180, pattern: /kamera za vožnju unatrag|stražnja kamera/i },
-  { slot: "navi", label: "Navigacija / CarPlay / Android Auto", value: 170, pattern: /navigacij|apple carplay|android auto/i },
+  { slot: "navi", label: "Navigacija Professional", value: 220, pattern: /navigacij|apple carplay|android auto/i },
+  { slot: "alloys20", label: 'Alu naplatci 20"', value: 240, pattern: /alu (?:felge|naplatci) 20/i },
   { slot: "alloys", label: "Aluminijski naplatci", value: 180, pattern: /aluminijski naplatci|alu naplatci|alu felge/i },
+  { slot: "tinted", label: "Zatamnjena stražnja stakla", value: 160, pattern: /zatamnjena stražnja stakla|zatamnjena straznja stakla|zatamnjena stakla/i },
 ];
 
 function parseRemainingRegMonths(registrationUntil: string | undefined, refDate: Date): number {
@@ -633,6 +643,23 @@ function regionalDemandMeta(city: string | undefined, county: string | undefined
     return { pct: -0.005, label: city || county || "Kontinentalna RH", note: "Kontinentalno tržište s umjerenijom cjenovnom elastičnošću (-0,5%)" };
   }
   return { pct: 0, label: city || county || "Prosjek RH", note: "Nacionalni prosjek potražnje u RH" };
+}
+
+function performanceEngineFactor(tokens: string): { mult: number; label: string } {
+  const text = tokens.toLowerCase();
+  if (/\b(?:435d|335d|535d|m550d|m40d|450d|50\s*tdi|3\.0\s*tdi|4\.0\s*tdi|v8)\b/.test(text)) {
+    return { mult: 1.16, label: "6-/8-cilindarska performansna izvedba (ukupno +25% vs 4-cil.)" };
+  }
+  if (/\b(?:430d|330d|530d|350d|45\s*tdi|3\.0d|535i|340i|440i|540i)\b/.test(text)) {
+    return { mult: 1.05, label: "6-cilindarska izvedba (ukupno ~+19% vs 420d/320d)" };
+  }
+  if (/\b(?:gti|gtd|gte|\br\b|s3|s4|s5|cupra|rs3|rs4|rs5|m2|m3|m4)\b/.test(text)) {
+    return { mult: 1.12, label: "Sportska performansna izvedba" };
+  }
+  if (/\b(?:320d|220d|318d|418d|420d|2\.0\s*tdi|30\s*tdi|35\s*tdi)\b/.test(text)) {
+    return { mult: 1.0, label: "" };
+  }
+  return { mult: 1.0, label: "" };
 }
 
 function specialtyTrimFactor(make: string, modelName: string, tokens: string): { mult: number; label: string } {
@@ -694,6 +721,7 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
   }
 
   const round50 = (n: number) => Math.max(500, Math.round(n / 50) * 50);
+  const engine = performanceEngineFactor(tokens);
 
   const estimatedNewPriceHr = Math.round((spec.baseNew * genMult * specialty.mult * powerScale * fuelNewScale) / 100) * 100;
   const retention = spec.retention ?? BRAND_PROFILES[input.make]?.retention ?? 1.0;
@@ -770,16 +798,17 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
     const lowKmStrength = (70000 - km) / 70000;
     mileagePct += lowKmStrength * Math.min(0.06, 0.02 + ageYears * 0.006);
   }
-  // Steeper depreciation thresholds above 180.000 km and 250.000 km
+  // Smooth, capped depreciation above 180k: the curve flattens past 220k so
+  // well-maintained high-mileage premium cars do not collapse to base prices.
   if (km > 180000) {
-    const band1 = Math.min(km - 180000, 70000) / 1000;
-    mileagePct -= band1 * 0.00085;
+    const band1 = Math.min(km - 180000, 40000) / 1000;
+    mileagePct -= band1 * 0.0007;
   }
-  if (km > 250000) {
-    const band2 = Math.min(km - 250000, 140000) / 1000;
-    mileagePct -= band2 * 0.00125;
+  if (km > 220000) {
+    const band2 = Math.min(km - 220000, 130000) / 1000;
+    mileagePct -= band2 * 0.00042;
   }
-  mileagePct = Math.max(-0.35, Math.min(0.145, mileagePct));
+  mileagePct = Math.max(-0.26, Math.min(0.145, mileagePct));
 
   const mileageImpactEur = Math.round((baseModelValueEur * mileagePct) / 50) * 50;
   const postMileageValue = Math.max(500, baseModelValueEur + mileageImpactEur);
@@ -871,6 +900,9 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
     if (rule.slot === "lights-led" && matchedSlots.has("lights-top")) continue;
     if (rule.slot === "seats-heat" && matchedSlots.has("seats-vent")) continue;
     if (rule.slot === "tow-std" && matchedSlots.has("tow-elec")) continue;
+    if (rule.slot === "alloys" && matchedSlots.has("alloys20")) continue;
+    if (rule.slot === "cruise" && matchedSlots.has("acc")) continue;
+    if (rule.slot === "leather-sport" && (matchedSlots.has("seats-memory") || matchedSlots.has("seats-msport"))) continue;
     if (rule.pattern.test(tokens)) {
       matchedSlots.add(rule.slot);
       rawEquipmentValue += rule.value;
@@ -909,7 +941,21 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
     });
   }
 
-  const preTrustValue = postMileageValue + equipmentValueEur;
+  const preEngineValue = postMileageValue + equipmentValueEur;
+  const enginePremiumEur = Math.round((preEngineValue * (engine.mult - 1)) / 50) * 50;
+  const preTrustValue = preEngineValue + enginePremiumEur;
+  if (engine.label && enginePremiumEur >= 50) {
+    factors.push({ id: "performance-engine", label: engine.label, impactEur: enginePremiumEur });
+    auditFactors.push({
+      id: "audit-performance-engine",
+      category: "Pogon i snaga",
+      parameterLabel: "Motorizacija / broj cilindara",
+      userValue: input.variant || input.title || "Performansna izvedba",
+      benchmarkValue: "Bazna 4-cilindarska izvedba (418d/420d/318d/320d)",
+      impactEur: enginePremiumEur,
+      explanation: `${engine.label} na hrvatskom tržištu rabljenih vozila u odnosu na baznu 4-cilindarsku izvedbu.`,
+    });
+  }
 
   // 4. Croatian Market, Tax, Registration & Regional Factors
   const flagSet = new Set(input.flags ?? []);
