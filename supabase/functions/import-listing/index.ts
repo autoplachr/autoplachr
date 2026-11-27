@@ -1,6 +1,6 @@
 import { corsHeaders, error, isPreflight, json, preflight } from "../_shared/cors.ts";
 import { analyzeListing } from "../_shared/analyze.ts";
-import { parseListing, type ParsedImage } from "../_shared/parse.ts";
+import { canonicalColor, parseListing, type ParsedImage } from "../_shared/parse.ts";
 
 const MAX_PAGE_BYTES = 3 * 1024 * 1024;
 const MAX_FEED_BYTES = 8 * 1024 * 1024;
@@ -213,6 +213,10 @@ Deno.serve(async request => {
         const analysis = await analyzeListing({ imageUrls: photos.slice(0, 8).map(photo => photo.src), rawText: String(parsed.vehicle.description ?? "") }, env());
         bannerOnFirst = Boolean(analysis.bannerOnFirst);
         bestCoverIndex = analysis.bestCoverIndex;
+        // Vision can see what the ad never states: fill the exterior color from photos.
+        if (analysis.color && !parsed.vehicle.color) {
+          parsed.vehicle.color = canonicalColor(analysis.color);
+        }
         if (bannerOnFirst && typeof bestCoverIndex === "number" && bestCoverIndex > 0 && photos[bestCoverIndex]) {
           photos.unshift(...photos.splice(bestCoverIndex, 1));
         }

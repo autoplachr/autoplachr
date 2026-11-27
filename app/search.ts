@@ -545,6 +545,29 @@ const DESCRIPTION_BOILERPLATE = [
   /nazovi oglašivača/i, /unatoč pažljivom unosu podataka moguće su pogreške/i,
   /oglas iz usluge/i, /mjesto sigurne i povoljne kupnje/i, /najbrzi put do vašeg/i,
   /auto\s*centar\s*bi[/\s-]*mer/i, /^cijena:\s*[\d.,\s]+e?\s*fix\b/im,
+  // Dealer sales footers — never genuine vehicle notes.
+  /ro[dđ]ajemo\s+provjeren\w*\s+vozila/i,
+  /g\s*a\s*r\s*a\s*n\s*c\s*i\s*j\s*a\s*:/i,
+  /garancij\w*\s*:\s*na\s+(?:ispravnost|tehni[cč]ku)/i,
+  /mogu[ćc]nost\s+pla[ćc]anja\s+karticama/i,
+  /visa\s+premium/i,
+  /diners\s+\(?od/i,
+  /radno\s+vrijeme\s+(?:salona|prodajnog)/i,
+  /na[sš]im\s+(?:kupcima|klijentima)\s+nudimo/i,
+  /besplatnu\s+procjenu\s+va[sš]eg\s+vozila/i,
+  /zamjena\s+va[sš]eg\s+vozila\s+za\s+vozilo\s+iz\s+na[sš]e\s+ponude/i,
+  /podaci\s+o\s+opremi\s+vozila\s+navedeni\s+u\s+oglasu\s+su\s+informativnog/i,
+  /unaprijed\s+se\s+ispri[cč]avamo\s+za\s+eventualne\s+pogre[sš]ke/i,
+];
+
+/** Inline spec phrases repeated from the structured attributes ("Godište: 2016, Prijeđeni kilometri: 160000 km"). */
+const INLINE_SPEC_PHRASES: Array<[RegExp, string]> = [
+  [/\s*,?\s*god(?:ište|ina\s+proizvodnje)\s*[:=]?\s*(?:19|20)\d{2}\b\.?/gi, ""],
+  [/\s*,?\s*prije[đd]eni\s+kilometri\s*[:=]?\s*[\d.,\s]*\s*km\b\.?/gi, ""],
+  [/\s*,?\s*snaga\s+motora\s*[:=]?\s*[\d.,\s]*\s*kw\b\.?/gi, ""],
+  [/\s*,?\s*radni\s+obujam\s*[:=]?\s*[\d.,\s]*\s*cm[³3]\b\.?/gi, ""],
+  [/\s*,?\s*reg(?:istriran\s+do)?\.?\s*[:=]?\s*\d{1,2}\s*\/\s*(?:19|20)\d{2}\b\.?/gi, ""],
+  [/\s*,?\s*cijena\s*[:=]?\s*[\d.,\s]*\s*(?:€|eur)\b\.?/gi, ""],
 ];
 
 /** Bullet lines that only repeat specs already parsed into the form ("- 2017", "- 190kw", "- reg. 12/2026"). */
@@ -568,6 +591,14 @@ export function cleanImportedDescription(raw: string): string {
   }
   // Drop bullet lines that only repeat specs already structured into Step 2.
   text = text.split("\n").filter(line => !SPEC_ONLY_BULLET.test(line)).join("\n");
+  // Drop inline spec phrases repeated from the structured attributes.
+  for (const [pattern, replacement] of INLINE_SPEC_PHRASES) text = text.replace(pattern, replacement);
+  text = text
+    .replace(/\n{3,}/g, "\n\n")
+    .split("\n")
+    .map(line => line.replace(/^[,\s]+/, "").replace(/[,\s]+$/, "").replace(/\s{2,}/g, " ").trim())
+    .filter(Boolean)
+    .join("\n");
   let cut = text.length;
   for (const marker of DESCRIPTION_BOILERPLATE) {
     const index = text.search(marker);

@@ -224,7 +224,11 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
     const bodyType = bodyTypes.find(item => labelKey(item) === labelKey(facts.bodyType ?? ""));
     const fuel = specFuels.find(item => labelKey(item) === labelKey(facts.fuel || inferred.fuel || ""));
     const cylinders = cylinderChoices.find(item => item === (facts.cylinders ?? inferred.cylinders));
-    const gear = gears.find(item => labelKey(item) === labelKey(facts.gear ?? ""));
+    // Njuškalo reports raw gearbox names ("Mehanički mjenjač", "Automatski sekvencijski") — map them to the form values.
+    const rawGear = String(facts.gear ?? inferred.gear ?? "");
+    const gearName = /\bmehani|manual|ru[cč]n/i.test(rawGear) ? "Ručni"
+      : /\bautomat|sekv|steptronic|s.?tronic|dsg|pdk|cvt|edc|tiptronic/i.test(rawGear) ? "Automatski" : rawGear;
+    const gear = gears.find(item => labelKey(item) === labelKey(gearName));
     setImportedSpecs(true);
     setValues(old => {
       const next = {
