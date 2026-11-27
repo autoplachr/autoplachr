@@ -848,7 +848,12 @@ html.dark .marketplace-home {
   outline-offset: 0;
   box-shadow: none;
 }
-.hero-query::-webkit-search-cancel-button {
+.hero-search-input:focus,
+.hero-search-input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+.hero-search-input::-webkit-search-cancel-button {
   -webkit-appearance: none;
   appearance: none;
   display: none;

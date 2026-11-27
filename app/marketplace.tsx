@@ -467,7 +467,7 @@ function HeroSearch({ search, count, totalCount, activeCount, update, onSubmit, 
 
       <div className="px-3 md:px-6">
         <div className="hero-panel relative z-10 mx-auto -mt-8 max-w-6xl rounded-lg bg-[#151821] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.65)] ring-1 ring-white/[0.08] md:-mt-10 md:p-6">
-          <form className="flex" role="search" aria-label="Pretraga prema opisu vozila" onSubmit={event => {
+          <form className="flex rounded-md border border-white/[0.10] focus-within:border-[#2563EB]" role="search" aria-label="Pretraga prema opisu vozila" onSubmit={event => {
             event.preventDefault();
             if (query.trim()) onQuery(parseVehicleQuery(query, search));
           }}>
@@ -475,7 +475,7 @@ function HeroSearch({ search, count, totalCount, activeCount, update, onSubmit, 
               <span className="sr-only">Opišite vozilo koje tražite</span>
               <SearchIcon size={16} strokeWidth={1.75} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input type="text" enterKeyHint="search" maxLength={200} value={query} required
-                className="hero-query no-inner-focus outline-none focus:outline-none focus-visible:outline-none focus:ring-0 h-11 w-full rounded-l-md rounded-r-none border border-r-0 border-white/[0.10] bg-[#0D0F12] pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-[#2563EB] md:h-10"
+                className="hero-search-input no-inner-focus h-11 w-full rounded-l-md rounded-r-none border-0 bg-[#0D0F12] pl-9 pr-3 text-sm text-white placeholder:text-slate-500 md:h-10"
                 placeholder={focused ? "Opišite vozilo koje tražite" : "Npr. " + placeholder}
                 onChange={event => setQuery(event.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
             </label>
