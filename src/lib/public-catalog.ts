@@ -24,9 +24,18 @@ async function mapPublicListings(db: SupabaseClient, rows: Record<string, unknow
 export const getPublicListing = cache(async (id: string) => {
   const db = publicDb();
   if (!db || !isListingUuid(id)) return;
-  const { data, error } = await db.from("listings").select("*").eq("status", "active").eq("id", id).maybeSingle();
-  if (error) throw new Error("Učitavanje oglasa nije uspjelo.");
-  return (await mapPublicListings(db, data ? [data] : []))[0];
+  try {
+    const { data, error } = await db.from("listings").select("*").eq("status", "active").eq("id", id).maybeSingle();
+    if (error) {
+      console.error("public listing", id, error.code);
+      return;
+    }
+    return (await mapPublicListings(db, data ? [data] : []))[0];
+  } catch (cause) {
+    // A transient Supabase/network failure must render a clean 404, never a 500.
+    console.error("public listing load failed", id, cause instanceof Error ? cause.message : cause);
+    return;
+  }
 });
 
 export const getPublicCatalog = cache(async () => {
@@ -52,10 +61,18 @@ export const getPublicCatalog = cache(async () => {
 export const getPublicDealer = cache(async (id: string) => {
   const db = publicDb();
   if (!db || !isListingUuid(id)) return [];
-  const { data, error } = await db.from("listings").select("*").eq("status", "active")
-    .eq("user_id", id).order("created_at", { ascending: false });
-  if (error) throw new Error("Učitavanje ponude autokuće nije uspjelo.");
-  return (await mapPublicListings(db, data)).filter(vehicle => vehicle.dealer);
+  try {
+    const { data, error } = await db.from("listings").select("*").eq("status", "active")
+      .eq("user_id", id).order("created_at", { ascending: false });
+    if (error) {
+      console.error("public dealer listings", id, error.code);
+      return [];
+    }
+    return (await mapPublicListings(db, data)).filter(vehicle => vehicle.dealer);
+  } catch (cause) {
+    console.error("public dealer load failed", id, cause instanceof Error ? cause.message : cause);
+    return [];
+  }
 });
 
 export async function getPublicFacet(column: "make" | "city", value: string) {

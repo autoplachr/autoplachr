@@ -7,6 +7,7 @@ import { JsonLd } from "../../../src/components/JsonLd";
 import {
   absoluteImageUrl,
   findVehicleBySeoSlug,
+  isListingUuid,
   SITE_NAME,
   SITE_URL,
   slugifyHr,
@@ -18,10 +19,16 @@ type Props = { params: Promise<{ slug: string }> };
 
 
 export async function generateStaticParams() {
-  // Static export cannot render unknown slugs at request time: pre-render every
-  // public listing that appears in the built catalog, including live UUID ads.
-  const catalog = await getPublicCatalog();
-  return [...new Set(catalog.map(vehicle => vehicleSeoSlug(vehicle)))].map(slug => ({ slug }));
+  // Static export cannot render unknown slugs at request time. Pre-render all
+  // static catalog slugs plus every live listing that loads successfully.
+  const live = await getPublicCatalog();
+  const liveIds = [...new Set(live.filter(vehicle => isListingUuid(vehicle.id)).map(vehicle => vehicle.id))];
+  const liveSlugs: string[] = [];
+  for (const id of liveIds) {
+    try { if (await getPublicListing(id)) liveSlugs.push(id); } catch { /* skip unreachable ads */ }
+  }
+  return [...new Set([...staticCatalogVehicles().map(vehicle => vehicleSeoSlug(vehicle)), ...liveSlugs])]
+    .map(slug => ({ slug }));
 }
 
 function carJsonLd(vehicle: Vehicle, slug: string) {
