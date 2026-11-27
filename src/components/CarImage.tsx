@@ -24,7 +24,7 @@ function CarImageSource({
   photo,
   alt,
   eager = false,
-  sizes = "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 420px",
+  sizes = "(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw",
   className = "",
   layer = false,
   dim = false,
@@ -76,6 +76,7 @@ function CarImageSource({
             fill
             unoptimized={!optimizable}
             priority={eager}
+            quality={90}
             ref={image}
             alt={alt}
             src={src}

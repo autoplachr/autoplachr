@@ -3,7 +3,7 @@
 import { ArrowLeft, ArrowRight, Check, Clock, MapPin, MessageSquare, Phone, Search } from "lucide-react";
 import { useMemo, useState, type MouseEvent } from "react";
 import { BrandLogo } from "../src/components/BrandLogo";
-import { VehicleCard } from "./vehicle-card";
+import { CatalogCard } from "./vehicle-card";
 import {
   DEALERSHIP_DIRECTORY,
   DIRECTORY_CITIES,
@@ -97,8 +97,8 @@ export function DealershipDirectoryView({
           <p>{dealer.city}{dealer.sellerAddress ? " · " + dealer.sellerAddress : ""}</p>
           {(dealer.phone || dealer.contactAvailable) && <DealerPhone key={dealer.id} vehicle={dealer} />}
         </section>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {stock.map(vehicle => <VehicleCard key={vehicle.id} vehicle={vehicle} saved={savedIds.includes(vehicle.id)}
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {stock.map(vehicle => <CatalogCard key={vehicle.id} vehicle={vehicle} saved={savedIds.includes(vehicle.id)}
             onSave={() => onSave(vehicle.id)} eager={false} onOpen={event => onOpenListing(event, vehicle.id)} />)}
         </div>
       </main>;
@@ -247,9 +247,9 @@ export function DealershipDirectoryView({
           </div>
 
           {dealerVehicles.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
               {dealerVehicles.map((vehicle) => (
-                <VehicleCard key={vehicle.id} vehicle={vehicle} saved={savedIds.includes(vehicle.id)}
+                <CatalogCard key={vehicle.id} vehicle={vehicle} saved={savedIds.includes(vehicle.id)}
                   onSave={() => onSave(vehicle.id)} eager={false}
                   onOpen={event => onOpenListing(event, vehicle.id)} />
               ))}

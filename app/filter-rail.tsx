@@ -42,48 +42,83 @@ function Section({ title, action, children, first = false }: { title: string; ac
   </section>;
 }
 
-/** Pointer + keyboard range slider with one or two thumbs. Thumbs are 16 px, inset 8 px. */
+/**
+ * Pointer-capture range slider with one or two thumbs (DESIGN.md §6 "Sliders").
+ * The track is `touch-none select-none`, so a drag never scrolls the page on iOS/Android.
+ * Each thumb is a 44×44 invisible hit area around a 20 px visible handle. Pressing a thumb
+ * grabs it; pressing the track grabs the nearest thumb; overlapping thumbs resolve by the
+ * first drag direction. The last-touched thumb is always on top.
+ */
+const THUMB_INSET = 10;
 function RangeSlider({ min, max, step, values, onChange, labels, formatValue }: {
   min: number; max: number; step: number; values: number[];
   onChange: (values: number[]) => void; labels: string[]; formatValue: (value: number) => string;
 }) {
   const track = useRef<HTMLDivElement>(null);
   const thumbs = useRef<(HTMLSpanElement | null)[]>([]);
-  const dragging = useRef<number | null>(null);
+  // -1 = pointer is down on overlapping thumbs and the drag direction has not picked one yet.
+  const drag = useRef<{ index: number; startX: number } | null>(null);
+  const latest = useRef(values);
+  latest.current = values;
+  const [active, setActive] = useState<number | null>(null);
+  const [last, setLast] = useState(values.length - 1);
   const span = Math.max(step, max - min);
   const pct = (value: number) => (clamp(value, min, max) - min) / span;
 
   function valueAt(clientX: number) {
     const rect = track.current!.getBoundingClientRect();
-    const ratio = clamp((clientX - rect.left - 8) / Math.max(1, rect.width - 16), 0, 1);
+    const ratio = clamp((clientX - rect.left - THUMB_INSET) / Math.max(1, rect.width - THUMB_INSET * 2), 0, 1);
     return clamp(Math.round((min + ratio * span) / step) * step, min, max);
   }
   function set(index: number, raw: number) {
-    const next = [...values];
-    const low = index > 0 ? values[index - 1] + step : min;
-    const high = index < values.length - 1 ? values[index + 1] - step : max;
+    const current = latest.current;
+    const next = [...current];
+    const low = index > 0 ? current[index - 1] + step : min;
+    const high = index < current.length - 1 ? current[index + 1] - step : max;
     next[index] = clamp(raw, low, Math.max(low, high));
-    if (next[index] !== values[index]) onChange(next);
+    if (next[index] !== current[index]) {
+      latest.current = next;
+      onChange(next);
+    }
+  }
+  function grab(index: number) {
+    setActive(index);
+    setLast(index);
+    thumbs.current[index]?.focus({ preventScroll: true });
   }
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
-    if (event.button !== 0) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
     const value = valueAt(event.clientX);
-    let index = 0;
+    const hit = (event.target as HTMLElement).closest<HTMLElement>("[data-thumb]");
+    let index = hit ? Number(hit.dataset.thumb) : 0;
     if (values.length === 2) {
       const [a, b] = values;
-      const da = Math.abs(value - a), db = Math.abs(value - b);
-      index = da < db ? 0 : da > db ? 1 : value < a ? 0 : 1;
+      if (b - a <= step * 2 && (hit || Math.abs(value - a) === Math.abs(value - b))) index = -1;
+      else if (!hit) index = Math.abs(value - a) <= Math.abs(value - b) ? (value > b ? 1 : 0) : 1;
     }
-    dragging.current = index;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    thumbs.current[index]?.focus({ preventScroll: true });
-    set(index, value);
-    event.preventDefault();
+    drag.current = { index, startX: event.clientX };
+    if (index >= 0) {
+      grab(index);
+      if (!hit) set(index, value);
+    }
   }
   function onPointerMove(event: PointerEvent<HTMLDivElement>) {
-    if (dragging.current !== null) set(dragging.current, valueAt(event.clientX));
+    const current = drag.current;
+    if (!current) return;
+    if (current.index < 0) {
+      const dx = event.clientX - current.startX;
+      if (Math.abs(dx) < 3) return;
+      current.index = dx < 0 ? 0 : 1;
+      grab(current.index);
+    }
+    set(current.index, valueAt(event.clientX));
   }
-  function stop() { dragging.current = null; }
+  function stop() {
+    drag.current = null;
+    setActive(null);
+  }
   function onKeyDown(index: number, event: KeyboardEvent<HTMLSpanElement>) {
     const big = step * 10;
     const delta = { ArrowLeft: -step, ArrowDown: -step, ArrowRight: step, ArrowUp: step, PageDown: -big, PageUp: big }[event.key];
@@ -91,22 +126,26 @@ function RangeSlider({ min, max, step, values, onChange, labels, formatValue }: 
     else if (event.key === "Home") set(index, min);
     else if (event.key === "End") set(index, max);
     else return;
+    setLast(index);
     event.preventDefault();
   }
   const left = values.length === 2 ? pct(values[0]) : 0;
   const right = pct(values[values.length - 1]);
-  const position = (ratio: number) => `calc(8px + (100% - 16px) * ${ratio})`;
+  const position = (ratio: number) => `calc(${THUMB_INSET}px + (100% - ${THUMB_INSET * 2}px) * ${ratio})`;
 
-  return <div ref={track} className="ap-slider relative h-5 touch-none select-none" onPointerDown={onPointerDown}
-    onPointerMove={onPointerMove} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}>
-    <span aria-hidden="true" className="absolute inset-x-2 top-1/2 h-1 -translate-y-1/2 rounded-full bg-(--ap-track)" />
-    <span aria-hidden="true" className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-(--ap-ink)"
-      style={{ left: position(left), width: `calc((100% - 16px) * ${Math.max(0, right - left)})` }} />
-    {values.map((value, index) => <span key={index} ref={node => { thumbs.current[index] = node; }}
-      role="slider" tabIndex={0} aria-label={labels[index]} aria-valuemin={min} aria-valuemax={max} aria-valuenow={value}
-      aria-valuetext={formatValue(value)} onKeyDown={event => onKeyDown(index, event)}
-      className="ap-thumb absolute top-1/2 block h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-(--ap-ink) bg-(--ap-card) outline-none focus-visible:ring-4 focus-visible:ring-(--ap-focus)/30"
-      style={{ left: position(pct(value)), zIndex: dragging.current === index ? 3 : 2 }} />)}
+  return <div ref={track} className="ap-slider relative h-11 cursor-pointer touch-none select-none [-webkit-tap-highlight-color:transparent]"
+    onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}>
+    <span aria-hidden="true" className="absolute inset-x-[10px] top-1/2 h-1 -translate-y-1/2 rounded-full bg-(--ap-track)" />
+    <span aria-hidden="true" className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-(--ap-accent)"
+      style={{ left: position(left), width: `calc((100% - ${THUMB_INSET * 2}px) * ${Math.max(0, right - left)})` }} />
+    {values.map((value, index) => <span key={index} ref={node => { thumbs.current[index] = node; }} data-thumb={index}
+      data-active={active === index} role="slider" tabIndex={0} aria-label={labels[index]} aria-valuemin={min} aria-valuemax={max}
+      aria-valuenow={value} aria-valuetext={formatValue(value)} onKeyDown={event => onKeyDown(index, event)}
+      onFocus={() => setLast(index)}
+      className="ap-thumb group absolute top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none"
+      style={{ left: position(pct(value)), zIndex: active === index ? 4 : last === index ? 3 : 2 }}>
+      <span aria-hidden="true" className="ap-thumb-dot block h-5 w-5 rounded-full border-[2.5px] border-(--ap-accent) bg-white shadow-[0_2px_8px_rgba(29,78,216,0.28)] group-focus-visible:ring-4 group-focus-visible:ring-(--ap-focus)/30" />
+    </span>)}
   </div>;
 }
 
@@ -143,22 +182,23 @@ function PriceFilter({ search, update, domainPool, pool }: {
 
   return <Section title="Cijena" action={<button type="button" className={clearClass} disabled={!active}
     onClick={() => update({ ...search, cijenaOd: "", cijena: "" })}>Očisti</button>}>
-    <div className="flex h-11 items-end gap-[2px] px-2" aria-hidden="true">
+    <div className="flex h-11 items-end gap-[2px] px-[10px]" aria-hidden="true">
       {counts.map((count, index) => {
         const start = lo + index * width, end = start + width;
         const inside = end > from && start < to;
         return <button type="button" tabIndex={-1} key={index}
           title={`${count} · ${euro(Math.round(start))} – ${euro(Math.round(end))}`}
           onClick={() => commit([Math.floor(start / PRICE_STEP) * PRICE_STEP, Math.ceil(end / PRICE_STEP) * PRICE_STEP], false)}
-          className={"min-w-0 flex-1 cursor-pointer rounded-t-[2px] " + (inside ? "bg-(--ap-ink)" : "bg-(--ap-track)")}
+          className={"ap-bar min-w-0 flex-1 cursor-pointer rounded-t-[2px] " + (inside ? "bg-(--ap-accent)" : "bg-(--ap-track)")}
           style={{ height: count ? `${Math.max(12, (count / peak) * 100)}%` : "2px" }} />;
       })}
     </div>
-    <div className="-mt-2.5">
+    {/* The 44 px slider is centred on the bar baseline so the track sits flush under the bars. */}
+    <div className="-mt-[22px]">
       <RangeSlider min={lo} max={hi} step={PRICE_STEP} values={[from, to]} onChange={values => commit(values)}
         labels={["Cijena od", "Cijena do"]} formatValue={value => value >= hi ? maxLabel : euro(value)} />
     </div>
-    <div className="mt-2 grid grid-cols-2 gap-2">
+    <div className="mt-0.5 grid grid-cols-2 gap-2">
       <PriceBox label="Od" value={from} placeholder={euro(lo)} empty={!search.cijenaOd}
         onCommit={value => commit([value === null ? lo : clamp(value, lo, to - PRICE_STEP), to], false)} />
       <PriceBox label="Do" value={to} placeholder={maxLabel} empty={!search.cijena}
@@ -198,7 +238,7 @@ function Switch({ label, hint, checked, onChange }: { label: string; hint: strin
       <span className="block text-[11px] text-(--ap-faint)">{hint}</span>
     </label>
     <button id={id} type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
-      className={"ap-switch relative h-5 w-9 flex-none rounded-full " + (checked ? "bg-(--ap-ink)" : "bg-(--ap-track)")}>
+      className={"ap-switch relative h-5 w-9 flex-none rounded-full " + (checked ? "bg-(--ap-accent)" : "bg-(--ap-track)")}>
       <span aria-hidden="true" className={"ap-switch-knob absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-[0_1px_2px_rgba(16,24,40,0.2)] " + (checked ? "translate-x-4" : "translate-x-0")} />
     </button>
   </div>;
@@ -291,7 +331,7 @@ function BrandFilter({ search, update, domainPool, pool }: { search: Search; upd
           <span className="flex flex-none items-center">
             <span className="mr-2.5 text-[12px] text-(--ap-faint) tabular-nums">{count}</span>
             <input type="checkbox" checked={selected.has(make)} onChange={event => toggle(make, event.target.checked)}
-              className="ap-check h-4 w-4 cursor-pointer rounded-[4px] border-[#D1D5DB] accent-(--ap-ink)" />
+              className="ap-check h-4 w-4 cursor-pointer rounded-[4px] border-[#D1D5DB] accent-(--ap-accent)" />
           </span>
         </label>
       </li>)}
@@ -364,7 +404,7 @@ export function FilterRail({ search, update, inventory, onAdvanced, className = 
       <RangeSlider min={KM_STEP} max={KM_MAX} step={KM_STEP} values={[km]} labels={["Maksimalna kilometraža"]}
         formatValue={value => value >= KM_MAX ? "Bez ograničenja" : "do " + number(value) + " km"}
         onChange={([value]) => update({ ...search, km: value >= KM_MAX ? "" : String(value) }, true)} />
-      <div className="mt-1 flex justify-between px-0.5 text-[10.5px] text-(--ap-faint) tabular-nums" aria-hidden="true">
+      <div className="-mt-1 flex justify-between px-0.5 text-[10.5px] text-(--ap-faint) tabular-nums" aria-hidden="true">
         <span>{compactKm(KM_STEP)}</span><span>{compactKm(KM_MAX / 2)}</span><span>300k+ km · Sve</span>
       </div>
     </Section>
@@ -397,16 +437,16 @@ export function FilterSheet({ count, onClose, children }: { count: number; onClo
   return <dialog ref={ref} aria-label="Filteri vozila" className="ap-sheet"
     onCancel={event => { event.preventDefault(); onClose(); }}
     onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <div className="flex h-full flex-col bg-(--ap-card)">
-      <div className="flex h-14 flex-none items-center justify-between border-b border-(--ap-line-strong) px-5">
-        <span className="text-[15px] font-bold text-(--ap-ink)">Filteri</span>
+    <div className="flex h-dvh flex-col bg-(--ap-card) pt-[env(safe-area-inset-top)] shadow-[-12px_0_32px_rgba(15,23,42,0.12)]">
+      <div className="ap-blur sticky top-0 z-10 flex h-14 flex-none items-center justify-between border-b border-(--ap-line-strong) bg-(--ap-card)/85 px-5">
+        <span className="text-[16px] font-bold tracking-[-0.01em] text-(--ap-ink)">Filteri</span>
         <button type="button" aria-label="Zatvori filtere" onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-(--ap-ink) hover:bg-(--ap-fill)"><X size={18} aria-hidden="true" /></button>
+          className="ap-press flex h-10 w-10 items-center justify-center rounded-full bg-(--ap-fill) text-(--ap-ink) hover:bg-(--ap-fill-hover)"><X size={18} aria-hidden="true" /></button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6 pt-4">{children}</div>
-      <div className="flex-none border-t border-(--ap-line-strong) p-4">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6 pt-3">{children}</div>
+      <div className="ap-safe-bottom ap-blur flex-none border-t border-(--ap-line-strong) bg-(--ap-card)/90 px-4 pt-3">
         <button type="button" onClick={onClose}
-          className="ap-press h-11 w-full rounded-full bg-(--ap-ink) text-[14px] font-semibold text-(--ap-on-ink) tabular-nums hover:bg-(--ap-ink-hover)">
+          className="ap-press h-12 w-full rounded-full bg-(--ap-accent) text-[15px] font-semibold text-(--ap-on-accent) tabular-nums shadow-[0_6px_16px_rgba(29,78,216,0.28)] hover:bg-(--ap-accent-hover)">
           Prikaži {number(count)} {count % 10 === 1 && count % 100 !== 11 ? "vozilo" : "vozila"}
         </button>
       </div>

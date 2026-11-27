@@ -932,7 +932,7 @@ export function AccountPage({
             <h1 className="!m-0 truncate text-[20px] font-bold leading-tight text-[var(--text)]">{account.profile.name}</h1>
             <p className="!m-0 flex flex-wrap items-center gap-x-1.5 text-[13px] text-[var(--muted)]">
               <span>{account.profile.type === "dealer" ? "Autokuća B2B" : "Privatni račun"}</span>
-              {account.verified && <><span aria-hidden="true">·</span><span className="inline-flex items-center gap-1"><Check size={13} strokeWidth={2.25} aria-hidden="true" />Verificiran</span></>}
+              {account.verified && <span className="ap-verified"><Check size={12} strokeWidth={2.5} aria-hidden="true" />Verificiran</span>}
               <span aria-hidden="true">·</span><span className="truncate">{account.email}</span>
               {account.profile.city && <><span aria-hidden="true">·</span><span>{account.profile.city}</span></>}
               {account.profile.type === "dealer" && account.profile.subdomain && <><span aria-hidden="true">·</span><span>{account.profile.subdomain}.autoplac.hr</span></>}
@@ -941,7 +941,8 @@ export function AccountPage({
         </div>
         <div className="flex items-center gap-1">
           <button type="button" className="account-primary" onClick={() => onPublish()}>
-            <Plus size={15} aria-hidden="true" /> Predaj novi oglas
+            <span aria-hidden="true" className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-(--ap-accent) text-white"><Plus size={13} strokeWidth={2.5} /></span>
+            Predaj novi oglas
           </button>
           <button className="account-text-button" type="button" onClick={signOut}>
             Odjava
@@ -1029,10 +1030,11 @@ export function AccountPage({
                   key={key}
                   type="button"
                   onClick={() => setListingFilter(key)}
-                  className={`min-h-11 px-2.5 py-1 rounded-md text-[12px] font-semibold border transition-colors inline-flex items-center ${
+                  aria-pressed={listingFilter === key}
+                  className={`ap-press inline-flex h-9 items-center rounded-full px-3.5 text-[12.5px] ${
                     listingFilter === key
-                      ? "bg-[#2563EB] text-white border-[#2563EB]"
-                      : "bg-[var(--hover)] text-[var(--spec)] border-[var(--border)]"
+                      ? "bg-(--ap-ink) font-semibold text-(--ap-on-ink)"
+                      : "bg-(--ap-fill) font-medium text-(--ap-ink-2) hover:bg-(--ap-fill-hover)"
                   }`}
                 >
                   {label}
@@ -1050,15 +1052,15 @@ export function AccountPage({
               <p className="text-[13.5px] text-[var(--muted)] !m-0">Nema oglasa u odabranom filtru.</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col">
               {filteredListings.map(listing => {
                 const badge = statusLabels[listing.status] ?? statusLabels.active;
                 return (
                   <article
                     key={listing.id}
-                    className="p-3 rounded-lg border border-[var(--hairline)] flex flex-col md:flex-row md:flex-wrap gap-3 items-start md:items-center"
+                    className="ap-listing-row flex flex-col md:flex-row md:flex-wrap gap-3 items-start md:items-center py-4"
                   >
-                    <div className="w-full md:w-[156px] aspect-[16/10] shrink-0 rounded-lg overflow-hidden border border-[var(--border)]">
+                    <div className="w-full md:w-[156px] aspect-[16/10] shrink-0 rounded-xl overflow-hidden bg-(--ap-photo)">
                       <VehiclePhoto photo={listing.photos[0]} alt={listing.title} />
                     </div>
                     <div className="flex-1 min-w-0 flex flex-col gap-1.5">
@@ -1088,8 +1090,8 @@ export function AccountPage({
 
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         {listing.previousPriceEur && listing.previousPriceEur > listing.price && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold tabular-nums">
-                            ↓ Pad cijene ({euro(listing.previousPriceEur)} → {euro(listing.price)})
+                          <span className="inline-flex items-center gap-1 rounded-md bg-(--ap-tag-bg) px-2 py-0.5 text-[11px] font-semibold text-(--ap-warm-ink) tabular-nums">
+                            <TrendingDown size={12} aria-hidden="true" className="text-(--ap-warm)" /> Pad cijene ({euro(listing.previousPriceEur)} → {euro(listing.price)})
                           </span>
                         )}
                         <strong className="text-[16px] font-extrabold tabular-nums text-[var(--text)] !m-0">
@@ -1152,8 +1154,8 @@ export function AccountPage({
                       )}
 
                       <div className="flex flex-wrap items-center gap-3 text-[12px] text-[var(--muted)] tabular-nums">
-                        <span>👁 {listing.views} pregleda</span>
-                        <span>💬 {listing.inquiriesCount ?? 0} upita</span>
+                        <span className="inline-flex items-center gap-1"><Eye size={13} aria-hidden="true" className="text-(--ap-accent)" /> {number(listing.views)} pregleda</span>
+                        <span className="inline-flex items-center gap-1"><MessageSquare size={13} aria-hidden="true" className="text-(--ap-accent)" /> {number(listing.inquiriesCount ?? 0)} upita</span>
                         {listing.status === "active" && hasActiveBoost(listing) && (
                           <span className="font-semibold">
                             Istaknuto{listing.boostExpiresAt ? " do " + new Date(listing.boostExpiresAt).toLocaleDateString("hr-HR", { timeZone: "Europe/Zagreb" }) : ""}

@@ -13,7 +13,7 @@ const { chromium } = require("playwright-core");
 const watchdog = setTimeout(() => { console.error("visual-check: watchdog timeout"); process.exit(2); }, 90_000);
 const base = process.env.VISUAL_BASE ?? "http://localhost:4323";
 const executablePath = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
-const routes = (process.env.VISUAL_ROUTES ?? "home=/,detail=/oglas/skoda-octavia-rs-2-0-tsi-2022-varazdin-octavia,racun=/racun")
+const routes = (process.env.VISUAL_ROUTES ?? "home=/,detail=/oglas/skoda-octavia-rs-2-0-tsi-2022-varazdin-octavia,autokuce=/autokuce,racun=/racun")
   .split(",").map(entry => entry.split("="));
 const viewports = [["desktop", 1440, 900], ["mobile", 390, 844]];
 const fullPage = process.env.VISUAL_FULL !== "0";
@@ -34,6 +34,15 @@ try {
       const file = `.tmp-visual-check/${name}-${device}.png`;
       await page.screenshot({ path: file, fullPage });
       console.log("saved", file);
+    }
+    // VISUAL_SHEET=1: open the mobile filter sheet on the homepage and capture it.
+    if (process.env.VISUAL_SHEET === "1" && device === "mobile") {
+      await page.goto(base + "/", { waitUntil: "load", timeout: 20_000 });
+      await page.waitForTimeout(1200);
+      await page.getByRole("button", { name: /^Filteri/ }).first().click();
+      await page.waitForTimeout(600);
+      await page.screenshot({ path: ".tmp-visual-check/sheet-mobile.png" });
+      console.log("saved .tmp-visual-check/sheet-mobile.png");
     }
     await context.close();
   }

@@ -52,13 +52,14 @@ export function CatalogCard({ vehicle, saved, onOpen, onSave, eager }: {
     <div className="relative aspect-[16/10] rounded-t-2xl bg-(--ap-photo)">
       <a href={href} onClick={onOpen} tabIndex={-1} aria-hidden="true" className="absolute inset-0 overflow-hidden rounded-t-2xl">
         <CarImage photo={vehicle.photos[0]} alt={vehicle.title} eager={eager}
-          sizes="(min-width: 1280px) 360px, (min-width: 768px) 50vw, 100vw" />
+          sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw" />
       </a>
       {deal && <span className={"pointer-events-none absolute left-3 top-3 z-[2] rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-sm "
         + (deal.strong ? "bg-white/95 text-[#111318]" : "bg-[#22C55E] text-white")}>{deal.label}</span>}
       <button type="button" aria-pressed={saved} aria-label={(saved ? "Ukloni iz spremljenih: " : "Spremi: ") + vehicle.title}
         onClick={onSave}
-        className="ap-press absolute right-3 top-3 z-[2] flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-[#111318] shadow-sm hover:scale-105">
+        className={"ap-press ap-heart absolute right-3 top-3 z-[2] flex h-8 w-8 items-center justify-center rounded-full bg-white/95 shadow-sm "
+          + (saved ? "text-[#1D4ED8]" : "text-[#111318]")}>
         <Heart size={15} strokeWidth={2} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
       </button>
       <span className="ap-medallion absolute -bottom-4 right-3.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-(--ap-divider) bg-white"
@@ -96,7 +97,7 @@ export function CatalogCard({ vehicle, saved, onOpen, onSave, eager }: {
       <footer className="flex items-center justify-between gap-3 border-t border-(--ap-divider) pt-3 text-[12px]">
         <span className="flex min-w-0 items-center gap-1 font-medium text-(--ap-text-2)">
           <span className="truncate" title={seller}>{seller}</span>
-          {vehicle.verified && <Check size={13} strokeWidth={2.25} className="flex-none" role="img"
+          {vehicle.verified && <Check size={13} strokeWidth={2.5} className="flex-none text-(--ap-accent)" role="img"
             aria-label={vehicle.dealer ? "Verificirana autokuća" : "Verificirani prodavač"} />}
         </span>
         <a href={href} onClick={onOpen} className="shrink-0 font-semibold text-(--ap-ink) hover:underline">Pogledaj detalje</a>

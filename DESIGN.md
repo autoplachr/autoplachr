@@ -43,11 +43,37 @@ overrides under `html.dark`). Light values are fixed:
 | `--ap-text-2` | `#6B7280` | Secondary text |
 | `--ap-mute` | `#8C93A0` | Eyebrows, uppercase section labels |
 | `--ap-faint` | `#9CA3AF` | Counts, spec captions, placeholders |
-| `--ap-focus` | `#2563EB` | Focus rings and text links only |
+| `--ap-accent` | `#1D4ED8` | Adriatic Cobalt: primary brand accent (see below) |
+| `--ap-accent-hover` | `#1E40AF` | Cobalt hover/pressed |
+| `--ap-accent-2` / `--ap-focus` | `#2563EB` | Lighter cobalt: focus rings, text links |
+| `--ap-accent-soft` | `#EFF4FF` | Cobalt tint behind icons and badges |
+| `--ap-warm` | `#D97706` | Warm secondary accent: price-drop icons, editorial highlights |
+| `--ap-warm-ink` | `#B45309` | Warm text on tint (AA contrast at 11–13 px) |
+| `--ap-tag-bg` | `#FFF7ED` | Warm soft tint behind `Reg. MM/YYYY`, `PDV (R1)`, price-drop tags |
 | `--ap-deal` | `#22C55E` | `Dobra cijena` pill (white text) |
-| `--ap-tag-bg` / `--ap-tag-ink` | `#FFF7ED` / `#C2410C` | Right-side price tag, only for real `Reg. MM/YYYY` or `PDV (R1)` data |
 
 `Odlična cijena` is a white `#FFFFFF` pill with `#111318` text.
+
+### Three-colour editorial palette
+
+1. **Surface + ink** carry 90 % of the UI: `#F5F6F8` canvas, `#FFFFFF` cards with
+   `#E6E8EC` borders, `#111318` obsidian ink (body text, filter chips, `Predaj oglas`).
+2. **Adriatic Cobalt `#1D4ED8` / `#2563EB`** is used on purpose, never as decoration:
+   active navigation underline, slider fill and thumbs, active histogram bars, switches
+   and checkboxes, active-filter count badges, verified dealer checkmarks, active tab
+   indicators, `Prikaži broj telefona` and the mobile sheet CTA `Prikaži {n} vozila`.
+3. **Warm `#D97706` on `#FFF7ED`** marks real time/price facts: `Reg. MM/YYYY` tags,
+   price-drop indicators and rare editorial highlights. Small warm text uses `#B45309`.
+
+Never tint whole sections cobalt or warm. Never use either accent for fake urgency.
+
+### Editorial banner strip (the only gradient)
+
+The homepage may show one low-profile banner strip above the two-column split
+(`rounded-2xl`, `px-6 py-5`, ≤ ~120 px tall on desktop): eyebrow, headline, live count,
+brand shortcuts and an inline search. Its background is the single permitted gradient
+(`from-[#0F172A] via-[#162033] to-[#1E3A8A]`). It must never push the first card row
+below the fold on a `1440×900` desktop, and it is not a hero (no photo, no carousel).
 
 ### Geometry
 
@@ -93,13 +119,38 @@ overrides under `html.dark`). Light values are fixed:
    the photo/body seam; title, `km · city`, price + optional warm tag, 3-column spec row
    (first registration, kW/KS, transmission/fuel), footer with seller name and
    `Pogledaj detalje`.
-5. **Mobile (< 1024px)**: sticky `Filteri (n)` pill opens the same rail in a slide-over
-   sheet. Cards are one column. No horizontal overflow at `390px`.
+5. **Mobile (< 1024px)**: a full-width sticky sub-bar under the navbar
+   (`sticky top-16 z-30 bg-[#F5F6F8]/90 backdrop-blur-xl border-b`) holds the `Filteri`
+   pill (cobalt count badge) on the left and a compact sort select on the right. The
+   pill opens the same rail in a full-height sheet. Cards are one column. No horizontal
+   overflow at `390px`, and nothing floats over card content.
+6. **Photos**: `CarImage` renders `quality={90}` with
+   `sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"` in an `aspect-[16/10]`
+   frame. Never upscale a `preview` thumbnail into a card or gallery.
+
+## 4b. Sub-page anatomy (same system everywhere)
+
+- **Detail (`app/detail.tsx`)**: breadcrumb + utility pills (`Spremi`, `Podijeli`,
+  `Prijavi`, `Ispiši A4`; saved state cobalt) → `rounded-2xl` white gallery with `1/n` pill
+  counter, arrow-key support and cobalt active thumbnail → white 6-column key-spec card →
+  white `Tehnički podaci` and `Oprema vozila` cards (cobalt checks) → seller description →
+  `Slična vozila u ponudi` as 3 `CatalogCard`s. Sticky right card
+  (`rounded-2xl p-6 shadow-[0_4px_20px_rgba(15,23,42,0.05)]`): price, truthful seller
+  block, cobalt `Prikaži broj telefona`, pill secondary buttons.
+- **Account (`app/account.tsx`, `app/seller-analytics.tsx`)**: white profile header card
+  (cobalt verified badge, `+ Predaj novi oglas` pill), underline tabs with an animated
+  cobalt indicator, a 4-column KPI card with cobalt icon tiles, single-line table/list
+  rows whose pill actions (`Istakni`, `A4 cjenik`, `Uredi`, `Pauziraj`, `Obriši`) never wrap.
+- **`/autokuce`, `/ppmv-kalkulator`, `/procjena-cijene`**: `#F5F6F8` canvas, white
+  `rounded-2xl` cards (`.detail-panel`), cobalt active controls, `.ap-press` feedback,
+  vehicles rendered with `CatalogCard`.
 
 ## 5. Hard bans (never do)
 
 - Never revert to a dark-first default (`#0B0D11` page background as default).
-- Never place a hero banner, carousel or promo block above the homepage marketplace.
+- Never place a photo hero, carousel or promo block above the homepage marketplace. The
+  only allowed element is the compact editorial banner strip from §3.
+- Never float a filter button over content on mobile; use the full-width sticky sub-bar.
 - Never render star ratings, review scores, monthly leasing/financing estimates
   (`Est. 437 €/mj`), "N-point inspection" claims, unsponsored insurance or finance
   banners, or placeholder `555` phone numbers.
@@ -107,17 +158,39 @@ overrides under `html.dark`). Light values are fixed:
   (`showPriceBadge === true`).
 - Never stack bordered boxes inside bordered boxes. Inside a card use `--ap-divider`
   hairlines, not nested bordered panels.
-- No gradients, violet/indigo/teal accents, glows, generic SaaS badge clutter, or
-  hand-drawn car wireframes. Use Lucide icons and real brand emblems (`BrandLogo`).
+- No gradients except the banner strip, no violet/indigo/teal accents, glows, emoji
+  icons, generic SaaS badge clutter, or hand-drawn car wireframes. Use Lucide icons and
+  real brand emblems (`BrandLogo`).
 - No decorative static controls. Every visible filter control changes results.
 
-## 6. Interaction and motion
+## 6. Interaction and motion (Apple iOS language)
 
-- Minimum touch target `36px` on desktop controls and `44px` for primary mobile actions.
+- Curves (in `app/globals.css`): `--ease-ios: cubic-bezier(0.22, 1, 0.36, 1)` for
+  everything, `--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1)` only for small
+  confirmations (heart fill, switch knob, thumb grab).
+- Animate only `transform` and `opacity` (plus the card `box-shadow` lift). Hardware
+  accelerated, `200ms` for controls, `500ms` for image zoom, `280ms` for sheets.
+- Tactile press: `.ap-press` = `transition-transform duration-200 ease-(--ease-ios)
+  active:scale-[0.97]` on pills, buttons, filter chips, heart toggles and tabs.
+- Card hover: photo zooms to `scale(1.025)` over `500ms ease-ios`; the card lifts with
+  the hover shadow. No other card motion.
+- Sticky headers, the mobile filter sub-bar and bottom sheets use
+  `backdrop-blur-xl` over an `85–90 %` opaque surface.
+- Sheets and the mobile menu are full height (`h-dvh`), slide in from the edge with
+  `ease-ios`, and pad the bottom with `env(safe-area-inset-bottom)`.
+- `prefers-reduced-motion: reduce` disables every transition and animation.
 - Visible `:focus-visible` ring in `--ap-focus` (`#2563EB`); never removed without replacement.
-- Animate only `transform`, `opacity` and card `box-shadow`, under `250ms`, and honour
-  `prefers-reduced-motion`.
-- Slider drags update results live and sync the URL with `history.replaceState`
+- Touch targets: `44×44px` minimum on mobile. Slider thumbs have a `44×44px` invisible
+  hit area around a `20px` visible handle.
+
+### Sliders
+
+- Pointer Events only (`onPointerDown/Move/Up` + `setPointerCapture`) on a
+  `touch-none select-none` track, so a drag never scrolls the page on iOS/Android.
+- Pressing a thumb grabs that thumb; pressing the track grabs the nearest thumb. When
+  both thumbs overlap, the first drag direction decides which one moves.
+- The last-touched thumb gets the highest `z-index`, so thumbs can never get stuck.
+- Drags update results live and sync the URL with `history.replaceState`
   (no history spam); discrete clicks use `pushState`.
 
 ## 7. Done checklist

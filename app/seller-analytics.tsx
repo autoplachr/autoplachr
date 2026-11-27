@@ -1,6 +1,6 @@
 "use client";
 
-import { Zap } from "lucide-react";
+import { Eye, Mail, MessageCircle, Phone, Zap } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { euro, number } from "./catalog";
 import { api, type Account, type ListingLead, type OwnedListing, type SellerAnalytics } from "./account-api";
@@ -29,13 +29,13 @@ export function AnalyticsOverview({ data, account, open, onEdit, onSheet, onPaus
   const active = account.listings.filter(item => item.status === "active");
   return <div className="seller-dashboard">
     <dl className="seller-kpis" aria-label="Učinak oglasa u zadnjih 30 dana">
-      {[
-        ["Ukupni pregledi (30d)", views],
-        ["Klikovi na telefon", phone],
-        ["WhatsApp upiti", whatsapp],
-        ["Primljene poruke", messages],
-      ].map(([label, total], index) => <div key={label} className="seller-kpi">
-        <dt>{label}</dt>
+      {([
+        ["Ukupni pregledi (30d)", views, Eye],
+        ["Klikovi na telefon", phone, Phone],
+        ["WhatsApp upiti", whatsapp, MessageCircle],
+        ["Primljene poruke", messages, Mail],
+      ] as const).map(([label, total, Icon], index) => <div key={label} className="seller-kpi">
+        <dt><span className="seller-kpi-icon" aria-hidden="true"><Icon size={14} strokeWidth={2} /></span>{label}</dt>
         <dd className="tabular-nums">{number(Number(total))}
           {index === 3 && data.unread > 0 && <span className="seller-kpi-note tabular-nums">{number(data.unread)} nepročitano</span>}
         </dd>

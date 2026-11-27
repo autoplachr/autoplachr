@@ -9,10 +9,14 @@ verification gate. Follow both exactly. A later instruction overrides them only 
 explicitly says so.
 
 The Light-First Editorial theme is non-negotiable on every screen and in every future
-prompt: light `#F5F6F8` canvas, white `#FFFFFF` rounded cards, `#111318` ink and primary
-CTAs, left filter rail on the homepage, no hero above the marketplace. Dark mode is an
-opt-in toggle only, never the default. Keep gradients, violet/indigo/teal accents,
-glows, fake ratings, fake leasing estimates and hand-drawn car wireframes out of the UI.
+prompt: light `#F5F6F8` canvas, white `#FFFFFF` rounded cards, `#111318` ink, the
+three-colour palette (ink + Adriatic Cobalt `#1D4ED8` + warm `#D97706`), Apple iOS
+motion (`--ease-ios`, `.ap-press`, transform/opacity only, reduced-motion respected),
+left filter rail on the homepage with only the compact editorial banner strip above it.
+Dark mode is an opt-in toggle only, never the default. Keep extra gradients,
+violet/indigo/teal accents, glows, emoji icons, fake ratings, fake leasing estimates and
+hand-drawn car wireframes out of the UI. Detail, account, `/autokuce`,
+`/ppmv-kalkulator` and `/procjena-cijene` follow the same system (DESIGN.md §4b).
 
 ## Component map
 
@@ -39,7 +43,9 @@ Run before every commit:
 2. `node scripts/verify-vehicle-coverage.mjs`
 3. `npm run build:site`
 4. Restart `node scripts/preview-site.mjs` on port `4323`.
-5. `node scripts/visual-check.mjs` for desktop `1440×900` and mobile `390×844` screenshots.
+5. `node scripts/visual-check.mjs` for desktop `1440×900` and mobile `390×844` screenshots of
+   `/`, `/oglas/<live-slug>`, `/autokuce`, `/racun` and the open mobile filter sheet.
+   Inspect them, then delete `.tmp-visual-check/` before committing.
 
 Interactive Playwright MCP / browser-runtime evaluation tools hang in this Windows
 environment and must not be used. The standalone `scripts/visual-check.mjs` (watchdog,

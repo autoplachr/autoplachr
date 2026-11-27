@@ -50,6 +50,24 @@ Load this file and `DESIGN.md` before touching UI, styling, copy or marketplace 
 - Same tokens: white panels, `#F1F3F5` dividers, `#111318` primary actions,
   `tabular-nums` statistics. Analytics show only real counters (views, saves, contacts).
 
+### Colour and motion quick rules
+- Ink `#111318` for text, chips and `Predaj oglas`. Cobalt `#1D4ED8` for sliders,
+  switches, checkboxes, count badges, verified checks, active tabs/nav underline, phone CTA
+  and sheet CTA. Warm `#D97706` / `#FFF7ED` (text `#B45309`) for `Reg.` tags and price drops.
+- Every pressable gets `.ap-press` (200 ms `--ease-ios`, `active:scale-[0.97]`).
+- Card photos zoom `1.025` on hover (500 ms). Sticky bars and sheets: `backdrop-blur-xl`.
+- Sheets/menus: full height `h-dvh`, safe-area bottom padding, slide in with `--ease-ios`.
+- Respect `prefers-reduced-motion`. No emoji icons; Lucide only.
+
+### Sliders (`RangeSlider` in `app/filter-rail.tsx`)
+- Pointer Events + `setPointerCapture`, `touch-none select-none` track.
+- `44×44` invisible thumb hit area, `20px` visible handle (`border-[2.5px] border-[#1D4ED8]`).
+- Last-touched thumb on top; overlapping thumbs resolve by first drag direction.
+
+### Mobile homepage
+- Full-width sticky sub-bar (`Filteri` + sort) under the navbar. Never a floating pill.
+- Compact editorial banner strip above the split is allowed (DESIGN.md §3), nothing else.
+
 ## 2. Truthfulness and Croatian localisation
 
 - Plurals: `1 oglas`, `2–4 oglasa`, `5+ oglasa`; `1 vozilo`, `2+ vozila`
@@ -95,8 +113,10 @@ Listings are de-duplicated (`dedupeListings` in `app/listing-boost.ts`) before r
 3. `npm run build:site`
 4. Restart `node scripts/preview-site.mjs` on port `4323` and confirm HTTP 200.
 5. `node scripts/visual-check.mjs` (standalone, watchdog + `await browser.close(); process.exit(0);`)
-   capturing desktop `1440×900` and mobile `390×844` into `.tmp-visual-check/`.
-   Inspect the PNGs, fix defects, then delete `.tmp-visual-check/`.
+   capturing desktop `1440×900` and mobile `390×844` of `/`, `/oglas/<live-slug>`,
+   `/autokuce` and `/racun`, plus the open mobile filter sheet (`VISUAL_SHEET=1`) into
+   `.tmp-visual-check/`. Inspect every PNG for overlapping mobile buttons, broken or blurry
+   images and visual drift between pages, fix defects, then delete `.tmp-visual-check/`.
 
 Do not use interactive Playwright MCP / browser-evaluation tools; they hang on this
 Windows machine. Only the standalone script above is allowed.

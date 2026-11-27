@@ -10,6 +10,8 @@ const config: NextConfig = {
   env: { NEXT_PUBLIC_AUTOPLAC_STATIC_EXPORT: staticExport ? "1" : "0" },
   images: {
     unoptimized: staticExport,
+    // Listing photos render at quality 90 (DESIGN.md §4.6); 75 stays available for small UI images.
+    qualities: [75, 90],
     remotePatterns: [{ protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" }],
   },
   async headers() {

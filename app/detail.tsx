@@ -3,13 +3,13 @@ import { contactMetadata, leadSession } from "./lead-session";
 import { listingValuationParams } from "../src/lib/valuation-link";
 
 import { Checkbox } from "../src/components/Checkbox";
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, ExternalLink, Fingerprint, Flag, Heart, Maximize, MessageSquare, Phone, Printer, Share2 } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, ExternalLink, Fingerprint, Flag, Heart, Maximize, MessageSquare, Phone, Printer, Share2, TrendingDown } from "lucide-react";
 import { BrandLogo } from "../src/components/BrandLogo";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { euro, groups, marketValuation, number, power, registered, taxStatus, type Vehicle } from "./catalog";
 import { vehicleMakeOptions } from "./make-equipment";
 import { Dialog, VehiclePhoto } from "./ui";
-import { VehicleCard } from "./vehicle-card";
+import { CatalogCard } from "./vehicle-card";
 import { SITE_URL, vehicleListingPath } from "../src/lib/seo";
 import { equipmentFor } from "../src/data/equipment-catalog";
 import { api, leadTrackingAvailable, type LeadReply } from "./account-api";
@@ -273,7 +273,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, savedIds = [
         <button type="button" onClick={share}><Share2 size={14} aria-hidden="true"/> Podijeli</button>
         <button type="button" onClick={onReport}><Flag size={14} aria-hidden="true"/> Prijavi</button>
         {sellerTools && <button type="button" onClick={() => setWindshield(true)}><Printer size={14} aria-hidden="true" /> A4 cjenik</button>}
-        <button type="button" className="detail-print" onClick={() => window.print()}><Printer size={14} aria-hidden="true"/> Ispiši</button>
+        <button type="button" className="detail-print" onClick={() => window.print()}><Printer size={14} aria-hidden="true"/> Ispiši A4</button>
       </div>
     </div>
     <div className="vehicle-detail-grid">
@@ -318,7 +318,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, savedIds = [
           {vehicle.history?.length ? <p>{vehicle.history.join(" · ")}</p> : null}
         </section>
         {similar.length > 0 && <section className="detail-section similar-section"><h2>Slična vozila u ponudi</h2>
-          <div className="similar-list">{similar.map(item => <VehicleCard key={item.id} vehicle={item} inRail eager={false}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">{similar.map(item => <CatalogCard key={item.id} vehicle={item} eager={false}
             saved={savedIds.includes(item.id)} onSave={() => onSaveVehicle?.(item.id)} onOpen={event => onOpen(event, item.id)} />)}</div>
         </section>}
       </div>
@@ -326,12 +326,14 @@ export default function Detail({ vehicle, inventory, saved, onSave, savedIds = [
         <div className="detail-contact">
           <section className="detail-contact-block" id="kontakt-prodavaca" aria-label="Cijena oglasa">
             {vehicle.previousPriceEur && vehicle.previousPriceEur > vehicle.price && (
-              <p className="flex items-center gap-2 text-[13px] tabular-nums">
-                <span className="line-through text-[var(--muted)]">{euro(vehicle.previousPriceEur)}</span>
-                <span className="font-semibold text-[#047857] dark:text-[#10B981]">−{euro(vehicle.previousPriceEur - vehicle.price)}</span>
+              <p className="mb-1 flex items-center gap-2 text-[13px] tabular-nums">
+                <span className="line-through text-(--ap-faint)">{euro(vehicle.previousPriceEur)}</span>
+                <span className="inline-flex items-center gap-1 rounded-md bg-(--ap-tag-bg) px-2 py-0.5 text-[12px] font-semibold text-(--ap-warm-ink)">
+                  <TrendingDown size={13} aria-hidden="true" className="text-(--ap-warm)" />Sniženo {euro(vehicle.previousPriceEur - vehicle.price)}
+                </span>
               </p>
             )}
-            <strong className="block text-3xl font-bold leading-tight tracking-tight tabular-nums text-[var(--text)]">{euro(vehicle.price)}</strong>
+            <strong className="block text-[32px] font-extrabold leading-tight tracking-[-0.025em] tabular-nums text-(--ap-ink)">{euro(vehicle.price)}</strong>
             <p className="mt-1 text-[13px] text-[var(--muted)]">{tax}</p>
             {showPriceBadge && <p className="verified-price-savings mt-2 text-[13px] font-semibold">Ispod tržišne cijene</p>}
             <a href={valuationUrl} onClick={e => { if (onOpenValuation) onOpenValuation(e, valuationUrl); }}
@@ -342,7 +344,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, savedIds = [
           <section id="upit-prodavacu" ref={inquiryPanel} tabIndex={-1} className="detail-contact-block" aria-label="Kontakt prodavača">
             <h2 className="flex items-center gap-1.5 text-[15px] font-bold text-[var(--text)]">
               {vehicle.dealershipId ? <a className="hover:underline underline-offset-4" href={"/autokuce/"+encodeURIComponent(vehicle.dealershipId)}>{vehicle.seller}</a> : vehicle.seller || "Privatni prodavač"}
-              {vehicle.verified && !vehicle.demo && <Check size={15} strokeWidth={2.25} className="text-[#2563EB]" role="img" aria-label={vehicle.dealer ? "Verificirana autokuća" : "Verificirani prodavač"} />}
+              {vehicle.verified && !vehicle.demo && <Check size={15} strokeWidth={2.5} className="text-(--ap-accent)" role="img" aria-label={vehicle.dealer ? "Verificirana autokuća" : "Verificirani prodavač"} />}
             </h2>
             <div className="mt-1.5 grid gap-1 text-[13px] text-[var(--spec)]">
               <p>{vehicle.sellerAddress || [vehicle.postalCode, vehicle.city].filter(Boolean).join(" ")}</p>

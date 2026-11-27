@@ -1,12 +1,12 @@
 "use client";
 
-import { categories, type CategoryId } from "./vehicle-category";
+import { categories, vehicleCategory, type CategoryId } from "./vehicle-category";
 import { Checkbox } from "../src/components/Checkbox";
 import { Navbar } from "../src/components/Navbar";
 import { CatalogCard } from "./vehicle-card";
 import { FilterRail, FilterSheet } from "./filter-rail";
 import { BrandLogo } from "../src/components/BrandLogo";
-import { Check, ChevronDown, RotateCcw, SlidersHorizontal, X } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, RotateCcw, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { SEO_CITIES, TOP_FOOTER_BRANDS, slugifyHr, vehicleIdFromPath, vehicleListingPath } from "../src/lib/seo";
@@ -16,7 +16,7 @@ import { FaqAccordion } from "./faq-accordion";
 import { DealershipDirectoryView } from "./autokuce-directory";
 import { DEALERSHIP_DIRECTORY } from "../src/data/dealerships";
 import { restoreListingPhotos, cities, euro, fuelLabel, fuels, gears, number, quick, vehicles, type Flag, type Vehicle } from "./catalog";
-import { bodyFilters, catalogSorts, doorOptions, seatOptions, colorFinishes, cylinderCounts, distances, initialSearch, matchVehicles, normalizeSearchUrl, prices, readSearch, searchFilterCount, sorts, validEquipmentFilters, writeSearch, years, type Search } from "./search";
+import { bodyFilters, catalogSorts, doorOptions, seatOptions, colorFinishes, cylinderCounts, distances, initialSearch, matchVehicles, normalizeSearchUrl, parseVehicleQuery, prices, readSearch, searchFilterCount, sorts, validEquipmentFilters, writeSearch, years, type Search } from "./search";
 import { equipmentFor } from "../src/data/equipment-catalog";
 import { Dialog, ListingOptions, MakeEquipmentOptions, Select } from "./ui";
 import { makeOptions } from "./make-equipment";
@@ -341,6 +341,52 @@ function FilterControls({ search, count, update, apply, compact = false }: {
       <button className="btn primary search-submit" type="submit">Prikaži <span className="tabular">{count}</span> {count === 1 ? "vozilo" : "vozila"}</button>
     </div>
   </form>;
+}
+
+const bannerBrands = [
+  { label: "BMW", make: "BMW" },
+  { label: "Audi", make: "Audi" },
+  { label: "VW", make: "Volkswagen" },
+  { label: "Mercedes", make: "Mercedes-Benz" },
+  { label: "Škoda", make: "Škoda" },
+] as const;
+
+/** Compact editorial banner strip above the two-column split (DESIGN.md §3). Not a hero. */
+function EditorialBanner({ total, search, update }: { total: number; search: Search; update: (next: Search, replace?: boolean) => void }) {
+  const [query, setQuery] = useState("");
+  const only = search.marke.length === 1 && !search.marka ? search.marke[0] : search.marka && !search.marke.length ? search.marka : "";
+  return <div className="mx-auto w-full max-w-[1440px] px-4 pt-4 sm:px-5 lg:px-8 lg:pt-5">
+    <section aria-label="AUTOPLAC.HR ponuda" className="ap-banner flex flex-col gap-4 rounded-2xl px-5 py-4 text-white shadow-[0_8px_24px_rgba(15,23,42,0.10)] md:flex-row md:items-center md:justify-between md:px-6 md:py-5">
+      <div className="min-w-0">
+        <p className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-white/60">AUTOPLAC.HR · Hrvatska</p>
+        <p className="mt-1 text-[17px] font-bold leading-snug tracking-[-0.015em] md:text-[19px]">Provjerena ponuda rabljenih vozila na jednom mjestu</p>
+        <div className="-mx-5 mt-2.5 flex items-center gap-1.5 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
+          <span className="mr-1 flex-none text-[12px] text-white/70 tabular-nums">{number(total)} {plural(total, "vozilo", "vozila", "vozila")} u ponudi</span>
+          {bannerBrands.map(({ label, make }) => {
+            const active = only === make;
+            return <button key={make} type="button" aria-pressed={active}
+              onClick={() => update({ ...search, marka: "", model: "", generacija: "", marke: active ? [] : [make],
+                oprema: validEquipmentFilters("", "", "", search.oprema) })}
+              className={"ap-press h-8 flex-none rounded-full px-3 text-[12px] font-semibold md:h-7 " + (active ? "bg-white text-[#111318]" : "bg-white/10 text-white hover:bg-white/20")}>
+              {label}
+            </button>;
+          })}
+        </div>
+      </div>
+      <form role="search" aria-label="Brza pretraga vozila" className="flex h-10 w-full flex-none items-center rounded-full bg-white pl-4 pr-1.5 text-[#111318] shadow-sm md:w-[340px]"
+        onSubmit={event => { event.preventDefault(); if (query.trim()) { update(parseVehicleQuery(query, search)); setQuery(""); } }}>
+        <label className="min-w-0 flex-1">
+          <span className="sr-only">Opišite vozilo koje tražite</span>
+          <input type="text" enterKeyHint="search" maxLength={200} value={query} onChange={event => setQuery(event.target.value)}
+            placeholder="npr. Golf dizel do 20.000 €"
+            className="h-10 w-full border-0 bg-transparent p-0 text-[13.5px] text-[#111318] outline-none placeholder:text-[#9CA3AF]" />
+        </label>
+        <button type="submit" aria-label="Pretraži" className="ap-press flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#1D4ED8] text-white hover:bg-[#1E40AF]">
+          <ArrowRight size={15} strokeWidth={2.25} aria-hidden="true" />
+        </button>
+      </form>
+    </section>
+  </div>;
 }
 
 /** Croatian count noun: 1 oglas, 2–4 oglasa, 5+ oglasa (11–14 use the plural form). */
@@ -670,6 +716,9 @@ export default function Marketplace({
   const activeCount = searchFilterCount(search);
   const update = (next: Search, replace = false) => { setVisibleCount(24); setSearch(next); writeSearch(next, replace); };
   const listed = useMemo(() => dedupeListings(results), [results]);
+  // Same de-duplication and category as the grid, so the banner and the H1 agree when unfiltered.
+  const stockCount = useMemo(() => dedupeListings(inventory.filter(vehicle => vehicleCategory(vehicle) === search.kategorija)).length,
+    [inventory, search.kategorija]);
   const scrollResults = () => requestAnimationFrame(() => document.getElementById("svi-oglasi")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }));
   const apply = () => {
     cancelResultScroll.current?.();
@@ -781,6 +830,18 @@ export default function Marketplace({
   const filters = <FilterControls search={search} count={results.length} update={update} apply={apply}/>;
   // SEO landing pages and dealer profiles bring their own H1.
   const ResultsHeading = seoHeader || dealerProfile ? "h2" : "h1";
+  const sortControl = (compact: boolean) => <label className="flex min-w-0 items-center gap-2">
+    <span className={compact ? "sr-only" : "text-[12px] text-(--ap-text-2)"}>Sortiraj:</span>
+    <span className="relative min-w-0">
+      <select value={catalogSorts.includes(search.sortiranje as typeof catalogSorts[number]) ? search.sortiranje : "newest"}
+        onChange={event => update({ ...search, sortiranje: event.target.value as Search["sortiranje"] })}
+        className={"ap-select ap-press appearance-none truncate rounded-full border border-(--ap-line) bg-(--ap-card) pl-3.5 pr-8 font-medium text-(--ap-ink) shadow-[0_1px_2px_rgba(16,24,40,0.05)] outline-none focus-visible:ring-2 focus-visible:ring-(--ap-focus)/40 "
+          + (compact ? "h-10 max-w-[190px] text-[13px]" : "h-9 text-[13px]")}>
+        {catalogSorts.map(key => <option key={key} value={key}>{sorts[key]}</option>)}
+      </select>
+      <ChevronDown size={14} aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-(--ap-text-2)" />
+    </span>
+  </label>;
   const isDealershipPath = typeof path === "string" && path.startsWith("/autokuce/");
   const activeHeaderRoute = isDealershipPath ? "/autokuce"
     : path === "/" && (dealerOnly || savedOnly || detailId || dealerId) ? "" : path;
@@ -858,11 +919,20 @@ export default function Marketplace({
       </main> : <>
       {seoHeader}
       <div id="svi-oglasi" className="ap-market bg-(--ap-canvas)">
+        {!seoHeader && !dealerProfile && <EditorialBanner total={stockCount} search={search} update={update} />}
+        <div className="ap-blur sticky top-16 z-30 flex items-center justify-between gap-3 border-b border-(--ap-line) bg-(--ap-canvas)/90 px-4 py-2.5 lg:hidden">
+          <button type="button" aria-haspopup="dialog" onClick={() => setSheet(true)}
+            className="ap-press inline-flex h-10 flex-none items-center gap-2 rounded-full border border-(--ap-line) bg-(--ap-card) pl-3.5 pr-3 text-[13px] font-semibold text-(--ap-ink) shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+            <SlidersHorizontal size={15} aria-hidden="true" /> Filteri
+            {activeCount > 0 && <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-(--ap-accent) px-1.5 text-[11px] font-bold text-(--ap-on-accent) tabular-nums">{activeCount}</span>}
+          </button>
+          {sortControl(true)}
+        </div>
         <div className="mx-auto flex w-full max-w-[1440px] flex-col lg:flex-row">
           <aside aria-label="Filteri" className="hidden w-full shrink-0 border-r border-(--ap-line-strong) bg-(--ap-card) px-5 py-6 lg:block lg:min-h-[calc(100vh-64px)] lg:w-[272px] min-[1441px]:border-l">
             <FilterRail search={search} update={update} inventory={inventory} onAdvanced={() => setPanel("filters")} />
           </aside>
-          <main className="min-w-0 flex-1 px-4 py-6 sm:px-5 lg:px-8 lg:py-7" aria-labelledby="results-title">
+          <main className="min-w-0 flex-1 px-4 py-5 sm:px-5 lg:px-8 lg:py-7" aria-labelledby="results-title">
             {dealerProfile && <section className="mb-6 rounded-2xl border border-(--ap-line-strong) bg-(--ap-card) p-5" aria-label="Profil autokuće">
               <h1 className="text-[20px] font-extrabold tracking-[-0.02em] text-(--ap-ink)">{dealerProfile.seller}</h1>
               <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1.5 text-[12.5px] text-(--ap-text-2)" aria-label="Marke u ponudi">
@@ -872,32 +942,16 @@ export default function Marketplace({
               {dealerProfile.sellerWorkingHours && <p className="text-[13px] text-(--ap-text-2) tabular-nums">{dealershipHoursToday(dealerProfile.sellerWorkingHours)}</p>}
               {dealerProfile.sellerHours && <p className="text-[13px] text-(--ap-text-2)">{dealerProfile.sellerHours}</p>}
             </section>}
-            <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div className="mb-5 flex flex-wrap items-end justify-between gap-4 lg:mb-6">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--ap-mute)">
                   {savedOnly ? "Spremljena vozila" : "Rabljena vozila"} · {search.grad || "Hrvatska"}
                 </p>
-                <ResultsHeading id="results-title" className="mt-1 text-[24px] font-extrabold tracking-[-0.02em] text-(--ap-ink) tabular-nums lg:text-[26px]" aria-live="polite">
+                <ResultsHeading id="results-title" className="mt-1 text-[22px] font-extrabold tracking-[-0.02em] text-(--ap-ink) tabular-nums lg:text-[26px]" aria-live="polite">
                   {number(listed.length)} {plural(listed.length, "vozilo", "vozila", "vozila")} {dealerOnly ? "iz autokuća" : "u ponudi"}
                 </ResultsHeading>
               </div>
-              <label className="flex items-center gap-2">
-                <span className="text-[12px] text-(--ap-text-2)">Sortiraj:</span>
-                <span className="relative">
-                  <select value={catalogSorts.includes(search.sortiranje as typeof catalogSorts[number]) ? search.sortiranje : "newest"}
-                    onChange={event => update({ ...search, sortiranje: event.target.value as Search["sortiranje"] })}
-                    className="ap-select h-9 appearance-none rounded-full border border-(--ap-line) bg-(--ap-card) pl-3.5 pr-8 text-[13px] font-medium text-(--ap-ink) shadow-[0_1px_2px_rgba(16,24,40,0.05)] outline-none focus-visible:ring-2 focus-visible:ring-(--ap-focus)/40">
-                    {catalogSorts.map(key => <option key={key} value={key}>{sorts[key]}</option>)}
-                  </select>
-                  <ChevronDown size={14} aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-(--ap-text-2)" />
-                </span>
-              </label>
-            </div>
-            <div className="sticky top-[72px] z-20 -mt-2 mb-5 lg:hidden">
-              <button type="button" aria-haspopup="dialog" onClick={() => setSheet(true)}
-                className="ap-press inline-flex h-10 items-center gap-2 rounded-full bg-(--ap-ink) px-4 text-[13px] font-semibold text-(--ap-on-ink) shadow-[0_4px_12px_rgba(16,24,40,0.12)]">
-                <SlidersHorizontal size={15} aria-hidden="true" /> Filteri{activeCount > 0 && <span className="tabular-nums">({activeCount})</span>}
-              </button>
+              <div className="hidden lg:block">{sortControl(false)}</div>
             </div>
             {listed.length ? <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
               {listed.slice(0, visibleCount).map((vehicle, index) => <CatalogCard key={vehicle.id} vehicle={vehicle}

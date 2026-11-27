@@ -96,11 +96,16 @@ export function Navbar({ activeRoute, routeKey, savedCount, savedOnly, account, 
     const onPointerDown = (event: PointerEvent) => { if (event.target instanceof Node && !header.current?.contains(event.target)) close(); };
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") { close(); toggle.current?.focus(); } };
     const onResize = (event: MediaQueryListEvent) => { if (event.matches) close(); };
+    // The full-height menu owns scrolling while open.
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
     window.addEventListener("popstate", close);
     desktop.addEventListener("change", onResize);
     return () => {
+      root.style.overflow = previousOverflow;
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("popstate", close);
@@ -125,14 +130,14 @@ export function Navbar({ activeRoute, routeKey, savedCount, savedOnly, account, 
       + (compact ? "px-2" : "px-3")}>
     <Heart size={15} strokeWidth={2} fill={savedOnly || savedCount > 0 ? "currentColor" : "none"} aria-hidden="true" />
     {!compact && <span>Spremljeno</span>}
-    {savedCount > 0 && <span className="tabular-nums text-(--ap-ink)">{savedCount}</span>}
+    {savedCount > 0 && <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-(--ap-accent) px-1 text-[10.5px] font-bold text-(--ap-on-accent) tabular-nums">{savedCount}</span>}
   </button>;
   const themeButton = <button type="button" onClick={toggleTheme} className={iconButton}
     aria-label={dark ? "Uključi svijetlu temu" : "Uključi tamnu temu"} aria-pressed={dark}>
     {dark ? <Sun size={15} aria-hidden="true" /> : <Moon size={15} aria-hidden="true" />}
   </button>;
 
-  return <header ref={header} className="sticky top-0 z-40 h-16 border-b border-(--ap-line-strong) bg-(--ap-card)">
+  return <header ref={header} className="ap-blur sticky top-0 z-40 h-16 border-b border-(--ap-line-strong) bg-(--ap-card)/85">
     <div className="mx-auto flex h-full w-full max-w-[1440px] items-center gap-3 px-4 sm:px-5 lg:px-6">
       <a href="/" aria-label="AUTOPLAC.HR, početna" onClick={event => follow(event, "/")} className="flex flex-none items-center gap-2.5">
         <span aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-[7px] bg-[#111318] text-sm font-extrabold leading-none text-white dark:bg-white dark:text-[#111318]">A</span>
@@ -142,7 +147,11 @@ export function Navbar({ activeRoute, routeKey, savedCount, savedOnly, account, 
         {links.map(({ href, label }) => {
           const active = activeRoute === href;
           return <a key={href} href={href} aria-current={active ? "page" : undefined} onClick={event => follow(event, href)}
-            className={"whitespace-nowrap text-[13.5px] hover:text-(--ap-ink) " + (active ? "font-semibold text-(--ap-ink)" : "font-medium text-(--ap-text-2)")}>{label}</a>;
+            className={"relative flex h-full items-center whitespace-nowrap text-[13.5px] hover:text-(--ap-ink) " + (active ? "font-semibold text-(--ap-ink)" : "font-medium text-(--ap-text-2)")}>
+            {label}
+            <span aria-hidden="true" className={"absolute inset-x-0 -bottom-px h-0.5 origin-center rounded-full bg-(--ap-accent) transition-transform duration-300 ease-(--ease-ios) "
+              + (active ? "scale-x-100" : "scale-x-0")} />
+          </a>;
         })}
       </nav>
 
@@ -171,27 +180,34 @@ export function Navbar({ activeRoute, routeKey, savedCount, savedOnly, account, 
     </div>
 
     <nav id="site-mobile-nav" aria-label="Mobilna navigacija" hidden={!open}
-      className="absolute inset-x-0 top-16 border-b border-(--ap-line-strong) bg-(--ap-card) px-4 pb-4 pt-2 shadow-[0_12px_24px_-4px_rgba(16,24,40,0.08)] lg:hidden">
+      className="ap-menu ap-safe-bottom fixed inset-x-0 top-16 flex flex-col overflow-y-auto overscroll-contain bg-(--ap-card) px-5 pt-3 lg:hidden">
       <ul className="grid">
         {links.map(({ href, label }) => <li key={href}>
           <a href={href} aria-current={activeRoute === href ? "page" : undefined} onClick={event => follow(event, href)}
-            className={"flex min-h-11 items-center border-b border-(--ap-divider) text-[15px] " + (activeRoute === href ? "font-semibold text-(--ap-ink)" : "font-medium text-(--ap-ink-2)")}>{label}</a>
+            className={"ap-press flex min-h-[52px] items-center justify-between border-b border-(--ap-divider) text-[17px] tracking-[-0.01em] " + (activeRoute === href ? "font-semibold text-(--ap-ink)" : "font-medium text-(--ap-ink-2)")}>
+            {label}
+            {activeRoute === href && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-(--ap-accent)" />}
+          </a>
         </li>)}
         <li>
           <button type="button" aria-pressed={savedOnly} onClick={() => showSaved(true)}
-            className="flex min-h-11 w-full items-center justify-between border-b border-(--ap-divider) text-left text-[15px] font-medium text-(--ap-ink-2)">
-            Spremljeni oglasi {savedCount > 0 && <span className="tabular-nums text-(--ap-ink)">{savedCount}</span>}
+            className="ap-press flex min-h-[52px] w-full items-center justify-between border-b border-(--ap-divider) text-left text-[17px] font-medium tracking-[-0.01em] text-(--ap-ink-2)">
+            Spremljeni oglasi {savedCount > 0 && <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-(--ap-accent) px-1.5 text-[11px] font-bold text-(--ap-on-accent) tabular-nums">{savedCount}</span>}
           </button>
         </li>
       </ul>
-      <div className="mt-3 flex items-center justify-between gap-2">
+      <div className="mt-4 flex items-center justify-between gap-2">
         <LocationPicker align="left" value={location} locations={locations} onChange={value => { setOpen(false); onLocation(value); }} />
         {themeButton}
       </div>
       <a href={accountHref} onClick={event => follow(event, accountHref)}
-        className="ap-press mt-3 flex h-11 items-center justify-center rounded-full bg-(--ap-fill) text-[14px] font-semibold text-(--ap-ink)">
+        className="ap-press mt-auto flex h-12 flex-none items-center justify-center rounded-full bg-(--ap-fill) text-[15px] font-semibold text-(--ap-ink)">
         {account ? "Moj račun" : "Prijava / Registracija"}
       </a>
+      <button type="button" onClick={publish}
+        className="ap-press mt-2 flex h-12 flex-none items-center justify-center rounded-full bg-(--ap-ink) text-[15px] font-semibold text-(--ap-on-ink)">
+        Predaj oglas · <span className="ml-1 tabular-nums">0 €</span>
+      </button>
     </nav>
   </header>;
 }
