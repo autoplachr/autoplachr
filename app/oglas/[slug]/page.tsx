@@ -1,5 +1,5 @@
 import { notFound, permanentRedirect } from "next/navigation";
-import { getPublicListing } from "../../../src/lib/public-catalog";
+import { getPublicListing, getPublicCatalog } from "../../../src/lib/public-catalog";
 import type { Metadata } from "next";
 import Marketplace from "../../marketplace";
 import { euro, registered, type Vehicle } from "../../catalog";
@@ -17,8 +17,11 @@ import {
 type Props = { params: Promise<{ slug: string }> };
 
 
-export function generateStaticParams() {
-  return staticCatalogVehicles().map(vehicle => ({ slug: vehicleSeoSlug(vehicle) }));
+export async function generateStaticParams() {
+  // Static export cannot render unknown slugs at request time: pre-render every
+  // public listing that appears in the built catalog, including live UUID ads.
+  const catalog = await getPublicCatalog();
+  return [...new Set(catalog.map(vehicle => vehicleSeoSlug(vehicle)))].map(slug => ({ slug }));
 }
 
 function carJsonLd(vehicle: Vehicle, slug: string) {
