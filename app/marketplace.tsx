@@ -1,19 +1,20 @@
 "use client";
 
+import { categories, type CategoryId } from "./vehicle-category";
 import { Checkbox } from "../src/components/Checkbox";
 import { Navbar } from "../src/components/Navbar";
 import { VehicleCard } from "./vehicle-card";
 import { BrandLogo } from "../src/components/BrandLogo";
 import { AdSlot } from "../src/components/AdSlot";
-import { ArrowDown, ArrowRight, Bike, Car, Caravan, ChevronLeft, ChevronRight, Truck, Zap, Check, Leaf, Grid2X2, List, Navigation, Pause, Play, RotateCcw, Search as SearchIcon, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
+import { ArrowDown, ArrowRight, Bike, Car, ChevronLeft, ChevronRight, Truck, Check, Grid2X2, List, Navigation, Pause, Play, RotateCcw, Search as SearchIcon, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { SEO_CITIES, TOP_FOOTER_BRANDS, slugifyHr, vehicleIdFromPath, vehicleListingPath } from "../src/lib/seo";
 import { CAR_MAKES } from "../src/data/car-catalog";
 import { FaqAccordion } from "./faq-accordion";
 import { DealershipDirectoryView } from "./autokuce-directory";
-import { restoreListingPhotos, cities, euro, fuels, gears, number, quick, vehicles, type Flag, type Vehicle } from "./catalog";
-import { bodyFilters, doorOptions, seatOptions, categories, colorFinishes, cylinderCounts, distances, initialSearch, matchVehicles, parseVehicleQuery, prices, readSearch, searchFilterCount, sorts, validEquipmentFilters, writeSearch, years, type CategoryId, type Search } from "./search";
+import { restoreListingPhotos, cities, euro, fuelLabel, fuels, gears, number, quick, vehicles, type Flag, type Vehicle } from "./catalog";
+import { bodyFilters, doorOptions, seatOptions, colorFinishes, cylinderCounts, distances, initialSearch, matchVehicles, parseVehicleQuery, prices, readSearch, searchFilterCount, sorts, validEquipmentFilters, writeSearch, years, type Search } from "./search";
 import { equipmentFor } from "../src/data/equipment-catalog";
 import { Dialog, ListingOptions, MakeEquipmentOptions, Select } from "./ui";
 import { makeOptions } from "./make-equipment";
@@ -198,10 +199,10 @@ function ActiveFilters({ search, update, onReset }: SearchEditorProps & { onRese
   if (search.marka) add("marka", search.marka, updateVehicleIdentity(search, ""));
   if (search.model) add("model", search.model, updateVehicleIdentity(search, search.marka));
   if (search.generacija) add("generacija", search.generacija, updateVehicleIdentity(search, search.marka, search.model));
-  if (search.kategorija) add("kategorija", categories.find(category => category.id === search.kategorija)?.label ?? search.kategorija, { ...search, kategorija: "" });
+  if (search.kategorija !== initialSearch.kategorija) add("kategorija", categories.find(category => category.id === search.kategorija)?.label ?? search.kategorija, { ...search, kategorija: initialSearch.kategorija });
   const textual = ["varijanta", "gorivo", "mjenjac", "grad", "zavrsnica", "upit"] as const;
   for (const key of textual) {
-    if (search[key].trim()) add(key, search[key], { ...search, [key]: "" });
+    if (search[key].trim()) add(key, key === "gorivo" ? fuelLabel(search[key]) : search[key], { ...search, [key]: "" });
   }
   const numbers = [
     ["cijenaOd", search.cijenaOd && "Od " + euro(Number(search.cijenaOd))],
@@ -284,7 +285,7 @@ function FilterControls({ search, count, update, apply, compact = false }: {
   const fields: FilterField[] = [
     { key: "godiste", title: "Godište od", all: "Sva godišta", values: years, numeric: true },
     { key: "km", title: "Kilometraža do", all: "Bez limita", values: distances, format: value => number(Number(value)) + " km", numeric: true },
-    { key: "gorivo", title: "Gorivo", all: "Sva goriva", values: fuels },
+    { key: "gorivo", title: "Gorivo", all: "Sva goriva", values: fuels, format: value => fuelLabel(String(value)) },
     { key: "mjenjac", title: "Mjenjač", all: "Svi mjenjači", values: gears },
     { key: "grad", title: "Županija", all: "Sve županije", values: croatianCounties },
   ];
@@ -321,14 +322,8 @@ function FilterControls({ search, count, update, apply, compact = false }: {
   </form>;
 }
 
-const vehicleRail = [
-  { id: "", label: "Automobili", icon: Car },
-  { id: "elektricna", label: "Električna", icon: Zap },
-  { id: "hibridi", label: "Hibridi", icon: Leaf },
-  { id: "gospodarska", label: "Dostavna", icon: Truck },
-  { id: "kamperi", label: "Kamperi", icon: Caravan },
-  { id: "motocikli", label: "Motori", icon: Bike },
-] as const;
+const vehicleCategoryIcons = { automobili: Car, gospodarska: Truck, motocikli: Bike };
+const vehicleRail = categories.map(category => ({ ...category, icon: vehicleCategoryIcons[category.id] }));
 
 const queryExamples = [
   "BMW 320d M-Sport automatik do 25.000 €",
@@ -388,7 +383,7 @@ function HeroSearch({ search, count, activeCount, update, onSubmit, onQuery }: {
       motion.removeEventListener("change", configure);
     };
   }, [focused, query]);
-  const selectedRail = vehicleRail.some(item => item.id === search.kategorija) ? search.kategorija : "";
+  const selectedRail = search.kategorija;
   const numericField = (key: "godiste" | "km" | "cijena", label: string, all: string, values: readonly number[], format: (value: number) => string = number) => {
     const current = Number(search[key]);
     const options = current && !values.includes(current) ? [current, ...values] : values;
@@ -471,7 +466,7 @@ function HeroSearch({ search, count, activeCount, update, onSubmit, onQuery }: {
                 <GenerationFilter search={search} update={update} />
                 <Select label="Gorivo" value={search.gorivo} onChange={event => update({ ...search, gorivo: event.target.value })}>
                   <option value="">Sva goriva</option>
-                  {fuels.map(fuel => <option key={fuel}>{fuel}</option>)}
+                  {fuels.map(fuel => <option key={fuel} value={fuel}>{fuelLabel(fuel)}</option>)}
                 </Select>
                 <Select label="Mjenjač" value={search.mjenjac} onChange={event => update({ ...search, mjenjac: event.target.value })}>
                   <option value="">Svi mjenjači</option>
@@ -1393,6 +1388,7 @@ export default function Marketplace({
 
           <section className="footer-col" aria-label="Vodiči za kupce">
             <h3 className="footer-heading">Za kupce</h3>
+            {categories.map(category => <a key={category.id} className="footer-link" href={`/rabljena-vozila?kategorija=${category.id}#svi-oglasi`}>{category.label}</a>)}
             <a className="footer-link" href="/procjena-cijene">Procjena tržišne cijene vozila</a>
             <a className="footer-link" href="/ppmv-kalkulator">PPMV kalkulator 2026</a>
             <a className="footer-link" href="/autokuce">Verificirane autokuće</a>

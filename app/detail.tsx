@@ -5,7 +5,7 @@ import { listingValuationParams } from "../src/lib/valuation-link";
 import { Checkbox } from "../src/components/Checkbox";
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, ExternalLink, Fingerprint, Heart, Maximize, MessageSquare, Phone, Printer, Share2, Star } from "lucide-react";
 import { BrandLogo } from "../src/components/BrandLogo";
-import { useEffect, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { euro, groups, marketValuation, number, power, registered, taxStatus, type Vehicle } from "./catalog";
 import { vehicleMakeOptions } from "./make-equipment";
 import { Dialog, VehiclePhoto } from "./ui";
@@ -34,6 +34,8 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
   onOpenValuation?: (event: MouseEvent<HTMLAnchorElement>, targetUrl: string) => void;
 }) {
   const [photo, setPhoto] = useState(0);
+  const galleryRail = useRef<HTMLDivElement>(null);
+  const inquiryPanel = useRef<HTMLElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [phone, setPhone] = useState("");
   const [revealing,setRevealing] = useState(false);
@@ -110,7 +112,27 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
     ? `${vinAffiliateUrl}${vinAffiliateUrl.includes("?") ? "&" : "?"}vin=${encodeURIComponent(vehicle.vin)}`
     : vinAffiliateUrl;
 
-  const move = (offset: number) => setPhoto(current => (current + offset + count) % count);
+  function selectPhoto(index: number) {
+    setPhoto(index);
+    const rail = galleryRail.current;
+    if (rail) rail.scrollTo({
+      left: rail.clientWidth * index,
+      behavior: fullscreen || window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+    });
+  }
+  const move = (offset: number) => selectPhoto((photo + offset + count) % count);
+  const callNumber = phone || (!vehicle.contactAvailable && !vehicle.demo ? formattedPhone(vehicle.phone) : "");
+  const callHref = callNumber && (!vehicle.demo || vehicle.dealer) ? "tel:" + callNumber.replace(/[^+\d]/g, "") : "";
+  function openInquiry() {
+    setInquiry(true);
+    requestAnimationFrame(() => {
+      inquiryPanel.current?.focus({ preventScroll: true });
+      inquiryPanel.current?.scrollIntoView({
+        block: "start",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+      });
+    });
+  }
   const version = vehicle.variant === "S" ? vehicle.model + " S" : vehicle.variant;
   const breadcrumb = [vehicle.make, vehicle.model, vehicle.generation, version].filter(Boolean);
   const tax = vehicle.flags.includes("pdv") ? "Uključen PDV (R1)" :
@@ -181,8 +203,8 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
   }
   function arrows() {
     return count > 1 && <>
-      <button type="button" className="icon-btn gallery-prev" aria-label="Prethodna fotografija" onClick={() => move(-1)}><ChevronLeft size={24}/></button>
-      <button type="button" className="icon-btn gallery-next" aria-label="Sljedeća fotografija" onClick={() => move(1)}><ChevronRight size={24}/></button>
+      <button type="button" className="icon-btn gallery-prev" aria-label="Prethodna fotografija" onClick={() => move(-1)}><ChevronLeft aria-hidden="true"/></button>
+      <button type="button" className="icon-btn gallery-next" aria-label="Sljedeća fotografija" onClick={() => move(1)}><ChevronRight aria-hidden="true"/></button>
     </>;
   }
   const counter = count > 0 && <span className="photo-count tabular" aria-live="polite">{photo + 1} / {count}</span>;
@@ -314,17 +336,27 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
       <div className="detail-main">
         <header className="detail-title">
           <h1 id="vehicle-title" tabIndex={-1}>{vehicle.title}</h1>
+          <div className="mobile-detail-price">
+            <strong className="tabular">{euro(vehicle.price)}</strong>
+            {(vehicle.flags.includes("pdv") || vehicle.flags.includes("kupac")) && <span>{tax}</span>}
+          </div>
           <p>{[vehicle.variant, vehicle.city, vehicle.demo && "Ogledni oglas"].filter(Boolean).join(" • ")}</p>
-          <a className="btn primary mobile-contact" href="#kontakt-prodavaca"><span className="tabular">{euro(vehicle.price)}</span> · Kontakt</a>
         </header>
         <section className="detail-gallery detail-panel" aria-label="Fotografije vozila" onKeyDown={photoKeys}>
           <div className="gallery-main">
-            {count ? <button className="gallery-open" type="button" aria-label="Otvori fotografije preko cijelog zaslona" onClick={() => setFullscreen(true)}>
-              <VehiclePhoto photo={active} alt={vehicle.title} eager sizes="(max-width: 960px) 100vw, 840px"/><span className="gallery-expand"><Maximize size={17}/></span>
-            </button> : <VehiclePhoto alt={vehicle.title}/>}
+            {count ? <div className="detail-gallery-rail" ref={galleryRail} onScroll={event => {
+              const rail = event.currentTarget;
+              if (rail.clientWidth) setPhoto(Math.min(count - 1, Math.max(0, Math.round(rail.scrollLeft / rail.clientWidth))));
+            }}>
+              {vehicle.photos.map((item, index) => <button key={index} className="gallery-open" type="button" tabIndex={photo === index ? 0 : -1}
+                aria-label={`Otvori fotografiju ${index + 1} preko cijelog zaslona`} onClick={() => { setPhoto(index); setFullscreen(true); }}>
+                <VehiclePhoto photo={item} alt={index === 0 ? vehicle.title : ""} eager={index === 0} sizes="(max-width: 960px) 100vw, 840px"/>
+                <span className="gallery-expand"><Maximize size={17} aria-hidden="true"/></span>
+              </button>)}
+            </div> : <VehiclePhoto alt={vehicle.title}/>}
             {counter}{arrows()}
           </div>
-          {count > 1 && <div className="thumbnails">{vehicle.photos.map((item, index) => <button key={index} type="button" aria-label={"Fotografija " + (index + 1)} aria-pressed={photo === index} onClick={() => setPhoto(index)}><VehiclePhoto photo={item} alt="" sizes="106px"/></button>)}</div>}
+          {count > 1 && <div className="thumbnails">{vehicle.photos.map((item, index) => <button key={index} type="button" aria-label={"Fotografija " + (index + 1)} aria-pressed={photo === index} onClick={() => selectPhoto(index)}><VehiclePhoto photo={item} alt="" sizes="106px"/></button>)}</div>}
         </section>
         <dl className="key-specs detail-panel">{keySpecs.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className="tabular">{value}</dd></div>)}</dl>
         <section className="detail-panel"><h2 className="brand-spec-heading"><BrandLogo make={vehicle.make} size="md"/><span>Tehnički podaci</span></h2>
@@ -385,7 +417,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
             </a>
           </div>
         </section>
-        <section className="detail-panel seller-card" aria-label="Kontakt prodavača">
+        <section id="upit-prodavacu" ref={inquiryPanel} tabIndex={-1} className="detail-panel seller-card" aria-label="Kontakt prodavača">
           <h2>{vehicle.dealershipId ? <a className="legal-link" href={"/autokuce/"+encodeURIComponent(vehicle.dealershipId)}>{vehicle.seller}</a> : vehicle.seller || "Privatni prodavač"}</h2>
           {vehicle.verified && <p className="verified-label"><Check size={15}/> Verificirana autokuća</p>}
           {vehicle.sellerRating && <p className="seller-rating"><Star size={15} fill="currentColor"/><span className="tabular">{vehicle.sellerRating.score.toLocaleString("hr-HR")} ({vehicle.sellerRating.reviews} recenzija)</span></p>}
@@ -433,6 +465,15 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
         </a>
       </aside>
     </div>
+    <nav className="mobile-detail-actions" aria-label="Kontakt oglašivača">
+      {callHref ? <a className="btn primary" href={callHref}><Phone size={16} aria-hidden="true" /> Nazovi oglašivača</a>
+        : <button className="btn primary" type="button" disabled={revealing || !(vehicle.phone || vehicle.contactAvailable) || Boolean(phone)} onClick={() => void reveal()}>
+            <Phone size={16} aria-hidden="true" /> {phone ? phone + " (demo)" : "Nazovi oglašivača"}
+          </button>}
+      <button className="btn secondary" type="button" aria-expanded={inquiry} aria-controls="upit-prodavacu" onClick={openInquiry}>
+        <MessageSquare size={16} aria-hidden="true" /> Pošalji upit
+      </button>
+    </nav>
     {windshield && <WindshieldSheet vehicle={vehicle} phone={sellerTools?.phone} onClose={() => setWindshield(false)} />}
     {fullscreen && <Dialog title="Fotografije vozila" variant="photo-lightbox" onClose={() => setFullscreen(false)}>
       <div className="lightbox-body" onKeyDown={photoKeys}>

@@ -1,3 +1,4 @@
+import { normalizeVehicleCategory, vehicleCategory, type CategoryId } from "./vehicle-category";
 import { boostPriority } from "./listing-boost";
 import { croatianCounties, normalizeLocation } from "../src/data/croatia-locations";
 import { equipmentFor, equipmentId } from "../src/data/equipment-catalog";
@@ -219,22 +220,6 @@ export const sorts = {
   mileage: "Kilometraža: najmanja",
   rating: "Najbolja ocjena cijene",
 } as const;
-export const categories = [
-  { id: "", label: "Sva vozila" },
-  { id: "limuzina", label: "Limuzine" },
-  { id: "karavan", label: "Karavani" },
-  { id: "suv", label: "SUV / Terenci" },
-  { id: "gradski", label: "Gradski" },
-  { id: "sportski", label: "Sportski" },
-  { id: "elektricna", label: "Električna vozila" },
-  { id: "hibridi", label: "Hibridi" },
-  { id: "eko", label: "Električni i hibridi" },
-  { id: "gospodarska", label: "Kombi i gospodarska vozila" },
-  { id: "kamperi", label: "Kamperi i putnička vozila" },
-  { id: "motocikli", label: "Motocikli" },
-  { id: "ostalo", label: "Motocikli / Ostalo" },
-] as const;
-export type CategoryId = (typeof categories)[number]["id"];
 export const bodyFilters = [
   { id: "limuzina", label: "Limuzina", types: ["Limuzina"] },
   { id: "karavan", label: "Karavan", types: ["Karavan"] },
@@ -259,7 +244,7 @@ export type Search = {
   sjedalaOd: string; sjedalaDo: string; vrata: string; cijenaOd: string; samoPrilike: boolean;
 };
 export const initialSearch: Search = {
-  kategorija: "",
+  kategorija: "automobili",
   kolekcija: "",
   marka: "", model: "", generacija: "", cijena: "", godiste: "", km: "", gorivo: "", mjenjac: "", grad: "",
   opcije: [], oprema: [], sortiranje: "newest", prikaz: "lista",
@@ -267,13 +252,13 @@ export const initialSearch: Search = {
   varijanta: "", karoserija: [], sjedalaOd: "", sjedalaDo: "", vrata: "", cijenaOd: "", samoPrilike: false,
 };
 export function searchFilterCount(search: Search) {
-  const { sortiranje, prikaz, opcije, oprema, karoserija, varijanta, ...filters } = search;
-  return Object.values(filters).filter(Boolean).length + opcije.length + oprema.length + karoserija.length + Number(!!varijanta.trim());
+  const { sortiranje, prikaz, opcije, oprema, karoserija, varijanta, kategorija, ...filters } = search;
+  return Number(kategorija !== initialSearch.kategorija) + Object.values(filters).filter(Boolean).length + opcije.length + oprema.length + karoserija.length + Number(!!varijanta.trim());
 }
 
 export function parseVehicleQuery(query: string, search: Search): Search {
   let words = normalizeLocation(query);
-  const next = { ...initialSearch, sortiranje: search.sortiranje, prikaz: search.prikaz };
+  const next = { ...initialSearch, kategorija: search.kategorija, sortiranje: search.sortiranje, prikaz: search.prikaz };
   const take = (pattern: RegExp) => {
     const match = words.match(pattern);
     if (match) words = words.replace(pattern, " ");
@@ -289,9 +274,13 @@ export function parseVehicleQuery(query: string, search: Search): Search {
   if (take(/\b(?:rucni|manualni)\b/)) next.mjenjac = "Ručni";
   if (take(/\b(?:s potvrdenim km\s*(?:\(cvh\))?|potvrdeni km|cvh)\b/)) next.opcije.push("cvh");
   if (take(/\b(?:leasing|r1)\b/)) next.opcije.push("pdv");
-  const fuel = fuels.find(fuel => take(new RegExp(`\\b${normalizeLocation(fuel)}\\b`)));
+  const fuel = take(/\b(?:plug[ -]?in hibrid|phev)\b/) ? "Plug-in hibrid"
+    : take(/\b(?:elektricni|elektricna|struja)\b/) ? "Struja"
+    : fuels.find(fuel => take(new RegExp(`\\b${normalizeLocation(fuel)}\\b`)));
   if (fuel) next.gorivo = fuel;
-  if (take(/\b(?:suv|terenac|terenci)\b/)) next.kategorija = "suv";
+  if (take(/\b(?:suv|terenac|terenci)\b/)) next.karoserija = ["suv"];
+  else if (take(/\b(?:motocikli?|motori|skuteri?)\b/)) next.kategorija = "motocikli";
+  else if (take(/\b(?:kombi|dostavna)\b/)) next.kategorija = "gospodarska";
   const city = cities.find(city => {
     const name = normalizeLocation(city);
     const stem = /[ae]$/.test(name) ? name.slice(0, -1) : name;
@@ -324,12 +313,15 @@ export function readSearch(query: string): Search {
   const equipment = params.getAll("oprema");
   const legacyPackage = legacySportOption[marka];
   if (legacyPackage && generalOptions.includes("sport")) equipment.push(legacyPackage);
+  const legacyCategory = params.get("kategorija");
+  const legacyFuel = legacyCategory === "elektricna" ? "Struja" : legacyCategory === "hibridi" ? "Hibrid" : "";
+  const fuel = params.get("gorivo") === "Električni" ? "Struja" : accept("gorivo", fuels);
   return {
-    kategorija: accept("kategorija", categories.map(c => c.id)) as CategoryId,
+    kategorija: normalizeVehicleCategory(legacyCategory) ?? initialSearch.kategorija,
     kolekcija: accept("kolekcija", collections) as CollectionId,
     marka, model, generacija: validGeneration(marka, model, generation) ? generation : "", cijena: positiveNumber("cijena"),
     godiste: positiveNumber("godiste"), km: positiveNumber("km"),
-    gorivo: accept("gorivo", fuels), mjenjac: accept("mjenjac", gears), grad: accept("grad", [...cities, ...croatianCounties]),
+    gorivo: fuel || legacyFuel, mjenjac: accept("mjenjac", gears), grad: accept("grad", [...cities, ...croatianCounties]),
     opcije: flags.filter(flag => generalOptions.includes(flag)),
     oprema: validEquipmentFilters(marka, model, generation, equipment),
     sortiranje: accept("sortiranje", Object.keys(sorts), "newest") as Search["sortiranje"],
@@ -338,7 +330,7 @@ export function readSearch(query: string): Search {
     zavrsnica: accept("zavrsnica", colorFinishes),
     upit: (params.get("upit") ?? "").slice(0, 200),
     varijanta: (params.get("varijanta") ?? "").slice(0, 100),
-    karoserija: bodyFilters.filter(body => params.getAll("karoserija").includes(body.id)).map(body => body.id),
+    karoserija: bodyFilters.filter(body => (params.getAll("karoserija").includes(body.id) || legacyCategory === body.id && body.id !== "ostalo")).map(body => body.id),
     sjedalaOd: accept("sjedalaOd", seatOptions), sjedalaDo: accept("sjedalaDo", seatOptions),
     vrata: accept("vrata", doorOptions), cijenaOd: positiveNumber("cijenaOd"),
     samoPrilike: params.get("samoPrilike") === "true",
@@ -355,40 +347,6 @@ export function writeSearch(search: Search) {
   const query = params.toString();
   const next = window.location.pathname + (query ? "?" + query : "") + window.location.hash;
   if (next !== window.location.pathname + window.location.search + window.location.hash) window.history.pushState(null, "", next);
-}
-function matchesCategory(v: Vehicle, category: CategoryId): boolean {
-  if (!category) return true;
-  switch (category) {
-    case "limuzina":
-      return v.bodyType === "Limuzina";
-    case "karavan":
-      return v.bodyType === "Karavan";
-    case "suv":
-      return v.bodyType === "SUV / Terenac";
-    case "gradski":
-      return v.bodyType === "Hatchback / Kompakt" && v.kw <= 145;
-    case "sportski":
-      return (
-        v.bodyType === "Coupé" ||
-        v.bodyType === "Cabrio / Roadster" ||
-        /\b(r\.s\.|gtd|gti|rs|st|vz|cooper s|type r|jcw|amg|trophy)\b/i.test(`${v.variant ?? ""} ${v.title}`) ||
-        v.kw >= 180
-      );
-    case "elektricna":
-      return v.fuel === "Struja";
-    case "hibridi":
-      return v.fuel === "Hibrid";
-    case "eko":
-      return v.fuel === "Hibrid" || v.fuel === "Struja";
-    case "ostalo":
-      return v.bodyType === "Kombi / Dostavno" || v.bodyType === "Pick-up";
-    case "gospodarska":
-      return v.bodyType === "Kombi / Dostavno" || v.bodyType === "Pick-up";
-    case "kamperi":
-      return v.bodyType === "Monovolumen (MPV)" || /kamper|motorhome/i.test(v.bodyType ?? "");
-    case "motocikli":
-      return /motocikl|motorcycle|skuter/i.test(v.bodyType ?? "");
-  }
 }
 const croatianDate = new Intl.DateTimeFormat("hr-HR", { timeZone: "Europe/Zagreb" });
 
@@ -415,6 +373,10 @@ export function matchesCollection(v: Vehicle, collection: CollectionId): boolean
       return Number(v.date.slice(0, 4)) >= 2022 || Boolean(v.isFeatured);
   }
 }
+function searchFuel(vehicle: Vehicle): string {
+  if (vehicle.fuel === "Hibrid" && /plug[ -]?in|\bphev\b/i.test([vehicle.variant, vehicle.title, vehicle.trim].join(" "))) return "Plug-in hibrid";
+  return /^(struja|električni|elektricni|electric)$/i.test(vehicle.fuel) ? "Struja" : vehicle.fuel;
+}
 export function matchVehicles(vehicles: Vehicle[], s: Search, now = Date.now()) {
   const queryTerms = normalizeLocation(s.upit).split(/\s+/).filter(Boolean);
   const variantTerms = normalizeLocation(s.varijanta).split(/[^\p{L}\d]+/u).filter(Boolean);
@@ -432,7 +394,7 @@ export function matchVehicles(vehicles: Vehicle[], s: Search, now = Date.now()) 
     return variantTerms.every(term => text.includes(term));
   };
   const result = vehicles.filter(v =>
-    matchesCategory(v, s.kategorija) &&
+    vehicleCategory(v) === s.kategorija &&
     matchesCollection(v, s.kolekcija) &&
     (!s.samoPrilike || s.kolekcija === "prilike" || matchesCollection(v, "prilike")) &&
     (!selectedBodies.length || matchesBodies(v)) &&
@@ -445,7 +407,7 @@ export function matchVehicles(vehicles: Vehicle[], s: Search, now = Date.now()) 
     (!s.cijena || v.price <= Number(s.cijena)) &&
     (!s.cijenaOd || v.price >= Number(s.cijenaOd)) &&
     (!s.godiste || Number(v.date.slice(0, 4)) >= Number(s.godiste)) &&
-    (!s.km || v.km <= Number(s.km)) && (!s.gorivo || v.fuel === s.gorivo) &&
+    (!s.km || v.km <= Number(s.km)) && (!s.gorivo || searchFuel(v) === s.gorivo) &&
     (!s.mjenjac || v.gear === s.mjenjac) && (!s.grad || v.city === s.grad || (v.county || countyByCity[v.city]) === s.grad) &&
     (!s.cilindri || v.cylinders === Number(s.cilindri)) &&
     (!s.zavrsnica || v.colorFinish === s.zavrsnica) &&

@@ -11,7 +11,7 @@ export function ksToKw(ks: number): number {
 }
 
 export type SpecFuel = "Dizel" | "Benzin" | "Hibrid" | "Plug-in hibrid" | "Električni" | "LPG";
-export type CatalogFuel = "Dizel" | "Benzin" | "Hibrid" | "Struja";
+export type CatalogFuel = "Dizel" | "Benzin" | "Hibrid" | "Plug-in hibrid" | "Struja";
 export type ResolvedBodyType =
   | "Hatchback / Kompakt"
   | "Limuzina"
@@ -255,7 +255,8 @@ const EXACT_CC_BY_LITERS: Readonly<Record<string, number>> = {
 export function toCatalogFuel(fuel: string): CatalogFuel {
   const f = fuel.toLowerCase();
   if (f.includes("struj") || f.includes("elektr") || f === "ev") return "Struja";
-  if (f.includes("hibrid") || f.includes("hybrid") || f.includes("plug")) return "Hibrid";
+  if (f.includes("plug") || f === "phev") return "Plug-in hibrid";
+  if (f.includes("hibrid") || f.includes("hybrid")) return "Hibrid";
   if (f.includes("dizel") || f.includes("diesel")) return "Dizel";
   return "Benzin";
 }

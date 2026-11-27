@@ -1,3 +1,4 @@
+import type { CategoryId } from "./vehicle-category";
 import type { BoostTier } from "./listing-boost";
 import { evaluateVehiclePrice, type MarketValuationResult, type PriceRatingTier } from "../src/lib/price-engine";
 import type { WorkingHours } from "../src/data/working-hours";
@@ -43,7 +44,8 @@ export const countyByCity: Readonly<Record<string, string>> = {
   Vinkovci: "Vukovarsko-srijemska",
 };
 
-export const fuels = ["Dizel", "Benzin", "Hibrid", "Struja"] as const;
+export const fuels = ["Dizel", "Benzin", "Hibrid", "Plug-in hibrid", "Struja"] as const;
+export function fuelLabel(fuel: string) { return fuel === "Struja" ? "Električni" : fuel; }
 export type Fuel = typeof fuels[number];
 export const gears = ["Automatski", "Ručni"] as const;
 export const bodyTypes = [
@@ -84,7 +86,7 @@ export function emptyEquipment(): Equipment {
 export type Photo = { src: string; preview?: string; backup?: string; credit?: string; link?: string; license?: string; licenseUrl?: string };
 export type Vehicle = {
   id: string; make: string; model: string; title: string; trim: string; price: number;
-  generation?: string; variant?: string; bodyType?: string;
+  generation?: string; variant?: string; bodyType?: string; category?: CategoryId;
   date: string; listedAt?: string; km: number; kw: number; cc: number; co2: number; fuel: Fuel;
   gear: typeof gears[number]; drive: string; vin: string; city: string; seller: string;
   dealer: boolean; verified: boolean; showPriceBadge?: boolean; valueProofs?: string[]; phone: string; email?: string; flags: Flag[];

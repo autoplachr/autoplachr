@@ -1,5 +1,6 @@
 "use client";
 
+import { categories, normalizeVehicleCategory, vehicleCategory } from "./vehicle-category";
 import { boostPlans, hasActiveBoost } from "./listing-boost";
 import { MonthYearField } from "./month-year-field";
 import { ArrowLeft, ArrowRight, Camera, Check, ImagePlus, Plus, Sparkles, X } from "lucide-react";
@@ -391,6 +392,8 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
     finally { setBusy(false); }
   }
 
+  const selectedCategory = vehicleCategory(values) ?? "automobili";
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -437,8 +440,9 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
       await onPublish({
         ...values,
         model: finalModel,
+        category: selectedCategory,
+        bodyType: selectedCategory === "motocikli" ? "Motocikl" : sanitizeText(values.bodyType, 40) || undefined,
         fuel: toCatalogFuel(values.fuel),
-        bodyType: sanitizeText(values.bodyType, 40) || undefined,
         city: sanitizeText(location.city, 100),
         postalCode: sanitizeText(location.postalCode, 20),
         county: sanitizeText(location.county, 100),
@@ -608,6 +612,21 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
         {step === 0 && photoAiSection}
         {step === 1 && <>
           <div className="form-grid">
+          <Select label="Kategorija vozila" value={selectedCategory} onChange={event => {
+            const category = normalizeVehicleCategory(event.target.value);
+            if (!category) return;
+            setValues(old => ({
+              ...old,
+              category,
+              model: old.model === OTHER_MODEL ? customModel : old.model,
+              variant: old.variant === customVariant ? customVersion : old.variant,
+              bodyType: category === "motocikli" ? "Motocikl"
+                : category === "gospodarska" ? "Kombi / Dostavno" : "",
+            }));
+          }}>
+            {categories.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
+          </Select>
+          {selectedCategory === "automobili" ? <>
           <CatalogFields
             listing
             allowCustom
@@ -679,6 +698,11 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
             <option value="">Odaberite karoseriju</option>
             {bodyTypes.map(bt => <option key={bt}>{bt}</option>)}
           </Select>
+          </> : <>
+            <label className="field"><span>Marka</span><input required value={values.make} maxLength={70} onChange={event => setValues(old => ({ ...old, make: event.target.value, generation: "" }))} /></label>
+            <label className="field"><span>Model</span><input required value={values.model} maxLength={70} onChange={event => setValues(old => ({ ...old, model: event.target.value, generation: "" }))} /></label>
+            <label className="field"><span>Motorizacija / verzija (neobavezno)</span><input value={values.variant} maxLength={70} onChange={event => set("variant", event.target.value)} /></label>
+          </>}
           <MonthYearField
             value={values.date}
             max={maxMonth}

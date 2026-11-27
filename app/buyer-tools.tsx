@@ -10,7 +10,7 @@ export function TaxCalculator({ vehicle, prefillPrice = false }: { vehicle?: Veh
   const [price, setPrice] = useState(prefillPrice && vehicle ? String(vehicle.price) : "");
   const [priceConfirmed, setPriceConfirmed] = useState(!prefillPrice);
   const [co2, setCo2] = useState(vehicle ? String(vehicle.co2) : "");
-  const [fuel, setFuel] = useState(vehicle?.fuel === "Dizel" ? "diesel" : vehicle?.fuel === "Struja" ? "electric" : vehicle?.fuel === "Hibrid" ? "plugin" : "other");
+  const [fuel, setFuel] = useState(vehicle?.fuel === "Dizel" ? "diesel" : vehicle?.fuel === "Struja" ? "electric" : vehicle?.fuel === "Plug-in hibrid" ? "plugin" : "other");
   const [date, setDate] = useState(vehicle ? vehicle.date + "-01" : "");
   const [condition, setCondition] = useState("used");
   const [range, setRange] = useState("");

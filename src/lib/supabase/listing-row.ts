@@ -1,3 +1,4 @@
+import { normalizeVehicleCategory } from "../../../app/vehicle-category";
 import type { ListingStatus, OwnedListing } from "../../../app/account-api";
 import { emptyEquipment, modelPhotos, type Vehicle } from "../../../app/catalog";
 import { canonicalEquipmentLabel, equipmentCategoryFor } from "../../../app/search";
@@ -44,6 +45,7 @@ export function mapListingRow(row: Record<string, unknown>, profileRow?: Record<
     model: String(row.model || ""),
     generation: row.generation ? String(row.generation) : undefined,
     variant: typeof row.variant === "string" ? row.variant || undefined : row.trim ? String(row.trim) : undefined,
+    category: normalizeVehicleCategory(row.category ?? row.kategorija),
     bodyType: row.body_style ? String(row.body_style) : undefined,
     title: String(row.title || ""),
     trim: String(row.trim || ""),

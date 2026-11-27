@@ -1,3 +1,4 @@
+import { vehicleCategory } from "../../../app/vehicle-category";
 import type { AuthError, RealtimeChannel } from "@supabase/supabase-js";
 import type {
   Account,
@@ -453,6 +454,7 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
       make_equipment: vehicle.makeEquipment ?? null,
       title: vehicle.title,
       body_style: vehicle.bodyType ?? null,
+      category: vehicleCategory(vehicle) ?? null,
       year: Number(yearStr) || 2022,
       month: optionalInteger(monthStr),
       mileage: Math.round(vehicle.km || 0),

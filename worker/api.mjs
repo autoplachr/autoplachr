@@ -214,6 +214,7 @@ async function saveListing(env, account, body) {
   const clean = {
     id: vehicle.id, title: sanitizeText(vehicle.title, 100), make: sanitizeText(vehicle.make, 80), model: sanitizeText(vehicle.model, 80),
     generation: sanitizeText(vehicle.generation, 100), variant: sanitizeText(vehicle.variant, 100), bodyType: sanitizeText(vehicle.bodyType, 40), trim: sanitizeText(vehicle.trim, 100),
+    category: ["automobili","gospodarska","motocikli"].includes(vehicle.category) ? vehicle.category : undefined,
     date: vehicle.date, registrationUntil: /^(0[1-9]|1[0-2])\/\d{4}$/.test(vehicle.registrationUntil) ? vehicle.registrationUntil : undefined, price:vehicle.price, ...(previousPriceEur ? { previousPriceEur } : {}), km:vehicle.km, kw:vehicle.kw, cc:vehicle.cc, co2:vehicle.co2,
     ...(Number.isFinite(vehicle.cylinders) ? { cylinders: vehicle.cylinders } : {}),
     ...(vehicle.color ? { color: sanitizeText(vehicle.color, 60) } : {}),
@@ -230,7 +231,7 @@ async function saveListing(env, account, body) {
     dealer: profile.type === "dealer", verified: false, sellerAddress: dealerAddress, sellerHours: profile.hours, sellerWorkingHours: profile.workingHours,
     demo: false };
   requireValue(clean.title && clean.make && clean.model, "Unesite vozilo i naslov.");
-  requireValue(["Dizel","Benzin","Hibrid","Struja"].includes(clean.fuel) && ["Automatski","Ručni"].includes(clean.gear), "Odaberite gorivo i mjenjač.");
+  requireValue(["Dizel","Benzin","Hibrid","Plug-in hibrid","Struja"].includes(clean.fuel) && ["Automatski","Ručni"].includes(clean.gear), "Odaberite gorivo i mjenjač.");
   const data = JSON.stringify(clean);
   requireValue(encoder.encode(data).length <= 1500000, "Fotografije su prevelike. Uklonite jednu ili više fotografija.");
   requireValue(existing || status !== "sold", "Najprije spremite oglas.");
