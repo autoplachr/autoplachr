@@ -303,180 +303,95 @@ export function DealershipDirectoryView({
     [vehicle.seller, vehicle.city, vehicle.sellerAddress, ...stock.map(item => item.make + " " + item.model)]
       .join(" ").toLowerCase().includes(queryText));
 
+  const totalDealers = DEALERSHIP_DIRECTORY.length + otherDealers.length;
+  const follow = (href: string) => (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    onNavigate(href);
+  };
+  const one = (count: number) => count % 10 === 1 && count % 100 !== 11;
+  const few = (count: number) => [2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100);
+  const stockLabel = (count: number) => number(count) + " " + (one(count) ? "vozilo" : "vozila") + " u ponudi";
+
   return (
-    <main className="shell max-w-[1380px] mx-auto px-4 sm:px-6 py-6 pb-12 flex flex-col gap-5">
-      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6 flex flex-col gap-4">
+    <main className="dealer-directory shell max-w-[1380px] mx-auto px-4 sm:px-6 py-6 pb-12 flex flex-col gap-6">
+      <header className="flex flex-col gap-5 border-b border-[var(--hairline)] pb-0">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="flex flex-col gap-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/12 border border-blue-500/25 text-[#2563EB] text-[12px] font-bold">
-                <ShieldCheck size={14} aria-hidden="true" />
-                <span className="tabular">{number(DEALERSHIP_DIRECTORY.length + otherDealers.length)}</span> autokuća u RH
-              </span>
-            </div>
-            <h1 className="!m-0 text-[24px] sm:text-[30px] font-extrabold tracking-tight text-[var(--text)]">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <h1 className="!m-0 text-[24px] sm:text-[28px] font-bold tracking-tight text-[var(--text)]">
               Provjerene autokuće i saloni rabljenih vozila
             </h1>
-            <p className="text-[13.5px] text-[var(--muted)] max-w-2xl !m-0">
-              Pregledajte ovlaštene trgovce i salone diljem Hrvatske s potvrđenom kilometražom (CVH), R1 računom,
-              pisanim jamstvom i aktivnom zalihom vozila.
+            <p className="!m-0 max-w-[65ch] text-[14px] text-[var(--muted)]">
+              <span className="tabular-nums text-[var(--spec)]">{number(totalDealers)}</span> {one(totalDealers) ? "autokuća" : few(totalDealers) ? "autokuće" : "autokuća"} u Hrvatskoj · CVH kilometraža, R1 račun i aktivna ponuda
             </p>
           </div>
-
-          <div className="relative w-full sm:w-[320px]">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none"
-              aria-hidden="true"
-            />
-            <input
-              type="search"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Pretraži salon, grad ili marku..."
-              aria-label="Pretraži autokuće"
-              className="w-full min-h-[40px] pl-9 pr-3 rounded-lg border border-[var(--border)] bg-[var(--hover)] text-[13.5px] text-[var(--text)] placeholder:text-[var(--muted)]"
-            />
-          </div>
+          <label className="dealer-directory-search relative w-full sm:w-[320px]">
+            <span className="sr-only">Pretraži autokuće</span>
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" aria-hidden="true" />
+            <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Pretraži salon, grad ili marku..." />
+          </label>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--border)]" role="group" aria-label="Filter po gradu">
+        <div className="dealer-city-tabs" role="group" aria-label="Filter po gradu">
           {cities.map(city => {
             const active = cityFilter === city;
-            const count =
-              city === "Svi gradovi"
-                ? DEALERSHIP_DIRECTORY.length + otherDealers.length
-                : DEALERSHIP_DIRECTORY.filter(d => d.city === city).length + otherDealers.filter(({ vehicle }) => vehicle.city === city).length;
-            return (
-              <button
-                key={city}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setCityFilter(city)}
-                className={`px-3 py-1.5 rounded-full text-[12.5px] font-semibold border ${
-                  active
-                    ? "bg-[#2563EB] border-[#2563EB] text-white"
-                    : "bg-[var(--hover)] border-[var(--border)] text-[var(--spec)] hover:border-[#2563EB]/60"
-                }`}
-              >
-                {city} <span className="opacity-75 tabular-nums">({count})</span>
-              </button>
-            );
+            const count = city === "Svi gradovi" ? totalDealers
+              : DEALERSHIP_DIRECTORY.filter(d => d.city === city).length + otherDealers.filter(({ vehicle }) => vehicle.city === city).length;
+            return <button key={city} type="button" aria-pressed={active} onClick={() => setCityFilter(city)}>
+              {city} <span className="tabular-nums">({count})</span>
+            </button>;
           })}
         </div>
-      </section>
+      </header>
 
       {filteredDealers.length + filteredOtherDealers.length > 0 ? (
         <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" aria-label="Popis autokuća">
-          {filteredOtherDealers.map(({ vehicle, stock }) => {
-            const href = "/autokuce/" + encodeURIComponent(vehicle.dealershipId ?? "");
-            return <article key={vehicle.dealershipId} className="imported-dealer">
-              <h2>{vehicle.seller}</h2>
-              <p>{vehicle.city}{vehicle.sellerAddress && " · " + vehicle.sellerAddress}</p>
-              <p className="tabular">{number(stock.length)} {stock.length === 1 ? "vozilo" : "vozila"} u ponudi</p>
-              <a href={href} className="btn secondary self-start" onClick={event => {
-                if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-                event.preventDefault();
-                onNavigate(href);
-              }}>Pogledaj vozila <ArrowRight size={15} aria-hidden="true" /></a>
-            </article>;
-          })}
           {filteredDealers.map(dealer => {
             const stock = inventoryByDealer.get(dealer.name) ?? [];
-            const makes = [...new Set(stock.map(v => v.make))].slice(0, 4);
+            const makes = [...new Set(stock.map(v => v.make))].slice(0, 5);
             const showroomHref = `/autokuce/${dealer.slug}`;
             return (
-              <article
-                key={dealer.slug}
-                className="rounded-xl border border-[var(--card-border)] bg-[var(--surface)] hover:border-[var(--card-hover-border)] overflow-hidden flex flex-col h-full"
-              >
-                <div className="relative h-[168px] bg-slate-900 overflow-hidden shrink-0">
-                  <img
-                    src={dealer.bannerImage}
-                    alt={dealer.name}
-                    className="w-full h-full object-cover object-center block"
-                    loading="lazy"
-                    decoding="async"
-                    style={{ imageRendering: "auto", transform: "translateZ(0)" }}
-                  />
-                  <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-600/95 text-white text-[11px] font-bold">
-                      <ShieldCheck size={12} aria-hidden="true" />
-                      Verificirana autokuća
-                    </span>
-                  </div>
-                  <div className="absolute top-2.5 right-2.5">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-black/75 text-white text-[11.5px] font-bold tabular-nums">
-                      <Star size={12} fill="#F59E0B" className="text-amber-400" aria-hidden="true" />
-                      {dealer.score.toLocaleString("hr-HR", { minimumFractionDigits: 1 })} ({dealer.reviews})
-                    </span>
-                  </div>
-                  <div className="absolute bottom-2.5 left-3 right-3 flex items-end justify-between gap-2 text-white">
-                    <div>
-                      <h2 className="!m-0 text-[17px] font-extrabold leading-tight text-white">{dealer.name}</h2>
-                      <span className="text-[12px] text-slate-200">{dealer.city}</span>
-                    </div>
-                    <span className="px-2 py-0.5 rounded bg-white/15 backdrop-blur-sm border border-white/20 text-[11.5px] font-bold tabular-nums shrink-0">
-                      {stock.length} {stock.length === 1 ? "vozilo" : "vozila"} u ponudi
-                    </span>
-                  </div>
+              <article key={dealer.slug} className="dealer-card">
+                <div className="dealer-card-media">
+                  <img src={dealer.bannerImage} alt="" loading="lazy" decoding="async" />
+                  <span className="dealer-card-rating tabular-nums" aria-label={`Ocjena ${dealer.score.toLocaleString("hr-HR")} od 5, ${dealer.reviews} recenzija`}>
+                    <Star size={12} fill="currentColor" aria-hidden="true" />
+                    {dealer.score.toLocaleString("hr-HR", { minimumFractionDigits: 1 })} ({dealer.reviews})
+                  </span>
                 </div>
-
-                <div className="p-4 flex flex-col flex-1 gap-3 min-w-0">
-                  <div className="flex flex-col gap-1.5 text-[12.5px] text-[var(--spec)]">
-                    <div className="flex items-start gap-1.5">
-                      <MapPin size={14} className="text-[#2563EB] shrink-0 mt-0.5" aria-hidden="true" />
-                      <span className="truncate">{dealer.address}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[var(--muted)] tabular">
-                      <Clock size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" aria-hidden="true" />
-                      <span>{dealershipHoursToday(dealer.workingHours)}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {dealer.badges.map(badge => (
-                      <span
-                        key={badge}
-                        className="px-2 py-0.5 rounded border border-[var(--border)] bg-[var(--hover)] text-[11px] font-semibold text-[var(--spec)]"
-                      >
-                        {badge}
-                      </span>
-                    ))}
-                  </div>
-
-                  {makes.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                      {makes.map(make => (
-                        <span
-                          key={make}
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--hover)] text-[11.5px] text-[var(--muted)]"
-                        >
-                          <BrandLogo make={make} size="xs" />
-                          {make}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="mt-auto pt-3 border-t border-[var(--border)] flex items-center justify-between gap-2">
-                    <a
-                      href={showroomHref}
-                      onClick={e => {
-                        if (e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
-                          e.preventDefault();
-                          onNavigate(showroomHref);
-                        }
-                      }}
-                      className="btn primary w-full justify-between px-3.5 text-[13px]"
-                    >
-                      <span>Pogledaj ponudu salona</span>
-                      <ArrowRight size={15} aria-hidden="true" />
-                    </a>
-                  </div>
+                <div className="dealer-card-body">
+                  <h2 className="dealer-card-name">
+                    <a href={showroomHref} onClick={follow(showroomHref)}>{dealer.name}</a>
+                    <Check size={15} strokeWidth={2.25} className="dealer-card-verified" role="img" aria-label="Verificirana autokuća" />
+                  </h2>
+                  <p className="dealer-card-meta">{dealer.city} · <span className="tabular-nums">{stockLabel(stock.length)}</span></p>
+                  <dl className="dealer-card-facts">
+                    <div><dt>Adresa</dt><dd title={dealer.address}>{dealer.address}</dd></div>
+                    <div><dt>Radno vrijeme</dt><dd className="tabular-nums">{dealershipHoursToday(dealer.workingHours)}</dd></div>
+                    {makes.length > 0 && <div><dt>Marke</dt><dd>{makes.join(" · ")}</dd></div>}
+                  </dl>
+                  {dealer.badges.length > 0 && <p className="dealer-card-badges">{dealer.badges.join(" · ")}</p>}
+                  <span className="dealer-card-cta" aria-hidden="true">Pogledaj ponudu salona <ArrowRight size={14} /></span>
                 </div>
               </article>
             );
+          })}
+          {filteredOtherDealers.map(({ vehicle, stock }) => {
+            const href = "/autokuce/" + encodeURIComponent(vehicle.dealershipId ?? "");
+            const makes = [...new Set(stock.map(item => item.make))].slice(0, 5);
+            return <article key={vehicle.dealershipId} className="dealer-card">
+              <div className="dealer-card-body">
+                <h2 className="dealer-card-name">
+                  <a href={href} onClick={follow(href)}>{vehicle.seller}</a>
+                  {vehicle.verified && <Check size={15} strokeWidth={2.25} className="dealer-card-verified" role="img" aria-label="Verificirana autokuća" />}
+                </h2>
+                <p className="dealer-card-meta">{vehicle.city} · <span className="tabular-nums">{stockLabel(stock.length)}</span></p>
+                <dl className="dealer-card-facts">
+                  {vehicle.sellerAddress && <div><dt>Adresa</dt><dd title={vehicle.sellerAddress}>{vehicle.sellerAddress}</dd></div>}
+                  {makes.length > 0 && <div><dt>Marke</dt><dd>{makes.join(" · ")}</dd></div>}
+                </dl>
+                <span className="dealer-card-cta" aria-hidden="true">Pogledaj vozila <ArrowRight size={14} /></span>
+              </div>
+            </article>;
           })}
         </section>
       ) : (

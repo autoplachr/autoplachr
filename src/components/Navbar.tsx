@@ -10,6 +10,15 @@ const links = [
   { href: "/procjena-cijene", label: "Procjena cijene" },
 ] as const;
 
+/** Geometric brand emblem: a cobalt frame with a road converging to the horizon. */
+function BrandMark() {
+  return <svg className="site-brand-mark" width="26" height="26" viewBox="0 0 26 26" aria-hidden="true" focusable="false">
+    <rect width="26" height="26" rx="5" fill="#2563EB" />
+    <path d="M6 20.5 11.6 5.5h2.8L20 20.5" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinejoin="miter" />
+    <path d="M13 10.5v2.2M13 15v2.6" stroke="#fff" strokeWidth="1.6" strokeLinecap="square" />
+  </svg>;
+}
+
 type Props = {
   activeRoute: string;
   routeKey: string;
@@ -81,25 +90,27 @@ export function Navbar({ activeRoute, routeKey, savedCount, savedOnly, account, 
     {savedCount > 0 && <span className="site-saved-count tabular-nums">{savedCount}</span>}
   </button>;
   const publishButton = <button type="button" className="site-header-action site-publish tabular" aria-label="Predaj oglas, 0 eura" onClick={publish}>
-    <Plus size={15} strokeWidth={2.25} aria-hidden="true" /> <span className="site-publish-text">Predaj oglas</span> <span className="site-publish-price">0 €</span>
+    <Plus size={15} strokeWidth={2.25} aria-hidden="true" /><span className="site-publish-text">Predaj oglas</span><span className="site-publish-price"><span className="site-publish-dot" aria-hidden="true">· </span>0 €</span>
   </button>;
 
   return <header ref={header} className="topbar site-header">
     <div className="site-header-inner">
       <a className="site-brand" href="/" aria-label="AUTOPLAC.HR, početna" onClick={event => follow(event, "/")}>
+        <BrandMark />
         <span className="site-wordmark">AUTOPLAC<span>.HR</span></span>
-        <span className="site-brand-descriptor" aria-hidden="true">Hrvatski auto-oglasnik</span>
       </a>
+      <span className="site-brand-divider" aria-hidden="true" />
       <nav className="site-desktop-nav" aria-label="Glavna navigacija">{navigationLinks()}</nav>
       <div className="site-header-actions site-desktop-actions">
         {savedButton}
+        <span className="site-utility-divider" aria-hidden="true" />
         <a className="site-header-action site-account" href={accountHref} onClick={event => follow(event, accountHref)}
           aria-current={activeRoute === accountHref ? "page" : undefined} aria-label={account ? "Moj račun" : undefined}>
+          <UserRound size={17} strokeWidth={1.75} aria-hidden="true" />
           {account ? <>
-            <UserRound size={17} strokeWidth={1.75} aria-hidden="true" />
             <span className="site-account-name">{account.name.trim().split(/\s+/)[0] || initials}</span>
-            {Boolean(account.unread) && <span className="site-account-unread tabular">{account.unread}</span>}
-          </> : "Prijava"}
+            {Boolean(account.unread) && <span className="site-account-unread tabular-nums">{account.unread}</span>}
+          </> : <span>Prijava</span>}
         </a>
         {publishButton}
       </div>

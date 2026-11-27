@@ -5,7 +5,6 @@ import { Checkbox } from "../src/components/Checkbox";
 import { Navbar } from "../src/components/Navbar";
 import { VehicleCard } from "./vehicle-card";
 import { BrandLogo } from "../src/components/BrandLogo";
-import { AdSlot } from "../src/components/AdSlot";
 import { ArrowRight, Bike, Car, ChevronLeft, ChevronRight, Truck, Check, Grid2X2, List, Navigation, RotateCcw, Search as SearchIcon, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
 import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -15,6 +14,7 @@ import { BrandSelect } from "../src/components/BrandSelect";
 import { matchesModelSearch } from "../src/lib/model-search";
 import { FaqAccordion } from "./faq-accordion";
 import { DealershipDirectoryView } from "./autokuce-directory";
+import { DEALERSHIP_DIRECTORY } from "../src/data/dealerships";
 import { restoreListingPhotos, cities, euro, fuelLabel, fuels, gears, number, quick, vehicles, type Flag, type Vehicle } from "./catalog";
 import { bodyFilters, doorOptions, seatOptions, colorFinishes, cylinderCounts, distances, initialSearch, matchVehicles, parseVehicleQuery, prices, readSearch, searchFilterCount, sorts, validEquipmentFilters, writeSearch, years, type Search } from "./search";
 import { equipmentFor } from "../src/data/equipment-catalog";
@@ -357,7 +357,6 @@ function FilterControls({ search, count, update, apply, compact = false }: {
         make:search.marka, model:search.model, generation:search.generacija, catalogEquipment:search.oprema,
       }} onChange={oprema => update({...search,oprema:[...search.oprema.filter(id => typeof id === "string" && !id.startsWith("eq:")), ...oprema.filter(id => typeof id === "string" && id.startsWith("eq:"))]})}/>}
       <ListingOptions selected={search.opcije} onChange={opcije => update({ ...search, opcije })} />
-      <LeasingEstimate />
     </div>
     <ActiveFilters search={search} update={update} />
     <div className="search-actions">
@@ -615,32 +614,6 @@ function PartnerStrip() {
           <button type="submit" className="btn primary">Provjeri povijest <ArrowRight size={15} aria-hidden="true" /></button>
         </form>
       </section>
-    </section>
-  );
-}
-
-function LeasingEstimate() {
-  const [price, setPrice] = useState(15000);
-  return (
-    <section className="leasing-estimate" aria-label="Financiranje i B2B">
-      <p className="leasing-label">Financiranje i B2B</p>
-      <h2>Brzi izračun rate leasinga</h2>
-      <div className="leasing-presets" role="group" aria-label="Cijena vozila">
-        {[15000, 20000].map(amount => (
-          <button key={amount} type="button" aria-label={`Izračunaj leasing za vozilo od ${euro(amount)}`} aria-pressed={price === amount} onClick={() => setPrice(amount)}>
-            {euro(amount)}
-          </button>
-        ))}
-      </div>
-      <div className="leasing-rate" aria-live="polite">
-        <strong>{euro(price * 0.8 / 60, true)} / mj.</strong>
-        <span>60 mj. · 20% učešća</span>
-      </div>
-      <p className="leasing-note">Glavnica bez kamata i naknada</p>
-      <ul className="leasing-partners" aria-label="Leasing kuće">
-        {["OTP", "Erste", "Porsche Leasing"].map(partner => <li key={partner}>{partner}</li>)}
-      </ul>
-      <a href="/ppmv-kalkulator">Izračunaj PPMV <ArrowRight size={15} aria-hidden="true" /></a>
     </section>
   );
 }
@@ -1155,6 +1128,19 @@ export default function Marketplace({
     }
   },[publishAfterLogin,account,path]);
   const legalPath = Object.hasOwn(legalLinks,path) ? path as LegalPath : undefined;
+  const detailTitle = detailId ? allVehicles.find(vehicle => vehicle.id === detailId)?.title : undefined;
+  useEffect(() => {
+    const titles: Record<string, string> = {
+      "/autokuce": "Provjerene autokuće i saloni rabljenih vozila u Hrvatskoj",
+      "/ppmv-kalkulator": "PPMV Kalkulator 2026 — Izračun trošarine za uvoz auta iz Njemačke i EU",
+      "/procjena-cijene": "Besplatna procjena tržišne cijene rabljenog vozila u RH",
+      "/racun": "Moj račun", "/prijava": "Prijava na račun", "/registracija": "Registracija računa",
+      "/predaj-oglas": "Predaj oglas za vozilo (0 €)", "/spremljeno": "Spremljena vozila",
+    };
+    const dealer = path.startsWith("/autokuce/") ? DEALERSHIP_DIRECTORY.find(item => item.slug === decodeURIComponent(path.slice(10)))?.name : undefined;
+    const page = detailTitle ?? dealer ?? titles[path];
+    document.title = page ? page + " | AUTOPLAC.HR" : "AUTOPLAC.HR — Rabljena vozila i provjera cijena u Hrvatskoj";
+  }, [path, detailTitle]);
   const filters = <FilterControls search={search} count={results.length} update={update} apply={apply}/>;
   const isDealershipPath = typeof path === "string" && path.startsWith("/autokuce/");
   const activeHeaderRoute = isDealershipPath ? "/autokuce"
@@ -1205,7 +1191,6 @@ export default function Marketplace({
           <section className="detail-panel rounded-xl">
             <TaxCalculator />
           </section>
-          <AdSlot placement="hero-leaderboard" routeKey="/ppmv-kalkulator" />
           <FaqAccordion title="Česta pitanja o uvozu vozila i PPMV-u" />
         </main>
       ) :
@@ -1316,11 +1301,6 @@ export default function Marketplace({
             <Fragment key={vehicle.id}>
               <VehicleCard vehicle={vehicle} saved={savedIds.includes(vehicle.id)} eager={false}
                 horizontal={search.prikaz === "lista"} onOpen={event => openListing(event, vehicle.id)} onSave={() => toggleSaved(vehicle.id)} />
-              {(index + 1) % 6 === 0 && (
-                <div className="col-span-full">
-                  <AdSlot placement="in-feed-native" routeKey={`${path}-${index}`} onAction={() => navigate("/ppmv-kalkulator")} />
-                </div>
-              )}
             </Fragment>
           ))}</div> : <div className="empty-state"><h2>{savedOnly && !savedCount ? "Nemate spremljenih vozila" : "Nema vozila za odabrane filtre"}</h2><button type="button" className="btn secondary" onClick={() => { if (savedOnly && !savedCount) setSavedOnly(false); update({ ...initialSearch, prikaz: search.prikaz }); }}>{savedOnly && !savedCount ? "Pogledaj ponudu" : "Poništi filtere"}</button></div>}
           {results.length > visibleCount && <button className="btn secondary mt-3 min-h-11" type="button" onClick={() => setVisibleCount(count => count + 24)}>
