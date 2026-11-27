@@ -10,7 +10,6 @@ import { Rating, Select, VehiclePhoto } from "./ui";
 import { ValuationAuditPanel } from "./valuation-audit";
 import { FaqAccordion } from "./faq-accordion";
 import {
-  CAR_MAKES,
   clampYearToRange,
   effectiveYearRange,
   generationRange,
@@ -20,7 +19,8 @@ import {
   validGeneration,
   variantsForSelection,
 } from "../src/data/car-catalog";
-import { describeMarketDelta, evaluateMarketPrice } from "../src/lib/price-engine";
+import { describeMarketDelta } from "../src/lib/price-engine";
+import { evaluateCalculatorPrice, readListingValuationParams } from "../src/lib/valuation-link";
 import { calculateCo2, ksToKw, kwToKs, resolveVehicleSpecs, type SpecFuel } from "../src/lib/spec-resolver";
 import { vehicleListingPath } from "../src/lib/seo";
 
@@ -55,6 +55,9 @@ export function ValuationPage({
     "eq:bmw live cockpit professional",
     "eq:adaptivni tempomat",
   ]);
+  const [linked, setLinked] = useState<ReturnType<typeof readListingValuationParams>>();
+  const [edited, setEdited] = useState(false);
+  const [warranty, setWarranty] = useState(false);
   const [cvh, setCvh] = useState(true);
   const [firstOwner, setFirstOwner] = useState(true);
   const [serviceBook, setServiceBook] = useState(true);
@@ -65,8 +68,10 @@ export function ValuationPage({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
+    const linkedInput = readListingValuationParams(params);
+    setLinked(linkedInput);
     const qMake = params.get("make")?.trim();
-    if (!qMake || !CAR_MAKES.includes(qMake)) return;
+    if (!qMake) return;
 
     const qModelRaw = params.get("model")?.trim() ?? "";
     const catalogModels = modelsFor(qMake, false);
@@ -82,7 +87,7 @@ export function ValuationPage({
 
     const qKm = Number(params.get("km"));
     const qKw = Number(params.get("kw"));
-    const qFuelRaw = params.get("fuel")?.trim() ?? "";
+    const qFuelRaw = params.get("fuel") === "Struja" ? "Električni" : params.get("fuel")?.trim() ?? "";
     const matchedFuel = valuationFuels.includes(qFuelRaw as SpecFuel) ? (qFuelRaw as SpecFuel) : undefined;
     const qPrice = Number(params.get("price"));
 
@@ -90,12 +95,14 @@ export function ValuationPage({
     setModel(matchedModel);
     if (matchedModel === OTHER_MODEL) setCustomModel(qModelRaw);
     setGeneration(matchedGen);
-    setVariant("");
-    setCustomVersion("");
+    const linkedVariant = linkedInput?.variant || "";
+    const custom = linkedVariant && !variantsForSelection(qMake, effectiveM, matchedGen, resolvedYear).includes(linkedVariant);
+    setVariant(custom ? customVariant : linkedVariant);
+    setCustomVersion(custom ? linkedVariant : "");
     setYear(resolvedYear);
     if (Number.isFinite(qKm) && qKm >= 0) setKm(qKm);
     if (Number.isFinite(qPrice) && qPrice > 0) setAskingPrice(String(qPrice));
-    setCatalogEquipment([]);
+    setCatalogEquipment(linkedInput?.catalogEquipment ?? []);
 
     const resolved = resolveVehicleSpecs({
       make: qMake,
@@ -105,12 +112,21 @@ export function ValuationPage({
       fuel: matchedFuel,
       kw: Number.isFinite(qKw) && qKw > 0 ? qKw : undefined,
     });
-    setBodyType(resolved.bodyType);
+    setBodyType(linkedInput?.bodyType || resolved.bodyType);
     setFuel(matchedFuel ?? resolved.fuel);
     setKw(Number.isFinite(qKw) && qKw > 0 ? qKw : resolved.kw);
-    if (resolved.gear) setGear(resolved.gear);
-    if (resolved.drive) setDrive(resolved.drive);
-    setCo2("");
+    const linkedGear = gears.find(value => value === linkedInput?.gear);
+    if (linkedGear || resolved.gear) setGear(linkedGear ?? resolved.gear!);
+    if (linkedInput?.drive || resolved.drive) setDrive(linkedInput?.drive || resolved.drive!);
+    setCo2(linkedInput?.co2 === undefined ? "" : String(linkedInput.co2));
+    if (linkedInput) {
+      setCvh(linkedInput.flags?.includes("cvh") ?? false);
+      setPdv(linkedInput.flags?.includes("pdv") ?? false);
+      setWarranty(linkedInput.flags?.includes("jamstvo") ?? false);
+      setDealer(linkedInput.dealer ?? false);
+      setFirstOwner(linkedInput.firstOwner ?? false);
+      setServiceBook(linkedInput.serviceBook ?? false);
+    }
   }, []);
 
   const effectiveModel = model === OTHER_MODEL ? customModel.trim() || model : model;
@@ -179,17 +195,20 @@ export function ValuationPage({
   }
 
   const result = useMemo(() => {
-    const flags: string[] = [];
+    const flags = (linked?.flags ?? []).filter(flag => !["cvh", "pdv", "jamstvo"].includes(flag));
     if (cvh) flags.push("cvh");
     if (pdv) flags.push("pdv");
-    return evaluateMarketPrice({
+    if (warranty) flags.push("jamstvo");
+    return evaluateCalculatorPrice({
+      ...linked,
+      history: undefined,
       make: make || "Volkswagen",
       model: effectiveModel || "Golf",
       generation,
       variant: activeVariant,
       bodyType,
       year: effectiveYear,
-      date: `${effectiveYear}-06`,
+      date: linked?.date?.startsWith(String(effectiveYear) + "-") ? linked.date : `${effectiveYear}-06`,
       km: Math.max(0, km || 0),
       kw: Math.max(25, kw || 90),
       co2: co2 !== "" ? Number(co2) : autoCo2,
@@ -203,10 +222,10 @@ export function ValuationPage({
       serviceBook,
       dealer,
       verified: dealer,
-    });
+    }, edited ? undefined : linked);
   }, [
     make, effectiveModel, generation, activeVariant, bodyType, effectiveYear, km, kw, co2, autoCo2, fuel, gear, drive,
-    parsedAsking, catalogEquipment, cvh, pdv, firstOwner, serviceBook, dealer,
+    parsedAsking, catalogEquipment, cvh, pdv, firstOwner, serviceBook, dealer, warranty, linked, edited,
   ]);
 
   const markerTarget = parsedAsking > 0 ? parsedAsking : result.medianMarketPrice;
@@ -273,7 +292,7 @@ export function ValuationPage({
       </header>
 
       <div className="valuation-grid grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_410px] gap-6 items-start">
-        <section className="detail-panel valuation-form-card min-w-0" aria-label="Parametri vozila za procjenu">
+        <section className="detail-panel valuation-form-card min-w-0" aria-label="Parametri vozila za procjenu" onChangeCapture={() => setEdited(true)}>
           <h2>Podaci o vozilu</h2>
           <div className="form-grid">
             <CatalogFields
@@ -288,6 +307,8 @@ export function ValuationPage({
               }}
               value={{ make, model, generation }}
               onChange={selection => {
+                setLinked(undefined);
+                setEdited(true);
                 setMake(selection.make);
                 setModel(selection.model);
                 setGeneration(selection.generation);
@@ -303,6 +324,7 @@ export function ValuationPage({
               value={variant}
               filterYear={effectiveYear}
               onChange={nextVariant => {
+                setEdited(true);
                 setVariant(nextVariant);
                 if (nextVariant && nextVariant !== customVariant) {
                   applySpecs(make, effectiveModel, generation, nextVariant);
@@ -395,6 +417,7 @@ export function ValuationPage({
               <label><Checkbox checked={firstOwner} onChange={e => setFirstOwner(e.target.checked)} /> 1. vlasnik</label>
               <label><Checkbox checked={serviceBook} onChange={e => setServiceBook(e.target.checked)} /> Servisna knjiga</label>
               <label><Checkbox checked={dealer} onChange={e => setDealer(e.target.checked)} /> Verificirana autokuća</label>
+              <label><Checkbox checked={warranty} onChange={e => setWarranty(e.target.checked)} /> Pisano jamstvo 12 mj.</label>
               <label><Checkbox checked={pdv} onChange={e => setPdv(e.target.checked)} /> Sustav PDV-a (R1)</label>
             </div>
           </fieldset>
@@ -411,7 +434,7 @@ export function ValuationPage({
                 date: `${effectiveYear}-06`,
                 catalogEquipment,
               }}
-              onChange={setCatalogEquipment}
+              onChange={items => { setEdited(true); setCatalogEquipment(items); }}
             />
           )}
         </section>

@@ -21,9 +21,10 @@ import {
 import { LocationFields } from "./dealership-fields";
 import { EquipmentSelector } from "./equipment-selector";
 import { equipmentFor, equipmentId } from "../src/data/equipment-catalog";
+import { ValuationAuditPanel } from "./valuation-audit";
 import { Dialog, ListingOptions, Rating, Select, VehiclePhoto } from "./ui";
 import { selectedMakeOptions } from "./make-equipment";
-import { describeMarketDelta, evaluateMarketPrice, sellerAdvisoryText, timeToSellLine, VALUE_PROOFS } from "../src/lib/price-engine";
+import { describeMarketDelta, evaluateMarketPrice, sellerAdvisoryText, timeToSellLine, valuationInputFromVehicle, VALUE_PROOFS } from "../src/lib/price-engine";
 import { calculateCo2, ksToKw, kwToKs, resolveVehicleSpecs, toCatalogFuel, type SpecFuel } from "../src/lib/spec-resolver";
 import { analyzeListingPhotos, orderImportedPhotos, prepareListingPhoto, type ListingAnalysis } from "./listing-analysis";
 import { canonicalEquipmentLabels, equipmentCategoryFor, inferStandardEquipment, parseListingText } from "./search";
@@ -108,7 +109,7 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [valueProofs, setValueProofs] = useState<string[]>([]);
+  const [valueProofs, setValueProofs] = useState(() => existing ? valuationInputFromVehicle(existing).valueProofs ?? [] : []);
 
   const set = <K extends keyof Publish>(key: K, value: Publish[K]) => setValues(old => ({ ...old, [key]: value }));
 
@@ -403,12 +404,6 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
     const action = submitter?.value === "draft" ? "draft" : existing?.status === "sold" ? "sold" : "active";
     try {
       const title = sanitizeText(values.title, 100);
-      // Checked Step 3 value proofs are appended to the seller notes as highlights.
-      const proofLabels = VALUE_PROOFS.filter(proof => valueProofs.includes(proof.id))
-        .map(proof => `${proof.label} (+${proof.bonusEur} €)`);
-      const proofSuffix = proofLabels.length
-        ? `${values.sellerNote?.trim() ? "\n" : ""}Dokazi vrijednosti: ${proofLabels.join(", ")}.`
-        : "";
       const location = Object.fromEntries(new FormData(event.currentTarget));
       const finalModel = sanitizeText(values.model === OTHER_MODEL ? customModel : values.model, 80);
       const finalVariant = sanitizeText(values.variant === customVariant ? customVersion : values.variant, 100);
@@ -449,7 +444,8 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
         county: sanitizeText(location.county, 100),
         title: !values.generation || titleContainsChassis(title, values.generation) ? title : sanitizeText(title + " (" + values.generation + ")", 100),
         trim: sanitizeText(values.trim, 100),
-        sellerNote: sanitizeText((values.sellerNote ?? "") + proofSuffix, 12000, true),
+        sellerNote: sanitizeText(values.sellerNote, 12000, true),
+        valueProofs,
         variant: finalVariant,
         seller: sanitizeText(values.seller, 100),
         email: sanitizeText(values.email, 254),
@@ -473,35 +469,20 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
 
   const { valuation, baseMedianPrice } = useMemo(() => {
     if (!values.make || !effectiveModel) return { valuation: null as ReturnType<typeof evaluateMarketPrice> | null, baseMedianPrice: 0 };
-    const input = {
-      make: values.make,
+    const input = valuationInputFromVehicle({
+      ...values,
+      id: existing?.id ?? "",
       model: effectiveModel,
-      generation: values.generation,
       variant: activeVariant,
-      bodyType: values.bodyType,
-      title: values.title,
-      trim: values.trim,
-      date: values.date,
-      km: values.km,
-      kw: values.kw,
-      co2: values.co2,
-      fuel: values.fuel,
-      gear: values.gear,
-      drive: values.drive,
-      askingPrice: values.price > 0 ? values.price : undefined,
-      equipment: values.equipment,
-      makeEquipment: values.makeEquipment,
-      catalogEquipment: values.catalogEquipment,
-      flags: values.flags,
-      history: values.history,
-      dealer: contact.type === "dealer",
-      verified: contact.type === "dealer",
-    };
+      fuel: toCatalogFuel(values.fuel),
+      verified: existing?.verified ?? false,
+      valueProofs: [],
+    });
     const base = evaluateMarketPrice(input);
     // Checked value proofs lift the live fair range in real time.
     const withProofs = valueProofs.length ? evaluateMarketPrice({ ...input, valueProofs }) : base;
     return { valuation: withProofs, baseMedianPrice: base.medianMarketPrice };
-  }, [values, effectiveModel, activeVariant, contact.type, valueProofs]);
+  }, [values, effectiveModel, activeVariant, existing?.id, existing?.verified, valueProofs]);
   const liveDelta = valuation && values.price > 0 ? describeMarketDelta(valuation.deltaEur, valuation.deltaPercent, euro) : null;
   const now = new Date();
   const maxMonth = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
@@ -911,6 +892,14 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
               <span>Istakni oglas u gornjem redu 7 dana ({euro(boostPlans.top_7d.price, true)} — {euro(0)} u promo periodu)</span>
             </label>
           )}
+          <label className="publish-boost-option">
+            <input type="checkbox" checked={values.showPriceBadge === true} onChange={event => set("showPriceBadge", event.target.checked)} />
+            <span>Prikaži oznaku „Ispod tržišne cijene” ako je cijena barem 5 % ispod medijana.</span>
+          </label>
+          {valuation && <details>
+            <summary className="btn quiet min-h-11">Detaljna analiza procjene</summary>
+            <ValuationAuditPanel result={valuation} />
+          </details>}
           <p className="fine-print">Objavom potvrđujete da su podaci o vozilu točni. Nacrt je vidljiv samo na vašem računu.</p>
         </>}
         {error && <p className="form-error" role="alert">{error}</p>}

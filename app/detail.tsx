@@ -1,4 +1,5 @@
 "use client";
+import { listingValuationParams } from "../src/lib/valuation-link";
 
 import { Checkbox } from "../src/components/Checkbox";
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, ExternalLink, Fingerprint, Heart, Maximize, MessageSquare, Phone, Printer, Share2, Star } from "lucide-react";
@@ -6,7 +7,7 @@ import { BrandLogo } from "../src/components/BrandLogo";
 import { useEffect, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { euro, groups, marketValuation, number, power, registered, taxStatus, type Vehicle } from "./catalog";
 import { vehicleMakeOptions } from "./make-equipment";
-import { Dialog, Rating, VehiclePhoto } from "./ui";
+import { Dialog, VehiclePhoto } from "./ui";
 import { JsonLd } from "../src/components/JsonLd";
 import { SITE_URL, slugifyHr, vehicleListingPath, vehicleSeoPath } from "../src/lib/seo";
 import { equipmentFor } from "../src/data/equipment-catalog";
@@ -114,61 +115,14 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
   const count = vehicle.photos.length;
   const active = vehicle.photos[photo];
   const valuation = marketValuation(vehicle);
-  const priceScaleMin = Math.round(valuation.excellentMax * 0.88);
-  const priceScaleMax = Math.round(valuation.highMax * 1.1);
-  const pinLeft = (() => {
-    const p = vehicle.price;
-    const t = valuation;
-    if (p <= t.excellentMax) {
-      return Math.max(3, Math.min(19, 20 * Math.max(0, p - priceScaleMin) / Math.max(1, t.excellentMax - priceScaleMin)));
-    }
-    if (p <= t.goodMax) {
-      return 20 + 20 * (p - t.excellentMax) / Math.max(1, t.goodMax - t.excellentMax);
-    }
-    if (p <= t.fairMax) {
-      return 40 + 20 * (p - t.goodMax) / Math.max(1, t.fairMax - t.goodMax);
-    }
-    if (p <= t.highMax) {
-      return 60 + 20 * (p - t.fairMax) / Math.max(1, t.highMax - t.fairMax);
-    }
-    return Math.min(97, 80 + 20 * (p - t.highMax) / Math.max(1, priceScaleMax - t.highMax));
-  })();
-  const valuationParams = new URLSearchParams({
-    make: vehicle.make,
-    model: vehicle.model,
-    ...(vehicle.generation ? { gen: vehicle.generation } : {}),
-    year: vehicle.date.slice(0, 4),
-    km: String(vehicle.km),
-    fuel: vehicle.fuel === "Struja" ? "Električni" : vehicle.fuel,
-    kw: String(vehicle.kw),
-    price: String(vehicle.price),
-  });
-  const valuationUrl = `/procjena-cijene?${valuationParams.toString()}`;
+  const showPriceBadge = vehicle.showPriceBadge === true && vehicle.price > 0
+    && vehicle.price * 100 <= valuation.medianMarketPrice * 95;
+  const valuationUrl = `/procjena-cijene?${listingValuationParams(vehicle)}`;
   const vinAffiliateUrl =
     process.env.NEXT_PUBLIC_CARVERTICAL_AFFILIATE_URL?.trim() || "https://www.carvertical.com/hr";
   const vinHref = vehicle.vin
     ? `${vinAffiliateUrl}${vinAffiliateUrl.includes("?") ? "&" : "?"}vin=${encodeURIComponent(vehicle.vin)}`
     : vinAffiliateUrl;
-
-  const isSavings = valuation.deltaEur < -50;
-  const isNeutral = Math.abs(valuation.deltaPercent) <= 8 || Math.abs(valuation.deltaEur) <= 50;
-  const comparisonRowLabel = isSavings
-    ? "Ušteda u odnosu na prosjek:"
-    : "Odstupanje od prosjeka:";
-  const comparisonRowValue = isNeutral
-    ? "U okviru tržišnog raspona"
-    : isSavings
-    ? `${euro(Math.abs(valuation.deltaEur))} ispod prosjeka`
-    : valuation.rating.hidden
-    ? `${euro(Math.abs(valuation.deltaEur))} iznad tržišnog raspona`
-    : `+${euro(Math.abs(valuation.deltaEur))} iznad raspona`;
-  const comparisonRowTone = isNeutral
-    ? "text-[var(--muted)]"
-    : valuation.rating.hidden
-    ? "text-[var(--muted)]"
-    : isSavings
-    ? "text-emerald-600 dark:text-emerald-400"
-    : "text-amber-600 dark:text-amber-400";
 
   const move = (offset: number) => setPhoto(current => (current + offset + count) % count);
   const version = vehicle.variant === "S" ? vehicle.model + " S" : vehicle.variant;
@@ -414,7 +368,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
         </section>}
       </div>
       <aside className="detail-sidebar" aria-label="Cijena i kontakt prodavača">
-        <section className="detail-panel price-evaluation p-4 flex flex-col gap-2.5" id="kontakt-prodavaca" aria-label="Cijena i tržišna ocjena">
+        <section className="detail-panel price-evaluation p-4 flex flex-col gap-2.5" id="kontakt-prodavaca" aria-label="Cijena oglasa">
           <div className="flex items-baseline justify-between gap-2 flex-wrap">
             <div className="flex flex-col gap-0.5">
               {vehicle.previousPriceEur && vehicle.previousPriceEur > vehicle.price && (
@@ -433,39 +387,13 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
           </div>
 
           <div className="pt-2 border-t border-[var(--border)] flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
-              <Rating valuation={valuation} align="left" />
-              <span className="text-[11px] font-medium text-[var(--muted)]">
-                {valuation.rating.hidden ? "Usporedba dostupna prodavatelju" : "Ocjena tržišta RH"}
-              </span>
-            </div>
-
-            <div className="price-scale price-scale-5 !my-0.5" role="img" aria-label={`Tražena cijena ${euro(vehicle.price)} u odnosu na tržišni raspon u RH (${euro(valuation.fairMin)} – ${euro(valuation.fairMax)})`}>
-              <div/><div/><div/><div/><div/><span style={{ left: pinLeft + "%" }}/>
-            </div>
-            <div className="scale-labels !mb-0 text-[11px]">
-              <span>Top prilika</span>
-              <span>Tržišna</span>
-              <span>Viši rang</span>
-            </div>
-
-            <div className="flex flex-col gap-1 text-[12.5px] pt-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[var(--muted)]">Tržišni raspon u RH:</span>
-                <strong className="tabular-nums font-semibold text-[var(--text)] !m-0">{euro(valuation.fairMin)} – {euro(valuation.fairMax)}</strong>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[var(--muted)]">{comparisonRowLabel}</span>
-                <strong className={`tabular-nums font-semibold !m-0 ${comparisonRowTone}`}>{comparisonRowValue}</strong>
-              </div>
-            </div>
-
+            {showPriceBadge && <span className="verified-price-savings text-[13px] font-semibold">Ispod tržišne cijene</span>}
             <a
               href={valuationUrl}
               onClick={e => {
                 if (onOpenValuation) onOpenValuation(e, valuationUrl);
               }}
-              className="text-xs text-slate-500 dark:text-slate-400 hover:text-blue-500 underline-offset-4 hover:underline self-start mt-0.5"
+              className="text-link min-h-11 self-start"
             >
               Kako računamo tržišnu cijenu? →
             </a>

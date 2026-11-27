@@ -1306,6 +1306,7 @@ export function valuationInputFromVehicle(vehicle: Partial<Vehicle> & Pick<Vehic
     vehicle.make && vehicle.model && "id" in vehicle
       ? vehicleMakeOptions(vehicle as Vehicle).map(o => o.label)
       : vehicle.makeEquipment ?? [];
+  const legacyProofNote = vehicle.sellerNote?.split("Dokazi vrijednosti: ").slice(1).join(" ");
   return {
     make: vehicle.make,
     model: vehicle.model,
@@ -1330,6 +1331,11 @@ export function valuationInputFromVehicle(vehicle: Partial<Vehicle> & Pick<Vehic
     catalogEquipment: vehicle.catalogEquipment,
     flags: vehicle.flags,
     history: vehicle.history,
+    firstOwner: /1\.\s*vlasnik|prvi vlasnik/i.test([vehicle.ownership, ...(vehicle.history ?? [])].join(" | ")),
+    serviceBook: /servisn/i.test((vehicle.history ?? []).join(" | ")),
+    valueProofs: vehicle.valueProofs ?? VALUE_PROOFS
+      .filter(proof => legacyProofNote?.includes(proof.label))
+      .map(proof => proof.id),
     dealer: vehicle.dealer,
     verified: vehicle.verified,
   };

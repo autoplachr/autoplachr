@@ -87,7 +87,7 @@ export type Vehicle = {
   generation?: string; variant?: string; bodyType?: string;
   date: string; listedAt?: string; km: number; kw: number; cc: number; co2: number; fuel: Fuel;
   gear: typeof gears[number]; drive: string; vin: string; city: string; seller: string;
-  dealer: boolean; verified: boolean; phone: string; email?: string; flags: Flag[];
+  dealer: boolean; verified: boolean; showPriceBadge?: boolean; valueProofs?: string[]; phone: string; email?: string; flags: Flag[];
   doors?: number; seats?: number; cylinders?: number; color?: string; colorFinish?: string; registrationUntil?: string; ownership?: string;
   postalCode?: string; county?: string; sellerWorkingHours?: WorkingHours; dealershipId?: string; sellerAddress?: string; sellerHours?: string; sellerRating?: { score: number; reviews: number };
   photos: Photo[]; photoCount?: number; previousPriceEur?: number; isFeatured?: boolean; isBoosted?: boolean; boostTier?: BoostTier; boostExpiresAt?: string | null; equipment: Equipment; makeEquipment?: string[]; catalogEquipment?: string[]; contactAvailable?: boolean; boostedUntil?: number | null; range?: [number, number]; demo?: boolean; history?: string[]; sellerNote?: string;

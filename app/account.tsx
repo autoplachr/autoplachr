@@ -48,6 +48,7 @@ import { boostPlans, hasActiveBoost, type PaidBoostTier } from "./listing-boost"
 import { LocationFields, HoursFields } from "./dealership-fields";
 import { AnalyticsOverview, emptyAnalytics, LeadInbox, TrialReport } from "./seller-analytics";
 import { WindshieldSheet } from "./windshield-sheet";
+import { ValuationAuditPanel } from "./valuation-audit";
 import { Dialog, Rating, VehiclePhoto } from "./ui";
 import { ComparisonModal } from "./comparison-modal";
 import { isSupabaseConfigured } from "../src/lib/supabase/client";
@@ -584,6 +585,20 @@ export function AuthPage({
 }
 
 type Confirm = { kind: "delete-account" } | { kind: "delete-listing" | "boost"; listing: OwnedListing };
+
+function PrivateListingValuation({ vehicle }: { vehicle: Vehicle }) {
+  const [open, setOpen] = useState(false);
+  const result = open ? marketValuation(vehicle) : undefined;
+  const advisory = result && sellerAdvisoryText(result.deltaPercent, result.fairMax);
+  return <details onToggle={event => setOpen(event.currentTarget.open)}>
+    <summary className="btn quiet min-h-11">Privatna procjena cijene</summary>
+    {result && <>
+      <p className="tabular">Tržišni raspon {euro(result.fairMin)} – {euro(result.fairMax)}</p>
+      {advisory && <p className="seller-advisory">{advisory}</p>}
+      <ValuationAuditPanel result={result} />
+    </>}
+  </details>;
+}
 
 export function AccountPage({
   account,
@@ -1179,14 +1194,7 @@ export function AccountPage({
                         )}
                       </div>
 
-                      {listing.status === "active" && (() => {
-                        // Private pricing advisory — never shown on the public listing page.
-                        const listingValuation = marketValuation(listing);
-                        const advisory = sellerAdvisoryText(listingValuation.deltaPercent, listingValuation.fairMax);
-                        return advisory ? (
-                          <p className="!m-0 seller-advisory" role="status">{advisory}</p>
-                        ) : null;
-                      })()}
+                      <PrivateListingValuation vehicle={listing} />
                     </div>
 
                     <div className="flex flex-wrap gap-1.5 shrink-0">

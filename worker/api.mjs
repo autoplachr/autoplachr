@@ -220,6 +220,8 @@ async function saveListing(env, account, body) {
     ...(vehicle.colorFinish ? { colorFinish: sanitizeText(vehicle.colorFinish, 40) } : {}),
     gear:sanitizeText(vehicle.gear, 30), fuel:sanitizeText(vehicle.fuel, 30), drive:sanitizeText(vehicle.drive, 30), vin:sanitizeText(vehicle.vin, 17),
     sellerNote:sanitizeText(vehicle.sellerNote, 12000, true), flags:vehicle.flags,
+    showPriceBadge: vehicle.showPriceBadge === true,
+    ...(Array.isArray(vehicle.valueProofs) ? { valueProofs: sanitizeStringArray(vehicle.valueProofs, 4, 30) } : {}),
     photos:vehicle.photos.map(photo => ({src:photo.src})),
     equipment:Object.fromEntries(["Sigurnost","Udobnost","Multimedija","Eksterijer"].map(key => [key, sanitizeStringArray(vehicle.equipment[key], 40, 150)])),
     makeEquipment:sanitizeStringArray(vehicle.makeEquipment, 60, 100),
