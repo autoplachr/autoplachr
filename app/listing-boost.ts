@@ -7,7 +7,7 @@ export const B2B_PACKAGES = [
   { id: "ai_partner", name: "Partner Plus", priceEur: 89, desc: "Neograničen lager, županijski doseg i prioritetna podrška." },
 ] as const;
 
-export const B2B_FOUNDER_OFFER = "Partner osnivač: 0 € do 31. 5. 2027. (6 mjeseci besplatno za prvih 50 autokuća)";
+export const B2B_FOUNDER_OFFER = "Partner osnivač: 0 € do 31. 5. 2027. (6 mjeseci besplatno za prvih 50 salona)";
 
 /** Private seller post-publish highlight upsells (promo: 0 €). */
 export const boostPlans = {

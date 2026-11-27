@@ -21,7 +21,7 @@ export function LegalPage({ path, cookieSettings, report }: { path:LegalPath; co
   const [receipt,setReceipt] = useState("");
   const [result,setResult] = useState("");
   useEffect(() => {void api<Operator>("config").then(setOperator).catch(() => undefined);},[]);
-  const contact = operator?.operator && operator.email && operator.address ? <p>{operator.operator} · {operator.address} · <a href={"mailto:"+operator.email}>{operator.email}</a></p> : <p>Identitet, adresa i službena e-pošta operatora još nisu objavljeni. Dokument vrijedi kao nacrt za privatni pregled platforme.</p>;
+  const contact = <p>{operator?.operator || "INO-TEH d.o.o."} · {operator?.address || "Orahovica, Hrvatska"} · <a href={"mailto:" + (operator?.email || "info@autoplac.hr")}>{operator?.email || "info@autoplac.hr"}</a></p>;
   return <main className="shell account-shell legal-shell">
     <article className="detail-panel legal-document"><header className="account-heading"><div><h1>{legalLinks[path]}</h1><p>Verzija od 25. studenoga 2026.</p></div><button className="btn secondary legal-print" type="button" onClick={() => window.print()}>Ispiši</button></header>
     {path === "/uvjeti-koristenja" && <>

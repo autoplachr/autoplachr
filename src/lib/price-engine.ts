@@ -95,6 +95,8 @@ export type MarketValuationResult = {
   medianMarketPrice: number;
   deltaEur: number;
   deltaPercent: number;
+  /** Raw, unrounded ≥5%-below-median check used for the public opt-in badge. */
+  meetsPublicBadge: boolean;
   rating: PriceRatingTier;
   factors: ValuationFactor[];
   auditFactors: AuditFactor[];
@@ -1156,7 +1158,7 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
   const regYear = clampedReg.year;
   const regMonth = String(clampedReg.month).padStart(2, "0");
   const approxCo2 = Number.isFinite(input.co2) && (input.co2 ?? 0) > 0
-    ? Number(input.co2)
+    ? Math.min(600, Number(input.co2))
     : calculateCo2({
         fuel: fuelKind === "ev" ? "Električni" : fuelKind === "phev" ? "Plug-in hibrid" : fuelKind === "hybrid" ? "Hibrid" : fuelKind === "lpg" ? "LPG" : fuelKind === "diesel" ? "Dizel" : "Benzin",
         kw,
@@ -1241,6 +1243,7 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
     medianMarketPrice,
     deltaEur,
     deltaPercent,
+    meetsPublicBadge: asking * 100 <= medianMarketPrice * 95,
     rating,
     factors: topFactors,
     auditFactors,

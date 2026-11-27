@@ -211,7 +211,7 @@ export function ValuationPage({
       date: linked?.date?.startsWith(String(effectiveYear) + "-") ? linked.date : `${effectiveYear}-06`,
       km: Math.max(0, km || 0),
       kw: Math.max(25, kw || 90),
-      co2: co2 !== "" ? Number(co2) : autoCo2,
+      co2: co2 !== "" && Number.isFinite(Number(co2)) ? Math.min(600, Math.max(0, Number(co2))) : autoCo2,
       fuel,
       gear,
       drive,

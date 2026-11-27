@@ -28,6 +28,7 @@ export default async function Page() {
       name: "INO-TEH d.o.o. (AUTOPLAC.HR)",
       url: SITE_URL,
       logo: `${SITE_URL}/icon.svg`,
+      address: { "@type": "PostalAddress", addressLocality: "Orahovica", addressCountry: "HR" },
     },
     {
       "@context": "https://schema.org",

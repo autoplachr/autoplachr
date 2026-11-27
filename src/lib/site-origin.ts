@@ -1,11 +1,11 @@
 /**
  * Single source of truth for auth/build redirect URLs.
  *
- * Production always resolves to the public Vercel origin. Only an explicit
+ * Production always resolves to the canonical public origin. Only an explicit
  * localhost / 127.0.0.1 page uses its own origin, so confirmation emails and
- * OAuth callbacks can never fall back to http://localhost:3000.
+ * OAuth callbacks can never fall back to a preview domain.
  */
-export const PRODUCTION_SITE_URL = "https://autoplachr.vercel.app";
+export const PRODUCTION_SITE_URL = "https://autoplac.hr";
 
 export function getSiteOrigin(): string {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();

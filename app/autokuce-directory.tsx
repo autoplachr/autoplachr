@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, Clock, MapPin, MessageSquare, Phone, Search, ShieldCheck, Star } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Clock, MapPin, MessageSquare, Phone, Search } from "lucide-react";
 import { useMemo, useState, type MouseEvent } from "react";
 import { BrandLogo } from "../src/components/BrandLogo";
 import { VehicleCard } from "./vehicle-card";
@@ -150,12 +150,8 @@ export function DealershipDirectoryView({
                 style={{ imageRendering: "auto", transform: "translateZ(0)" }}
               />
               <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 text-white">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-600/95 text-[11.5px] font-bold">
-                  <ShieldCheck size={14} aria-hidden="true" />
-                  Verificirana autokuća
-                </span>
-                <span className="px-2 py-0.5 rounded bg-black/70 text-[11.5px] font-semibold tabular-nums">
-                  Od {activeDealer.foundedYear}.
+                <span className="px-2.5 py-1 rounded-md bg-black/75 text-[11.5px] font-bold">
+                  Ogledni primjer imenika
                 </span>
               </div>
             </div>
@@ -179,15 +175,6 @@ export function DealershipDirectoryView({
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--hover)] shrink-0">
-                    <Star size={16} fill="#F59E0B" className="text-amber-500" aria-hidden="true" />
-                    <strong className="tabular-nums text-[15px] text-[var(--text)] !m-0">
-                      {activeDealer.score.toLocaleString("hr-HR", { minimumFractionDigits: 1 })}
-                    </strong>
-                    <span className="text-[12px] text-[var(--muted)] tabular-nums">
-                      ({activeDealer.reviews} recenzija)
-                    </span>
-                  </div>
                 </div>
 
                 <p className="text-[13.5px] leading-relaxed text-[var(--spec)] !m-0 max-w-3xl">
@@ -200,7 +187,7 @@ export function DealershipDirectoryView({
                       key={badge}
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-[var(--border)] bg-[var(--hover)] text-[12px] font-semibold text-[var(--spec)]"
                     >
-                      <Check size={12} className="text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                      <Check size={12} className="text-[var(--spec)]" aria-hidden="true" />
                       {badge}
                     </span>
                   ))}
@@ -319,10 +306,10 @@ export function DealershipDirectoryView({
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-1.5">
             <h1 className="!m-0 text-[24px] sm:text-[28px] font-bold tracking-tight text-[var(--text)]">
-              Provjerene autokuće i saloni rabljenih vozila
+              Autokuće i saloni rabljenih vozila
             </h1>
             <p className="!m-0 max-w-[65ch] text-[14px] text-[var(--muted)]">
-              <span className="tabular-nums text-[var(--spec)]">{number(totalDealers)}</span> {one(totalDealers) ? "autokuća" : few(totalDealers) ? "autokuće" : "autokuća"} u Hrvatskoj · CVH kilometraža, R1 račun i aktivna ponuda
+              <span className="tabular-nums text-[var(--spec)]">{number(totalDealers)}</span> {one(totalDealers) ? "autokuća" : few(totalDealers) ? "autokuće" : "autokuća"} u imeniku · podaci o salonima su ogledni primjeri
             </p>
           </div>
           <label className="dealer-directory-search relative w-full sm:w-[320px]">
@@ -353,15 +340,12 @@ export function DealershipDirectoryView({
               <article key={dealer.slug} className="dealer-card">
                 <div className="dealer-card-media">
                   <img src={dealer.bannerImage} alt="" loading="lazy" decoding="async" />
-                  <span className="dealer-card-rating tabular-nums" aria-label={`Ocjena ${dealer.score.toLocaleString("hr-HR")} od 5, ${dealer.reviews} recenzija`}>
-                    <Star size={12} fill="currentColor" aria-hidden="true" />
-                    {dealer.score.toLocaleString("hr-HR", { minimumFractionDigits: 1 })} ({dealer.reviews})
-                  </span>
+                  <span className="dealer-card-rating">Ogledni primjer</span>
                 </div>
                 <div className="dealer-card-body">
                   <h2 className="dealer-card-name">
                     <a href={showroomHref} onClick={follow(showroomHref)}>{dealer.name}</a>
-                    <Check size={15} strokeWidth={2.25} className="dealer-card-verified" role="img" aria-label="Verificirana autokuća" />
+
                   </h2>
                   <p className="dealer-card-meta">{dealer.city} · <span className="tabular-nums">{stockLabel(stock.length)}</span></p>
                   <dl className="dealer-card-facts">

@@ -61,11 +61,6 @@ export default async function DealershipShowroomPage({ params }: Props) {
           addressLocality: dealer.city,
           addressCountry: "HR",
         },
-        aggregateRating: {
-          "@type": "AggregateRating",
-          ratingValue: dealer.score,
-          reviewCount: dealer.reviews,
-        },
       }
     : null;
 

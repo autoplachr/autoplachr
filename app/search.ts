@@ -273,7 +273,7 @@ export function parseVehicleQuery(query: string, search: Search): Search {
   if (year) next.godiste = year[1];
   if (take(/\b(?:automat(?:ik|ski|skog)?|automatikom)\b/)) next.mjenjac = "Automatski";
   if (take(/\b(?:rucni|manualni)\b/)) next.mjenjac = "Ručni";
-  if (take(/\b(?:s potvrdenim km\s*(?:\(cvh\))?|potvrdeni km|cvh)\b/)) next.opcije.push("cvh");
+  if (take(/\b(?:s potvrdenim km\s*(?:\(cvh\))?|potvrdeni km|cvh)(?![a-z0-9])/)) next.opcije.push("cvh");
   if (take(/\b(?:leasing|r1)\b/)) next.opcije.push("pdv");
   const fuel = take(/\b(?:plug[ -]?in hibrid|phev)\b/) ? "Plug-in hibrid"
     : take(/\b(?:elektricni|elektricna|struja)\b/) ? "Struja"
@@ -305,6 +305,11 @@ export function validEquipmentFilters(make: string, model: string, generation: s
   const allowed = new Set(equipmentFor({make, model, generation},true).map(item => item.id));
   return [...new Set([...selectedMakeOptions(make,model,ids), ...ids.filter(id => allowed.has(id))])];
 }
+function canonicalLocation(value: string, values: readonly string[]): string {
+  const normalized = normalizeLocation(value);
+  return values.find(item => normalizeLocation(item) === normalized) ?? "";
+}
+
 export function readSearch(query: string): Search {
   const params = new URLSearchParams(query);
   function accept(key: string, values: readonly string[], fallback = "") {
@@ -332,7 +337,7 @@ export function readSearch(query: string): Search {
     kolekcija: accept("kolekcija", collections) as CollectionId,
     marka, model, generacija: validGeneration(marka, model, generation) ? generation : "", cijena: positiveNumber("cijena"),
     godiste: positiveNumber("godiste"), km: positiveNumber("km"),
-    gorivo: fuel || legacyFuel, mjenjac: accept("mjenjac", gears), grad: accept("grad", [...cities, ...croatianCounties]),
+    gorivo: fuel || legacyFuel, mjenjac: accept("mjenjac", gears), grad: canonicalLocation(params.get("grad") ?? "", [...cities, ...croatianCounties]),
     opcije: flags.filter(flag => generalOptions.includes(flag)),
     oprema: validEquipmentFilters(marka, model, generation, equipment),
     sortiranje: accept("sortiranje", Object.keys(sorts), "newest") as Search["sortiranje"],
@@ -347,18 +352,32 @@ export function readSearch(query: string): Search {
     samoPrilike: params.get("samoPrilike") === "true",
   };
 }
-export function writeSearch(search: Search) {
-  const params = new URLSearchParams(window.location.search);
-  params.delete("q");
+const NON_SEARCH_PARAMS = new Set(["tab", "razgovor", "tip", "salon", "oglas"]);
+
+function writeSearchParams(search: Search): URLSearchParams {
+  const params = new URLSearchParams();
+  for (const [key, value] of new URLSearchParams(window.location.search)) {
+    if (NON_SEARCH_PARAMS.has(key)) params.set(key, value);
+  }
   for (const key of Object.keys(initialSearch) as (keyof Search)[]) {
-    params.delete(key);
     const value = search[key];
     if (Array.isArray(value)) value.forEach(option => params.append(key, option));
     else if (value !== initialSearch[key]) params.set(key, String(value));
   }
-  const query = params.toString();
+  return params;
+}
+
+export function writeSearch(search: Search) {
+  const query = writeSearchParams(search).toString();
   const next = window.location.pathname + (query ? "?" + query : "") + window.location.hash;
   if (next !== window.location.pathname + window.location.search + window.location.hash) window.history.pushState(null, "", next);
+}
+
+/** Drop invalid/unknown query params on first paint so URLs reflect applied filters. */
+export function normalizeSearchUrl() {
+  const query = writeSearchParams(readSearch(window.location.search)).toString();
+  const next = window.location.pathname + (query ? "?" + query : "") + window.location.hash;
+  if (next !== window.location.pathname + window.location.search + window.location.hash) window.history.replaceState(null, "", next);
 }
 const croatianDate = new Intl.DateTimeFormat("hr-HR", { timeZone: "Europe/Zagreb" });
 

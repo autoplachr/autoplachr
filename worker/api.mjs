@@ -1,7 +1,7 @@
 import { normalizePhone, profileErrors } from "../src/data/profile-validation.ts";
 import { croatianCounties, croatianLocations, normalizeLocation } from "../src/data/croatia-locations.ts";
 import { formatHours, validHours } from "../src/data/working-hours.ts";
-import { checkGeneralApiLimit, checkVisionApiLimit, rateLimitHeaders } from "../src/lib/rate-limit.ts";
+import { checkGeneralApiLimit, checkVisionApiLimit, extractClientIp, rateLimitHeaders } from "../src/lib/rate-limit.ts";
 import { analyzeListing } from "./analyze-listing.mjs";
 import { isAllowedBase64ImageDataUrl, sanitizeStringArray, sanitizeText } from "../src/lib/sanitize.ts";
 export const LEGAL_VERSION = "2026-11-25";
@@ -11,7 +11,9 @@ const maskWorkerSecrets = input => String(input ?? "")
   .replace(/(Authorization\s*:\s*Bearer\s+)[^\s"']+/gi, "$1[REDACTED]")
   .replace(/\bBearer\s+[A-Za-z0-9._\-+=]+/gi, "Bearer [REDACTED]")
   .replace(/\bsk-or-v1-[A-Za-z0-9_-]{8,}/g, "sk-or-v1-[REDACTED]")
-  .replace(/\bsk-[A-Za-z0-9_-]{12,}/g, "sk-[REDACTED]");
+  .replace(/\bsk-[A-Za-z0-9_-]{12,}/g, "sk-[REDACTED]")
+  .replace(/\bAIza[A-Za-z0-9_-]{20,}/g, "AIza[REDACTED]")
+  .replace(/\bsk_(?:live|test)_[A-Za-z0-9]{12,}/g, "sk_[REDACTED]");
 const day = 86400;
 const encoder = new TextEncoder();
 const now = () => Math.floor(Date.now() / 1000);
@@ -392,7 +394,7 @@ export async function api(request, env) {
   }
   const rlHeaders = rateLimitHeaders(activeLimit);
   try {
-    if (endpoint === "config" && method === "GET") return json({ operator: env.OPERATOR_NAME || "", address: env.OPERATOR_ADDRESS || "", email: env.OPERATOR_EMAIL || "" }, 200, rlHeaders);
+    if (endpoint === "config" && method === "GET") return json({ operator: env.OPERATOR_NAME || "INO-TEH d.o.o.", address: env.OPERATOR_ADDRESS || "Orahovica, Hrvatska", email: env.OPERATOR_EMAIL || "info@autoplac.hr" }, 200, rlHeaders);
     if (method !== "GET") {
       requireValue(request.headers.get("origin") === url.origin && request.headers.get("content-type")?.startsWith("application/json"), "Neispravan zahtjev.", 403);
     }
@@ -404,13 +406,15 @@ export async function api(request, env) {
     let body;
     try { body = parse(raw); } catch { throw new ApiError(400, "Neispravan zahtjev."); }
     requireValue(body && typeof body === "object" && !Array.isArray(body), "Neispravan zahtjev.");
-    const ip = request.headers.get("cf-connecting-ip") || "local";
+    const ip = extractClientIp(request);
     const client = (endpoint.endsWith("register") || endpoint.endsWith("login") || endpoint === "report") ? await digest(ip) : "";
     if (endpoint === "inventory" && method === "GET") {
       const rows = await stmt(env, "SELECT * FROM listing WHERE status='active' ORDER BY COALESCE(boosted_until>?,0) DESC, created DESC", now()).all();
       return json(rows.results.map(publicListing), 200, rlHeaders);
     }
     if (visionEndpoint && method === "POST") {
+      // Vision calls consume paid AI quota: require a real session, not just an Origin header.
+      requireValue(await accountFor(request, env), "Prijavite se kako biste nastavili.", 401);
       return json(await analyzeCarPhotosHandler(body, env, endpoint === "analyze-listing"), 200, rlHeaders);
     }
     if (endpoint === "auth/register" && method === "POST") {

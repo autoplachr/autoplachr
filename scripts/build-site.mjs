@@ -31,6 +31,6 @@ await cp("worker/analyze-listing.mjs", "dist/server/analyze-listing.mjs");
 await cp("worker/index.mjs", "dist/server/index.js");
 await writeFile("dist/server/wrangler.json", JSON.stringify({
   main: "index.js", name: "autoplac", compatibility_date: "2026-01-01",
-  assets: { directory: "../client", binding: "ASSETS", run_worker_first: ["/api/*", "/uploads/imported/*", "/racun", "/prijava", "/registracija", "/predaj-oglas", "/procjena-cijene", "/ppmv-kalkulator", "/autokuce", "/autokuce/*", "/oglas/*", "/uvjeti-koristenja", "/privatnost", "/kolacici", "/dsa-prijava", "/auth/callback"] },
+  assets: { directory: "../client", binding: "ASSETS", run_worker_first: ["/", "/api/*", "/uploads/imported/*", "/oglasi/*", "/rabljena-vozila/grad/*", "/racun", "/prijava", "/registracija", "/predaj-oglas", "/procjena-cijene", "/ppmv-kalkulator", "/autokuce", "/autokuce/*", "/oglas/*", "/uvjeti-koristenja", "/privatnost", "/kolacici", "/dsa-prijava", "/auth/callback"] },
   d1_databases: [{ binding: "DB", database_name: "site-creator-d1", database_id: "00000000-0000-4000-8000-000000000000" }]
 }));

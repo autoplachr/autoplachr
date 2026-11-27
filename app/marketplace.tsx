@@ -16,7 +16,7 @@ import { FaqAccordion } from "./faq-accordion";
 import { DealershipDirectoryView } from "./autokuce-directory";
 import { DEALERSHIP_DIRECTORY } from "../src/data/dealerships";
 import { restoreListingPhotos, cities, euro, fuelLabel, fuels, gears, number, quick, vehicles, type Flag, type Vehicle } from "./catalog";
-import { bodyFilters, doorOptions, seatOptions, colorFinishes, cylinderCounts, distances, initialSearch, matchVehicles, parseVehicleQuery, prices, readSearch, searchFilterCount, sorts, validEquipmentFilters, writeSearch, years, type Search } from "./search";
+import { bodyFilters, doorOptions, seatOptions, colorFinishes, cylinderCounts, distances, initialSearch, matchVehicles, normalizeSearchUrl, parseVehicleQuery, prices, readSearch, searchFilterCount, sorts, validEquipmentFilters, writeSearch, years, type Search } from "./search";
 import { equipmentFor } from "../src/data/equipment-catalog";
 import { Dialog, ListingOptions, MakeEquipmentOptions, Select } from "./ui";
 import { makeOptions } from "./make-equipment";
@@ -55,6 +55,11 @@ const popularBrands = [
   "Mazda",
   "Cupra",
 ] as const;
+
+function vehicleIdentity(vehicle: Vehicle): string {
+  return [vehicle.title.trim().toLowerCase(), vehicle.price, vehicle.km, vehicle.date].join("|");
+}
+const seedIdentities = new Set(vehicles.map(vehicleIdentity));
 
 function readStored<T>(key: string): T[] {
   try {
@@ -316,7 +321,10 @@ function FilterControls({ search, count, update, apply, compact = false }: {
     const options = current && !values.includes(current) ? [current, ...values] : values;
     return <Select key={key} label={title} className={numeric ? "numeric-select" : ""} value={search[key]} onChange={event => update({ ...search, [key]: event.target.value })}>
       <option value="">{all}</option>
-      {options.map(value => <option key={value} value={value}>{format ? format(value) : value}</option>)}
+      {key === "grad" ? <>
+        <optgroup label="Županije">{croatianCounties.map(county => <option key={county} value={county}>{county}</option>)}</optgroup>
+        <optgroup label="Gradovi">{cities.map(city => <option key={city} value={city}>{city}</option>)}</optgroup>
+      </> : options.map(value => <option key={value} value={value}>{format ? format(value) : value}</option>)}
     </Select>;
   }
   const field = (key: FilterKey) => renderField(fields.find(item => item.key === key)!);
@@ -459,7 +467,7 @@ function HeroSearch({ search, count, totalCount, activeCount, update, onSubmit, 
             <h1 id="hero-title" className="text-[22px] font-bold leading-[1.1] tracking-tight text-white md:text-3xl lg:text-[38px]">Pronađi pravi auto.</h1>
             <p className="mt-1.5 max-w-2xl text-xs font-normal text-slate-200/95 md:mt-2 md:text-sm lg:text-base">
               <span className="md:hidden"><span className="tabular-nums">{number(totalCount)}</span> {plural(totalCount, "vozilo", "vozila", "vozila")} u Hrvatskoj</span>
-              <span className="hidden md:inline"><span className="tabular-nums">{number(totalCount)}</span> {plural(totalCount, "provjereno vozilo", "provjerena vozila", "provjerenih vozila")} autokuća i privatnih prodavača u Hrvatskoj.</span>
+              <span className="hidden md:inline"><span className="tabular-nums">{number(totalCount)}</span> {plural(totalCount, "oglas", "oglasi", "oglasi")} autokuća i privatnih prodavača u Hrvatskoj · ogledni podaci.</span>
             </p>
           </div>
         </div>
@@ -596,7 +604,7 @@ function PartnerStrip() {
             <ShieldCheck size={19} aria-hidden="true" />
             <span className="partner-wordmark" role="img" aria-label="carVertical" />
           </h2>
-          <p>Provjera povijesti vozila · <span className="tabular-nums">−20 %</span> popusta</p>
+          <p>Provjera povijesti vozila i kilometara</p>
         </div>
         <form className="partner-vin-form" action="https://www.carvertical.com/hr/precheck" method="get" target="_blank" rel="noopener noreferrer"
           onSubmit={event => {
@@ -938,6 +946,7 @@ export default function Marketplace({
         if (toTop) scrollToTop();
         else requestAnimationFrame(() => window.scrollTo({top:resultsScroll.current,left:0,behavior:"instant"}));
       }
+      if (!event) normalizeSearchUrl();
     };
     const sync = (event?:StorageEvent) => {
       if (event?.key === "autoplac.local-demo.v1") void refresh().catch(() => undefined);
@@ -960,7 +969,11 @@ export default function Marketplace({
 
   const allVehicles = useMemo(() => {
     const unique = new Map<string, Vehicle>();
+    // Seeded listings are already in the SSR snapshot. Skip DB rows that are the
+    // same vehicle so the rendered count never jumps after hydration.
     for (const vehicle of [...remote, ...published, ...vehicles]) {
+      if (vehicle !== undefined && seedIdentities.has(vehicleIdentity(vehicle)) && vehicle.id !== undefined
+          && !vehicles.some(seed => seed.id === vehicle.id)) continue;
       if (!unique.has(vehicle.id)) unique.set(vehicle.id, vehicle);
     }
     return [...unique.values()];
@@ -1195,8 +1208,8 @@ export default function Marketplace({
         </main>
       ) :
       path === "/racun" ? account ? <AccountPage key={account.id} account={account} inventory={allVehicles} refresh={refresh} onPublish={startPublish} signOut={() => void signOut()} openPrivacySettings={() => setCookieSettings(true)} onOpenListing={id => navigate(vehicleListingPath(id))} initialTab={accountTab} initialConversationId={accountConvId}/> :
-        <main className="shell account-shell"><div className="empty-state"><h1>{account === undefined && !accountError ? "Učitavanje računa…" : accountError || "Prijavite se za pristup računu"}</h1><a className="btn primary" href="/prijava">Prijava</a></div></main> :
-      path === "/prijava" || path === "/registracija" ? <AuthPage key={path} registration={path === "/registracija"} defaultType={dealerRegistration ? "dealer" : "private"} onDone={signedIn}/> :
+        <main className="shell account-shell"><div className="empty-state"><h1>{account === undefined && !accountError ? "Učitavanje računa…" : accountError || "Prijavite se za pristup računu"}</h1><a className="btn primary" href={"/prijava?next=" + encodeURIComponent(typeof location === "undefined" ? "/racun" : location.pathname + location.search)}>Prijava</a></div></main> :
+      path === "/prijava" || path === "/registracija" ? <AuthPage key={path + (path === "/registracija" ? ":" + (dealerRegistration ? "dealer" : "private") : "")} registration={path === "/registracija"} defaultType={dealerRegistration ? "dealer" : "private"} onDone={signedIn}/> :
       detailId ? detail ? <Detail key={detail.id} vehicle={detail} inventory={allVehicles}
       sellerTools={account?.listings.some(item => item.id === detail.id) ? { phone: account.profile.phone } : undefined}
       saved={savedIds.includes(detail.id)} onSave={() => toggleSaved(detail.id)} savedIds={savedIds} onSaveVehicle={id => void toggleSaved(id)} onBack={backToResults}
@@ -1340,7 +1353,7 @@ export default function Marketplace({
             <p>Oglasnik rabljenih vozila i provjera tržišnih cijena u Hrvatskoj.</p>
             <p><strong className="text-[var(--text)] !m-0">INO-TEH d.o.o.</strong></p>
             <p><a className="footer-link" href="mailto:info@autoplac.hr">info@autoplac.hr</a></p>
-            <p>Zagreb, Hrvatska</p>
+            <p>Orahovica, Hrvatska</p>
           </section>
 
           <section className="footer-col" aria-label="Vodiči za kupce">
@@ -1359,7 +1372,7 @@ export default function Marketplace({
             <ul className="footer-pricing">
               {B2B_PACKAGES.map(plan => <li key={plan.id}><span>{plan.name}</span><strong className="tabular-nums">{plan.priceEur} €/mj.</strong></li>)}
             </ul>
-            <a className="footer-link" href="/registracija">Registriraj autokuću →</a>
+            <a className="footer-link" href="/registracija?tip=dealer">Registriraj autokuću →</a>
           </section>
 
           <section className="footer-col" aria-label="Pravni dokumenti">

@@ -1,6 +1,7 @@
 import { analyzeCarPhotos, UpstreamVisionError, type VisionHint, type VisionPhotoInput } from "../../../lib/car-vision";
 import { getServerEnv, maskSecrets } from "../../../lib/env";
 import { checkGeneralApiLimit, checkVisionApiLimit, rateLimitHeaders } from "../../../lib/rate-limit";
+import { getSupabaseServerClient } from "../../../lib/supabase/server";
 import { isAllowedBase64ImageDataUrl, sanitizeText } from "../../../lib/sanitize";
 
 if (typeof window !== "undefined") {
@@ -16,6 +17,13 @@ type AnalyzeRequestBody = {
 };
 
 export async function POST(request: Request): Promise<Response> {
+  if (request.headers.get("origin") !== new URL(request.url).origin) {
+    return Response.json({ error: "Neispravan zahtjev." }, { status: 403 });
+  }
+  const auth = await getSupabaseServerClient();
+  if (auth && !(await auth.auth.getUser()).data.user) {
+    return Response.json({ error: "Prijavite se kako biste nastavili." }, { status: 401 });
+  }
   const generalLimit = checkGeneralApiLimit(request);
   if (!generalLimit.allowed) {
     return Response.json(

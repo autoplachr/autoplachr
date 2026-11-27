@@ -21,8 +21,6 @@ export type DealershipDirectoryEntry = {
   email: string;
   hours: string;
   workingHours: WorkingHours;
-  score: number;
-  reviews: number;
   badges: readonly string[];
   bannerImage: string;
   description: string;
@@ -60,12 +58,9 @@ export const DEALERSHIP_DIRECTORY: readonly DealershipDirectoryEntry[] = [
     email: "prodaja@ac-horvat.hr",
     hours: "Pon–Pet 08:00 – 18:00, Sub 09:00 – 13:00",
     workingHours: STANDARD_WEEKDAYS,
-    score: 4.8,
-    reviews: 64,
-    badges: ["Sustav PDV-a R1", "Uvoz po narudžbi", "Jamstvo 12 mj."],
+    badges: ["Ogledni podaci"],
     bannerImage: "/cars/commons/bmw-g20-1.webp",
-    description:
-      "Specijalizirani zagrebački salon za provjerena premium i poslovna vozila s potpunom CVH poviješću, R1 računom i mogućnošću financiranja putem leasinga u 24 sata.",
+    description: "Ogledni salon rabljenih vozila. Navedeni podaci služe za prikaz imenika.",
     foundedYear: 2012,
   },
   {
@@ -78,12 +73,9 @@ export const DEALERSHIP_DIRECTORY: readonly DealershipDirectoryEntry[] = [
     email: "info@dalmacija-auto.hr",
     hours: "Pon–Pet 08:00 – 18:00, Sub 09:00 – 13:00",
     workingHours: STANDARD_WEEKDAYS,
-    score: 4.9,
-    reviews: 78,
-    badges: ["Sustav PDV-a R1", "Jamstvo 12 mj.", "Zamjena staro za novo"],
+    badges: ["Ogledni podaci"],
     bannerImage: "/cars/commons/mercedes-c-class-1.webp",
-    description:
-      "Vodeća autokuća u Dalmaciji za novija rabljena vozila iz EU i RH. Svako vozilo prolazi inspekciju u 110 točaka te dolazi s pismenim jamstvom na kilometre i motor.",
+    description: "Ogledni salon rabljenih vozila. Navedeni podaci služe za prikaz imenika.",
     foundedYear: 2010,
   },
   {
@@ -96,12 +88,9 @@ export const DEALERSHIP_DIRECTORY: readonly DealershipDirectoryEntry[] = [
     email: "salon@kvarner-automobili.hr",
     hours: "Pon–Pet 08:30 – 18:00, Sub 09:00 – 13:00",
     workingHours: STANDARD_WEEKDAYS,
-    score: 4.7,
-    reviews: 42,
-    badges: ["Sustav PDV-a R1", "Uvoz po narudžbi", "CVH potvrda km"],
+    badges: ["Ogledni podaci"],
     bannerImage: "/cars/commons/audi-a4-1.webp",
-    description:
-      "Riječki centar rabljenih vozila s fokusom na njemačke i skandinavske marke. Organiziramo pregled u ovlaštenom servisu i kompletnu registraciju na ime kupca.",
+    description: "Ogledni salon rabljenih vozila. Navedeni podaci služe za prikaz imenika.",
     foundedYear: 2015,
   },
   {
@@ -114,12 +103,9 @@ export const DEALERSHIP_DIRECTORY: readonly DealershipDirectoryEntry[] = [
     email: "prodaja@ak-kovacevic.hr",
     hours: "Pon–Pet 08:00 – 17:30, Sub 09:00 – 13:00",
     workingHours: SHORT_WEEKDAYS,
-    score: 4.8,
-    reviews: 51,
-    badges: ["Jamstvo 12 mj.", "Na ime kupca", "CVH potvrda km"],
+    badges: ["Ogledni podaci"],
     bannerImage: "/cars/commons/golf-3-wide.webp",
-    description:
-      "Slavonski obiteljski salon s više od desetljeća tradicije u prodaji i individualnom uvozu vozila iz Njemačke i Austrije bez skrivenih troškova.",
+    description: "Ogledni salon rabljenih vozila. Navedeni podaci služe za prikaz imenika.",
     foundedYear: 2011,
   },
   {
@@ -132,12 +118,9 @@ export const DEALERSHIP_DIRECTORY: readonly DealershipDirectoryEntry[] = [
     email: "kontakt@autosalon-vindis.hr",
     hours: "Pon–Pet 08:00 – 17:00, Sub 09:00 – 12:30",
     workingHours: SHORT_WEEKDAYS,
-    score: 4.7,
-    reviews: 36,
-    badges: ["Sustav PDV-a R1", "Uvoz po narudžbi", "Jamstvo 12 mj."],
+    badges: ["Ogledni podaci"],
     bannerImage: "/cars/commons/skoda-octavia-1.webp",
-    description:
-      "Varaždinski centar za obiteljska, karavan i SUV vozila VW grupacije te azijskih marki s transparentnom servisnom poviješću i brzim leasing odobrenjem.",
+    description: "Ogledni salon rabljenih vozila. Navedeni podaci služe za prikaz imenika.",
     foundedYear: 2016,
   },
   {
@@ -150,12 +133,9 @@ export const DEALERSHIP_DIRECTORY: readonly DealershipDirectoryEntry[] = [
     email: "prodaja@istra-mobil.hr",
     hours: "Pon–Pet 08:30 – 17:30, Sub 09:00 – 12:30",
     workingHours: SHORT_WEEKDAYS,
-    score: 4.6,
-    reviews: 29,
-    badges: ["Jamstvo 12 mj.", "Na ime kupca", "Zamjena staro za novo"],
+    badges: ["Ogledni podaci"],
     bannerImage: "/cars/commons/peugeot-3008-2.jpg",
-    description:
-      "Istarski salon provjerenih gradskih i SUV vozila s urednim domaćim i EU porijeklom, tehničkim pregledom i mogućnošću dostave vozila po cijeloj Hrvatskoj.",
+    description: "Ogledni salon rabljenih vozila. Navedeni podaci služe za prikaz imenika.",
     foundedYear: 2017,
   },
   {
@@ -168,12 +148,9 @@ export const DEALERSHIP_DIRECTORY: readonly DealershipDirectoryEntry[] = [
     email: "info@ak-brod.hr",
     hours: "Pon–Pet 08:00 – 17:00, Sub 09:00 – 12:30",
     workingHours: SHORT_WEEKDAYS,
-    score: 4.8,
-    reviews: 33,
-    badges: ["Sustav PDV-a R1", "Uvoz po narudžbi", "CVH potvrda km"],
+    badges: ["Ogledni podaci"],
     bannerImage: "/cars/commons/volkswagen-passat-1.webp",
-    description:
-      "Provjerena slavonska autokuća specijalizirana za dizelske limuzine i poslovne karavane s potvrđenom kilometražom i plaćenim svim davanjima do registracije.",
+    description: "Ogledni salon rabljenih vozila. Navedeni podaci služe za prikaz imenika.",
     foundedYear: 2014,
   },
   {
@@ -186,12 +163,9 @@ export const DEALERSHIP_DIRECTORY: readonly DealershipDirectoryEntry[] = [
     email: "prodaja@ac-posavina.hr",
     hours: "Pon–Pet 08:00 – 17:00, Sub 09:00 – 12:30",
     workingHours: SHORT_WEEKDAYS,
-    score: 4.7,
-    reviews: 23,
-    badges: ["Jamstvo 12 mj.", "Na ime kupca"],
+    badges: ["Ogledni podaci"],
     bannerImage: "/cars/commons/ford-kuga-1.jpg",
-    description:
-      "Pouzdana ponuda SUV i plug-in hibridnih vozila s kompletnom dokumentacijom, servisnom evidencijom i podrškom pri ugovaranju osiguranja.",
+    description: "Ogledni salon rabljenih vozila. Navedeni podaci služe za prikaz imenika.",
     foundedYear: 2018,
   },
   {
@@ -204,12 +178,9 @@ export const DEALERSHIP_DIRECTORY: readonly DealershipDirectoryEntry[] = [
     email: "kontakt@sibenik-auto.hr",
     hours: "Pon–Pet 08:30 – 17:30, Sub 09:00 – 12:30",
     workingHours: SHORT_WEEKDAYS,
-    score: 4.8,
-    reviews: 31,
-    badges: ["Sustav PDV-a R1", "Jamstvo 12 mj."],
+    badges: ["Ogledni podaci"],
     bannerImage: "/cars/commons/alfa-stelvio-1.jpg",
-    description:
-      "Odabrana ponuda sportskih i obiteljskih SUV vozila uz transparentnu procjenu tržišne vrijednosti i individualno savjetovanje pri kupnji.",
+    description: "Ogledni salon rabljenih vozila. Navedeni podaci služe za prikaz imenika.",
     foundedYear: 2016,
   },
   {
@@ -222,12 +193,9 @@ export const DEALERSHIP_DIRECTORY: readonly DealershipDirectoryEntry[] = [
     email: "prodaja@ak-novak.hr",
     hours: "Pon–Pet 08:00 – 17:00, Sub 09:00 – 12:30",
     workingHours: SHORT_WEEKDAYS,
-    score: 4.8,
-    reviews: 38,
-    badges: ["Sustav PDV-a R1", "Uvoz po narudžbi", "Jamstvo 12 mj."],
+    badges: ["Ogledni podaci"],
     bannerImage: "/cars/commons/cupra-1-wide.webp",
-    description:
-      "Međimurska autokuća s naglaskom na atraktivne sport-utility i crossover modele novijeg godišta s tvorničkim jamstvom.",
+    description: "Ogledni salon rabljenih vozila. Navedeni podaci služe za prikaz imenika.",
     foundedYear: 2013,
   },
   {
@@ -240,12 +208,9 @@ export const DEALERSHIP_DIRECTORY: readonly DealershipDirectoryEntry[] = [
     email: "info@ac-vinkovci.hr",
     hours: "Pon–Pet 08:00 – 17:00, Sub 09:00 – 12:30",
     workingHours: SHORT_WEEKDAYS,
-    score: 4.6,
-    reviews: 25,
-    badges: ["Na ime kupca", "CVH potvrda km"],
+    badges: ["Ogledni podaci"],
     bannerImage: "/cars/commons/duster-1-wide.webp",
-    description:
-      "Pristupačna i provjerena vozila za svakodnevnu vožnju i obitelj, spremna za registraciju odmah po preuzimanju.",
+    description: "Ogledni salon rabljenih vozila. Navedeni podaci služe za prikaz imenika.",
     foundedYear: 2019,
   },
 ];
@@ -260,11 +225,5 @@ export function findDealershipBySlug(slug: string): DealershipDirectoryEntry | u
 
 export const DIRECTORY_CITIES = [
   "Svi gradovi",
-  "Zagreb",
-  "Split",
-  "Rijeka",
-  "Osijek",
-  "Varaždin",
-  "Pula",
-  "Slavonski Brod",
+  ...Array.from(new Set(DEALERSHIP_DIRECTORY.map(d => d.city))),
 ] as const;

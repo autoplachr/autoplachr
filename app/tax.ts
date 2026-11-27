@@ -20,19 +20,20 @@ function levy(input: number, bands: Band[], inclusive = true) {
   const [threshold, base, rate] = match;
   return base + (input - threshold) * rate;
 }
-export function estimateTax({ price, co2, registration, diesel, used, plugInKm, electric }: {
-  price: number; co2: number; registration: string; diesel: boolean; used: boolean; plugInKm?: number; electric?: boolean;
+export function estimateTax({ price, co2, registration, diesel, used, plugInKm, electric, oldtimer = false }: {
+  price: number; co2: number; registration: string; diesel: boolean; used: boolean; plugInKm?: number; electric?: boolean; oldtimer?: boolean;
 }, now = new Date()) {
   const [year, month, day] = registration.split("-").map(Number);
   const first = new Date(year, month - 1, day);
-  if (Number.isNaN(first.valueOf()) || first > now || year < 1990) return null;
-  if (electric) return 0;
-  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(co2) || co2 < 0) return null;
+  if (Number.isNaN(first.valueOf()) || first > now) return null;
+  if (electric || oldtimer) return 0;
+  // Vehicles 30+ years old that are not registered as oldtimers pay a flat rate.
   const months = (now.getFullYear() - year) * 12 + now.getMonth() - month + 1 - Number(now.getDate() < day);
-  if (months >= 360) return null;
+  if (year < 1990 || months >= 360) return 265.45;
+  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(co2) || co2 < 0) return null;
   const wltp = year >= 2021;
   const emissions = diesel ? (wltp ? dieselWLTP : dieselNEDC) : (wltp ? otherWLTP : otherNEDC);
   const residual = residualFirst24[months] ?? residualBrackets.findLast(([limit]) => months >= limit)?.[1] ?? 100;
-  const full = levy(price, wltp ? valueWLTP : valueNEDC) + levy(co2, emissions, false);
+  const full = levy(price, wltp ? valueWLTP : valueNEDC) + levy(co2, emissions);
   return full * (used ? residual / 100 : 1) * (1 - Math.min(100, Math.max(0, plugInKm ?? 0)) / 100);
 }

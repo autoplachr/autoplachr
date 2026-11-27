@@ -22,6 +22,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/procjena-cijene`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
     { url: `${SITE_URL}/ppmv-kalkulator`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
     { url: `${SITE_URL}/autokuce`, lastModified: now, changeFrequency: "daily", priority: 0.85 },
+    { url: `${SITE_URL}/uvjeti-koristenja`, lastModified: new Date("2026-11-25"), changeFrequency: "monthly", priority: 0.4 },
+    { url: `${SITE_URL}/privatnost`, lastModified: new Date("2026-11-25"), changeFrequency: "monthly", priority: 0.4 },
+    { url: `${SITE_URL}/kolacici`, lastModified: new Date("2026-11-25"), changeFrequency: "monthly", priority: 0.4 },
+    { url: `${SITE_URL}/dsa-prijava`, lastModified: new Date("2026-11-25"), changeFrequency: "monthly", priority: 0.4 },
   ];
 
   const brandRoutes: MetadataRoute.Sitemap = SEO_BRANDS.filter(brand => brands.has(brand.slug)).map(brand => ({

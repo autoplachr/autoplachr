@@ -3,15 +3,14 @@ import { contactMetadata, leadSession } from "./lead-session";
 import { listingValuationParams } from "../src/lib/valuation-link";
 
 import { Checkbox } from "../src/components/Checkbox";
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, ExternalLink, Fingerprint, Flag, Heart, Maximize, MessageSquare, Phone, Printer, Share2, Star } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, ExternalLink, Fingerprint, Flag, Heart, Maximize, MessageSquare, Phone, Printer, Share2 } from "lucide-react";
 import { BrandLogo } from "../src/components/BrandLogo";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { euro, groups, marketValuation, number, power, registered, taxStatus, type Vehicle } from "./catalog";
 import { vehicleMakeOptions } from "./make-equipment";
 import { Dialog, VehiclePhoto } from "./ui";
 import { VehicleCard } from "./vehicle-card";
-import { JsonLd } from "../src/components/JsonLd";
-import { SITE_URL, slugifyHr, vehicleListingPath, vehicleSeoPath } from "../src/lib/seo";
+import { SITE_URL, vehicleListingPath } from "../src/lib/seo";
 import { equipmentFor } from "../src/data/equipment-catalog";
 import { api, leadTrackingAvailable, type LeadReply } from "./account-api";
 import { normalizePhone } from "../src/data/profile-validation";
@@ -37,6 +36,9 @@ export default function Detail({ vehicle, inventory, saved, onSave, savedIds = [
 }) {
   const [photo, setPhoto] = useState(0);
   const galleryRail = useRef<HTMLDivElement>(null);
+  // Programmatic scroll must not overwrite the photo chosen by a click/key.
+  const suppressGalleryScroll = useRef(0);
+  useEffect(() => () => window.clearTimeout(suppressGalleryScroll.current), []);
   const inquiryPanel = useRef<HTMLElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [phone, setPhone] = useState("");
@@ -116,6 +118,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, savedIds = [
 
   function selectPhoto(index: number) {
     setPhoto(index);
+    suppressGalleryScroll.current = window.setTimeout(() => { suppressGalleryScroll.current = 0; }, 700);
     const rail = galleryRail.current;
     if (rail) rail.scrollTo({
       left: rail.clientWidth * index,
@@ -255,69 +258,8 @@ export default function Detail({ vehicle, inventory, saved, onSave, savedIds = [
     } finally { setSendingInquiry(false); }
   }
 
-  const carSchema = [
-    {
-      "@context": "https://schema.org",
-      "@type": "Car",
-      name: vehicle.title,
-      brand: { "@type": "Brand", name: vehicle.make },
-      model: vehicle.model,
-      vehicleModelDate: vehicle.date.slice(0, 4),
-      mileageFromOdometer: {
-        "@type": "QuantitativeValue",
-        value: vehicle.km,
-        unitCode: "KMT",
-      },
-      fuelType: vehicle.fuel,
-      vehicleTransmission: vehicle.gear,
-      driveWheelConfiguration: vehicle.drive,
-      vehicleEngine: {
-        "@type": "EngineSpecification",
-        enginePower: {
-          "@type": "QuantitativeValue",
-          value: vehicle.kw,
-          unitCode: "KWT",
-        },
-        ...(vehicle.cc > 0
-          ? {
-              engineDisplacement: {
-                "@type": "QuantitativeValue",
-                value: vehicle.cc,
-                unitCode: "CMQ",
-              },
-            }
-          : {}),
-      },
-      ...(vehicle.color ? { color: vehicle.color } : {}),
-      image: vehicle.photos.map(p => p.src).filter(Boolean),
-      itemCondition: "https://schema.org/UsedCondition",
-      offers: {
-        "@type": "Offer",
-        priceCurrency: "EUR",
-        price: vehicle.price,
-        availability: "https://schema.org/InStock",
-        itemCondition: "https://schema.org/UsedCondition",
-        url: `${SITE_URL}${vehicleSeoPath(vehicle)}`,
-        seller: {
-          "@type": vehicle.dealer ? "AutoDealer" : "Person",
-          name: vehicle.seller || "Privatni prodavač",
-        },
-      },
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Početna", item: SITE_URL },
-        { "@type": "ListItem", position: 2, name: "Rabljena vozila", item: `${SITE_URL}/#svi-oglasi` },
-        { "@type": "ListItem", position: 3, name: vehicle.make, item: `${SITE_URL}/rabljena-vozila/${slugifyHr(vehicle.make)}` },
-        { "@type": "ListItem", position: 4, name: vehicle.model, item: `${SITE_URL}${vehicleSeoPath(vehicle)}` },
-      ],
-    },
-  ];
-
+  // Vehicle and Breadcrumb JSON-LD is emitted once by the prerendered page.
   return <main className="shell vehicle-detail overflow-x-clip">
-    <JsonLd data={carSchema} />
     <div className="detail-utility">
       <div>
         <button type="button" className="text-link detail-back" onClick={onBack}><ArrowLeft size={17}/> Natrag na rezultate</button>
@@ -347,11 +289,12 @@ export default function Detail({ vehicle, inventory, saved, onSave, savedIds = [
         <section className="detail-gallery" aria-label="Fotografije vozila" onKeyDown={photoKeys}>
           <div className="gallery-main">
             {count ? <div className="detail-gallery-rail" ref={galleryRail} onScroll={event => {
+              if (suppressGalleryScroll.current) return;
               const rail = event.currentTarget;
               if (rail.clientWidth) setPhoto(Math.min(count - 1, Math.max(0, Math.round(rail.scrollLeft / rail.clientWidth))));
             }}>
               {vehicle.photos.map((item, index) => <button key={index} className="gallery-open" type="button" tabIndex={photo === index ? 0 : -1}
-                aria-label={`Otvori fotografiju ${index + 1} preko cijelog zaslona`} onClick={() => { setPhoto(index); setFullscreen(true); }}>
+                aria-label={`Otvori fotografiju ${index + 1} preko cijelog zaslona`} onClick={() => { setPhoto(index); suppressGalleryScroll.current = window.setTimeout(() => { suppressGalleryScroll.current = 0; }, 700); setFullscreen(true); }}>
                 <VehiclePhoto photo={item} alt={index === 0 ? vehicle.title : ""} eager={index === 0} sizes="(max-width: 960px) 100vw, 840px"/>
                 <span className="gallery-expand"><Maximize size={17} aria-hidden="true"/></span>
               </button>)}
@@ -399,10 +342,9 @@ export default function Detail({ vehicle, inventory, saved, onSave, savedIds = [
           <section id="upit-prodavacu" ref={inquiryPanel} tabIndex={-1} className="detail-contact-block" aria-label="Kontakt prodavača">
             <h2 className="flex items-center gap-1.5 text-[15px] font-bold text-[var(--text)]">
               {vehicle.dealershipId ? <a className="hover:underline underline-offset-4" href={"/autokuce/"+encodeURIComponent(vehicle.dealershipId)}>{vehicle.seller}</a> : vehicle.seller || "Privatni prodavač"}
-              {vehicle.verified && <Check size={15} strokeWidth={2.25} className="text-[#2563EB]" role="img" aria-label={vehicle.dealer ? "Verificirana autokuća" : "Verificirani prodavač"} />}
+              {vehicle.verified && !vehicle.demo && <Check size={15} strokeWidth={2.25} className="text-[#2563EB]" role="img" aria-label={vehicle.dealer ? "Verificirana autokuća" : "Verificirani prodavač"} />}
             </h2>
             <div className="mt-1.5 grid gap-1 text-[13px] text-[var(--spec)]">
-              {vehicle.sellerRating && <p className="seller-rating tabular-nums"><Star size={14} fill="currentColor" aria-hidden="true"/><span>{vehicle.sellerRating.score.toLocaleString("hr-HR")} · {vehicle.sellerRating.reviews} {[2, 3, 4].includes(vehicle.sellerRating.reviews % 10) && ![12, 13, 14].includes(vehicle.sellerRating.reviews % 100) ? "recenzije" : "recenzija"}</span></p>}
               <p>{vehicle.sellerAddress || [vehicle.postalCode, vehicle.city].filter(Boolean).join(" ")}</p>
               {vehicle.sellerWorkingHours ? <>
                 <p className="tabular-nums text-[var(--muted)]">{dealershipHoursToday(vehicle.sellerWorkingHours)}</p>
@@ -411,8 +353,10 @@ export default function Detail({ vehicle, inventory, saved, onSave, savedIds = [
               </> : vehicle.sellerHours && <p className="text-[var(--muted)]">Radno vrijeme: <span className="tabular-nums">{vehicle.sellerHours}</span></p>}
             </div>
             <div className="detail-contact-actions">
-              {phone && (!vehicle.demo || vehicle.dealer) ? <a className="detail-contact-primary tabular-nums" href={"tel:" + phone.replace(/[^+\d]/g, "")}><Phone size={16} aria-hidden="true"/>{phone}</a> :
-                <button className="detail-contact-primary" type="button" disabled={Boolean(phone) || revealing} onClick={reveal}><Phone size={16} aria-hidden="true"/>{phone ? phone + " (demo)" : "Prikaži broj telefona"}</button>}
+              {vehicle.demo && !vehicle.dealer && !vehicle.phone
+                ? <button className="detail-contact-primary" type="button" disabled><Phone size={16} aria-hidden="true"/>Broj nije dostupan (ogledni oglas)</button>
+                : phone && (!vehicle.demo || vehicle.dealer) ? <a className="detail-contact-primary tabular-nums" href={"tel:" + phone.replace(/[^+\d]/g, "")}><Phone size={16} aria-hidden="true"/>{phone}</a> :
+                  <button className="detail-contact-primary" type="button" disabled={Boolean(phone) || revealing} onClick={reveal}><Phone size={16} aria-hidden="true"/>{phone ? phone + " (demo)" : "Prikaži broj telefona"}</button>}
               {(vehicle.phone || phone || (vehicle.contactAvailable && leadTrackingAvailable())) &&
                 <button type="button" className="detail-contact-secondary" disabled={revealing} onClick={() => void whatsapp()}>WhatsApp upit</button>}
               <button type="button" className="detail-contact-secondary" aria-expanded={inquiry} onClick={() => setInquiry(!inquiry)}>
@@ -439,7 +383,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, savedIds = [
           className="flex min-h-11 items-center justify-between gap-2 px-1 text-[13px] font-semibold text-[var(--spec)] hover:text-[var(--text)] hover:underline underline-offset-4">
           <span className="inline-flex items-center gap-2">
             <Fingerprint size={15} className="shrink-0 text-[var(--muted)]" aria-hidden="true" />
-            <span>Provjeri povijest vozila (VIN)</span>
+            <span>{vehicle.vin ? "Provjeri povijest vozila (VIN)" : "Provjeri povijest vozila"}</span>
           </span>
           <ExternalLink size={14} className="shrink-0 text-[var(--muted)]" aria-hidden="true" />
         </a>

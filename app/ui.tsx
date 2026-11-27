@@ -5,7 +5,6 @@ import { ChevronDown, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode, type SelectHTMLAttributes } from "react";
 import { euro, flags, marketValuation, quick, rating, type Flag, type Vehicle } from "./catalog";
 import type { MarketValuationResult, PriceRatingTier } from "../src/lib/price-engine";
-import { publicPriceBadge } from "../src/lib/price-engine";
 import { makeOptions } from "./make-equipment";
 
 export function MakeEquipmentOptions({ make, model, selected, onChange }: {
@@ -222,9 +221,9 @@ export function Rating({
   if (!result) return null;
   // Public pages never show default price judgments. Only the seller's explicit
   // opt-in badge ("Ispod tržišne cijene" when ≥5% below median) is rendered publicly.
-  if (!privateContext && !showPriceBadge) return null;
-  if (!privateContext && !publicPriceBadge(resolvedVal?.deltaPercent ?? 0, showPriceBadge)) return null;
-  const publicLabel = !privateContext ? publicPriceBadge(resolvedVal?.deltaPercent ?? 0, showPriceBadge)! : null;
+  const publicBadge = !privateContext && showPriceBadge === true && resolvedVal?.meetsPublicBadge === true;
+  if (!privateContext && !publicBadge) return null;
+  const publicLabel = publicBadge ? "Ispod tržišne cijene" : null;
   // Above +18% over median the public badge is hidden so the portal never
   // harms the seller; only private surfaces (dashboard, Step 3) show it.
   if (result.hidden && !privateContext) return null;

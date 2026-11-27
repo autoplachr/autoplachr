@@ -76,7 +76,10 @@ try {
     "--phone", "+385 31 123 456", "--dry-run",
   ], { encoding: "utf8" }));
   assert.equal(feedDryRun.imported, 3);
-  assert.ok(feedDryRun.vehicles.every(vehicle => vehicle.valuation.label && vehicle.valuation.medianMarketPrice > 0));
+  // The public badge is deliberately hidden above +18% over median; the valuation
+  // itself must still exist for every imported vehicle.
+  assert.ok(feedDryRun.vehicles.every(vehicle => vehicle.valuation.medianMarketPrice > 0));
+  assert.ok(feedDryRun.vehicles.every(vehicle => vehicle.valuation.deltaPercent > 18 || Boolean(vehicle.valuation.label)));
   assert.equal(fs.readFileSync(importedCatalog, "utf8"), beforeImport);
 
   const { parseDealershipFeed } = await tsImport("../src/lib/dealership-feed.ts", import.meta.url);
@@ -233,7 +236,12 @@ try {
   const fakeReq = new Request("https://autoplac.hr/api/analyze-car-photos", {
     headers: { "x-forwarded-for": "203.0.113.42, 10.0.0.1" },
   });
-  assert.equal(rateLimit.extractClientIp(fakeReq), "203.0.113.42");
+  // Spoofable proxy headers must never be trusted; only Cloudflare's header is.
+  assert.equal(rateLimit.extractClientIp(fakeReq), "origin");
+  const cfReq = new Request("https://autoplac.hr/api/analyze-car-photos", {
+    headers: { "cf-connecting-ip": "203.0.113.42", "x-forwarded-for": "10.0.0.1" },
+  });
+  assert.equal(rateLimit.extractClientIp(cfReq), "203.0.113.42");
   for (let i = 0; i < 5; i++) {
     assert.equal(rateLimit.checkVisionApiLimit(fakeReq, 1_000_000 + i).allowed, true);
   }

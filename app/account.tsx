@@ -199,6 +199,7 @@ export function AuthPage({
 }) {
   const [mode, setMode] = useState<"login" | "register">(registration ? "register" : "login");
   const [type, setType] = useState<Profile["type"]>(defaultType);
+  useEffect(() => setType(defaultType), [defaultType]);
   const [showPassword, setShowPassword] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const [resetSent, setResetSent] = useState("");
@@ -905,7 +906,7 @@ export function AccountPage({
     { key: "pregled", label: "Analitika i oglasi", icon: <LayoutDashboard size={15} /> },
     { key: "poruke", label: "Poruke i upiti", icon: <MessageSquare size={15} />, badge: (unreadMessagesCount + analytics.unread) || undefined },
     ...(account.profile.type === "dealer"
-      ? [{ key: "b2b" as const, label: "B2B Paket (30 dana 0 €)", icon: <Building2 size={15} /> }]
+      ? [{ key: "b2b" as const, label: "B2B Paket (6 mj. 0 €)", icon: <Building2 size={15} /> }]
       : []),
     { key: "postavke", label: "Postavke profila / Salona", icon: <Settings size={15} /> },
   ];
@@ -1028,7 +1029,7 @@ export function AccountPage({
                   key={key}
                   type="button"
                   onClick={() => setListingFilter(key)}
-                  className={`px-2.5 py-1 rounded-md text-[12px] font-semibold border transition-colors ${
+                  className={`min-h-11 px-2.5 py-1 rounded-md text-[12px] font-semibold border transition-colors inline-flex items-center ${
                     listingFilter === key
                       ? "bg-[#2563EB] text-white border-[#2563EB]"
                       : "bg-[var(--hover)] text-[var(--spec)] border-[var(--border)]"
