@@ -1,3 +1,4 @@
+import { normalizeSearchQuery, searchTerms } from "../src/lib/search-query";
 import { normalizeVehicleCategory, vehicleCategory, type CategoryId } from "./vehicle-category";
 import { boostPriority } from "./listing-boost";
 import { croatianCounties, normalizeLocation } from "../src/data/croatia-locations";
@@ -257,7 +258,7 @@ export function searchFilterCount(search: Search) {
 }
 
 export function parseVehicleQuery(query: string, search: Search): Search {
-  let words = normalizeLocation(query);
+  let words = normalizeSearchQuery(query);
   const next = { ...initialSearch, kategorija: search.kategorija, sortiranje: search.sortiranje, prikaz: search.prikaz };
   const take = (pattern: RegExp) => {
     const match = words.match(pattern);
@@ -287,8 +288,16 @@ export function parseVehicleQuery(query: string, search: Search): Search {
     return take(new RegExp(`\\bu\\s+(?:${name}|${stem}u|${stem}i)\\b`));
   });
   if (city) next.grad = city;
-  const make = CAR_MAKES.find(make => take(new RegExp(`\\b${normalizeLocation(make).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`)));
-  if (make) next.marka = make;
+  const takeName = (name: string) => {
+    const escaped = normalizeSearchQuery(name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return take(new RegExp(`\\b${escaped}\\b`));
+  };
+  const make = CAR_MAKES.find(takeName);
+  if (make) {
+    next.marka = make;
+    const models = [...modelsFor(make, false)].sort((a, b) => b.length - a.length);
+    next.model = models.find(takeName) ?? "";
+  }
   next.upit = words.replace(/[^\p{L}\d\s]/gu, " ").trim().replace(/\s+/g, " ");
   return next;
 }
@@ -306,8 +315,10 @@ export function readSearch(query: string): Search {
     const value = params.get(key) ?? "";
     return /^[1-9]\d{0,8}$/.test(value) ? value : "";
   }
-  const marka = accept("marka", CAR_MAKES);
-  const model = accept("model", modelsFor(marka));
+  const queryMake = normalizeSearchQuery(params.get("marka") ?? "");
+  const marka = CAR_MAKES.find(make => normalizeSearchQuery(make) === queryMake) ?? "";
+  const queryModel = normalizeSearchQuery(params.get("model") ?? "");
+  const model = modelsFor(marka).find(model => normalizeSearchQuery(model) === queryModel) ?? "";
   const generation = params.get("generacija") ?? "";
   const generalOptions = params.getAll("opcije");
   const equipment = params.getAll("oprema");
@@ -328,7 +339,7 @@ export function readSearch(query: string): Search {
     prikaz: accept("prikaz", ["grid", "lista"], initialSearch.prikaz) as Search["prikaz"],
     cilindri: accept("cilindri", cylinderCounts.map(String)),
     zavrsnica: accept("zavrsnica", colorFinishes),
-    upit: (params.get("upit") ?? "").slice(0, 200),
+    upit: (params.get("upit") ?? params.get("q") ?? "").slice(0, 200),
     varijanta: (params.get("varijanta") ?? "").slice(0, 100),
     karoserija: bodyFilters.filter(body => (params.getAll("karoserija").includes(body.id) || legacyCategory === body.id && body.id !== "ostalo")).map(body => body.id),
     sjedalaOd: accept("sjedalaOd", seatOptions), sjedalaDo: accept("sjedalaDo", seatOptions),
@@ -338,6 +349,7 @@ export function readSearch(query: string): Search {
 }
 export function writeSearch(search: Search) {
   const params = new URLSearchParams(window.location.search);
+  params.delete("q");
   for (const key of Object.keys(initialSearch) as (keyof Search)[]) {
     params.delete(key);
     const value = search[key];
@@ -378,31 +390,41 @@ function searchFuel(vehicle: Vehicle): string {
   return /^(struja|električni|elektricni|electric)$/i.test(vehicle.fuel) ? "Struja" : vehicle.fuel;
 }
 export function matchVehicles(vehicles: Vehicle[], s: Search, now = Date.now()) {
-  const queryTerms = normalizeLocation(s.upit).split(/\s+/).filter(Boolean);
-  const variantTerms = normalizeLocation(s.varijanta).split(/[^\p{L}\d]+/u).filter(Boolean);
+  const queryTerms = searchTerms(s.upit);
+  const queryMake = normalizeSearchQuery(s.marka);
+  const queryModel = normalizeSearchQuery(s.model);
+  const variantTerms = searchTerms(s.varijanta);
   const selectedBodies = bodyFilters.filter(body => s.karoserija.includes(body.id));
   const matchesBodies = (vehicle: Vehicle) => selectedBodies.some(body =>
     body.id === "ostalo"
       ? !bodyFilters.some(option => option.types.some(type => type === vehicle.bodyType))
       : body.types.some(type => type === vehicle.bodyType),
   );
-  const matchesVariant = (vehicle: Vehicle) => {
-    const text = normalizeLocation([
-      vehicle.title, vehicle.variant, vehicle.trim, ...Object.values(vehicle.equipment).flat(),
-      ...vehicleMakeOptions(vehicle).map(option => option.label), ...(vehicle.catalogEquipment ?? []),
-    ].join(" "));
-    return variantTerms.every(term => text.includes(term));
+  const matchesText = (vehicle: Vehicle) => {
+    if (!queryTerms.length && !variantTerms.length) return true;
+    const equipment = [
+      ...Object.values(vehicle.equipment).flat(),
+      ...vehicleMakeOptions(vehicle).map(option => option.label),
+      ...(vehicle.catalogEquipment ?? []),
+    ];
+    const identity = [vehicle.make, vehicle.model, vehicle.generation, vehicle.title, vehicle.variant, vehicle.trim];
+    const variantIndex = searchTerms([...identity, ...equipment].join(" "));
+    if (!variantTerms.every(term => variantIndex.some(word => word.includes(term)))) return false;
+    if (!queryTerms.length) return true;
+    const index = [...variantIndex, ...searchTerms([
+      vehicle.city, vehicle.county, vehicle.bodyType, vehicle.fuel, vehicle.gear, vehicle.drive, vehicle.sellerNote,
+    ].join(" "))];
+    return queryTerms.every(term => index.some(word => word.includes(term)));
   };
   const result = vehicles.filter(v =>
     vehicleCategory(v) === s.kategorija &&
     matchesCollection(v, s.kolekcija) &&
     (!s.samoPrilike || s.kolekcija === "prilike" || matchesCollection(v, "prilike")) &&
     (!selectedBodies.length || matchesBodies(v)) &&
-    (!variantTerms.length || matchesVariant(v)) &&
     (!s.sjedalaOd || (v.seats !== undefined && v.seats >= Number(s.sjedalaOd))) &&
     (!s.sjedalaDo || (v.seats !== undefined && (s.sjedalaDo === "8" || v.seats <= Number(s.sjedalaDo)))) &&
     (!s.vrata || (v.doors !== undefined && s.vrata.split("/").includes(String(v.doors)))) &&
-    (!s.marka || v.make === s.marka) && (!s.model || v.model === s.model) &&
+    (!queryMake || normalizeSearchQuery(v.make) === queryMake) && (!queryModel || normalizeSearchQuery(v.model) === queryModel) &&
     (!s.generacija || matchesGeneration(v.make, v.model, s.generacija, v.generation ?? chassisFromTitle(v.make, v.model, v.title))) &&
     (!s.cijena || v.price <= Number(s.cijena)) &&
     (!s.cijenaOd || v.price >= Number(s.cijenaOd)) &&
@@ -412,9 +434,7 @@ export function matchVehicles(vehicles: Vehicle[], s: Search, now = Date.now()) 
     (!s.cilindri || v.cylinders === Number(s.cilindri)) &&
     (!s.zavrsnica || v.colorFinish === s.zavrsnica) &&
     s.opcije.every(flag => v.flags.includes(flag)) &&
-    (!queryTerms.length || queryTerms.every(term => normalizeLocation(
-      [v.title, v.model, v.variant, v.trim, v.city, v.county, v.bodyType, v.fuel, v.gear].join(" "),
-    ).includes(term)))
+    matchesText(v)
   );
   const matching = s.oprema.length ? result.filter(vehicle => {
     const makeOptions = vehicleMakeOptions(vehicle);

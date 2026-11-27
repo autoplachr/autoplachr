@@ -10,7 +10,8 @@ import { ArrowDown, ArrowRight, Bike, Car, ChevronLeft, ChevronRight, Truck, Che
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { SEO_CITIES, TOP_FOOTER_BRANDS, slugifyHr, vehicleIdFromPath, vehicleListingPath } from "../src/lib/seo";
-import { CAR_MAKES } from "../src/data/car-catalog";
+import { BrandSelect } from "../src/components/BrandSelect";
+import { matchesModelSearch } from "../src/lib/model-search";
 import { FaqAccordion } from "./faq-accordion";
 import { DealershipDirectoryView } from "./autokuce-directory";
 import { restoreListingPhotos, cities, euro, fuelLabel, fuels, gears, number, quick, vehicles, type Flag, type Vehicle } from "./catalog";
@@ -90,15 +91,11 @@ function updateRange(search: Search, key: "sjedalaOd" | "sjedalaDo" | "cijenaOd"
 function VehicleIdentityFields({ search, update }: SearchEditorProps) {
   const models = modelsFor(search.marka, false);
   return <>
-    <Select label="Marka" value={search.marka} onChange={event => update(updateVehicleIdentity(search, event.target.value))}>
-      <option value="">Sve marke</option>
-      {CAR_MAKES.map(make => <option key={make}>{make}</option>)}
-    </Select>
-    <Select label="Model" value={search.model} disabled={!models.length}
-      onChange={event => update(updateVehicleIdentity(search, search.marka, event.target.value))}>
-      <option value="">Svi modeli</option>
-      {models.map(model => <option key={model}>{model}</option>)}
-    </Select>
+    <BrandSelect value={search.marka} onChange={make => update(updateVehicleIdentity(search, make))} />
+    <BrandSelect label="Model" placeholder="Svi modeli" searchLabel="Pretraži modele" showLogo={false}
+      options={models} match={(model, query) => matchesModelSearch(search.marka, model, query)}
+      value={search.model} disabled={!models.length}
+      onChange={model => update(updateVehicleIdentity(search, search.marka, model))} />
   </>;
 }
 
@@ -1321,6 +1318,16 @@ export default function Marketplace({
             <button type="button" className="btn quiet mobile-nav-action" onClick={() => navigate("/procjena-cijene")}>Procjena</button>
             <button type="button" className="btn quiet mobile-nav-action" aria-pressed={path === "/autokuce" || isDealershipPath} onClick={() => navigate("/autokuce")}>Autokuće</button>
           </div>
+          {path === "/rabljena-vozila" && <form className="catalog-text-search" role="search" aria-label="Pretraži rabljena vozila" onSubmit={event => {
+            event.preventDefault();
+            const query = String(new FormData(event.currentTarget).get("query") ?? "").trim();
+            update(parseVehicleQuery(query, search));
+            scrollResults();
+          }}>
+            <input type="search" name="query" maxLength={200} aria-label="Upišite marku, model, grad ili opremu"
+              placeholder="Marka, model, grad ili oprema" defaultValue={search.upit} />
+            <button type="submit" className="btn primary"><SearchIcon size={16} aria-hidden="true" /> Pretraži</button>
+          </form>}
           <div className="results-toolbar">
             <h2 id="results-title" className="result-count" aria-live="polite">{savedOnly ? "Spremljeno" : "Pronađeno"} <strong className="tabular">{results.length}</strong> {results.length === 1 ? "vozilo" : "vozila"}{dealerOnly && " iz autokuća"}</h2>
             <div className="results-controls">

@@ -9,6 +9,7 @@ import {
   OTHER_MODEL,
   variantsForSelection,
 } from "../src/data/car-catalog";
+import { matchesModelSearch } from "../src/lib/model-search";
 import { BrandSelect } from "../src/components/BrandSelect";
 import { Select } from "./ui";
 
@@ -50,22 +51,21 @@ export function CatalogFields({
           onCustomModelChange?.("");
         }}
       />
-      <Select
+      <BrandSelect
         label="Model"
+        placeholder={listing ? "Odaberite model" : "Svi modeli"}
+        searchLabel="Pretraži modele"
         required={listing}
+        showLogo={false}
+        options={models}
+        match={(model, query) => matchesModelSearch(value.make, model, query)}
         value={value.model}
         disabled={!models.length}
-        onChange={event => {
-          const nextModel = event.target.value;
+        onChange={nextModel => {
           onChange({ make: value.make, model: nextModel, generation: "" });
           if (nextModel !== OTHER_MODEL) onCustomModelChange?.("");
         }}
-      >
-        <option value="">{listing ? "Odaberite model" : "Svi modeli"}</option>
-        {models.map(model => (
-          <option key={model}>{model}</option>
-        ))}
-      </Select>
+      />
       {showOther && value.model === OTHER_MODEL && onCustomModelChange && (
         <label className="field span-all">
           <span>Naziv modela (ručni unos)</span>

@@ -2,17 +2,20 @@
 import { ChevronDown, Search } from "lucide-react";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { CAR_MAKES } from "../data/car-catalog";
-import { normalizeLocation } from "../data/croatia-locations";
+import { normalizeSearchQuery } from "../lib/search-query";
 import { BrandLogo } from "./BrandLogo";
 
-export function BrandSelect({ value, onChange, required=false, className="" }: {
+export function BrandSelect({ value, onChange, required=false, className="", label="Marka",
+  placeholder = required ? "Odaberite marku" : "Sve marke", searchLabel="Pretraži marke",
+  options=CAR_MAKES, match, showLogo=true, disabled=false }: {
   value:string; onChange:(make:string)=>void; required?:boolean; className?:string;
+  label?:string; placeholder?:string; searchLabel?:string; options?:readonly string[];
+  match?:(option:string, query:string)=>boolean; showLogo?:boolean; disabled?:boolean;
 }) {
   const id=useId(), trigger=useRef<HTMLButtonElement>(null), root=useRef<HTMLDivElement>(null), list=useRef<HTMLUListElement>(null), search=useRef<HTMLInputElement>(null);
   const [query,setQuery]=useState(""), [cursor,setCursor]=useState(0), [expanded,setExpanded]=useState(false), [invalid,setInvalid]=useState(false);
-  const placeholder=required ? "Odaberite marku" : "Sve marke";
-  const needle=normalizeLocation(query).replace(/[^\p{L}\d]/gu,"");
-  const items=[...(!required&&!needle ? [""] : []),...CAR_MAKES.filter(make=>normalizeLocation(make).replace(/[^\p{L}\d]/gu,"").includes(needle))];
+  const needle=normalizeSearchQuery(query).replace(/[^\p{L}\d]/gu,"");
+  const items=[...(!required&&!needle ? [""] : []),...options.filter(option=>match ? match(option, query) : normalizeSearchQuery(option).replace(/[^\p{L}\d]/gu,"").includes(needle))];
   useEffect(() => {
     if (!expanded) return;
     function outside(event: PointerEvent) {
@@ -57,24 +60,24 @@ export function BrandSelect({ value, onChange, required=false, className="" }: {
   return <div ref={root} className={"field brand-select "+className} onBlur={event=>{
     if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) close();
   }}>
-    <span id={id+"-label"}>Marka</span>
-    <button ref={trigger} type="button" className="brand-select-trigger" aria-labelledby={id+"-label "+id+"-value"} aria-haspopup="listbox" aria-expanded={expanded} aria-controls={id+"-list"} aria-invalid={invalid} onClick={open}>
-      {value && <BrandLogo make={value} size="xs"/>}<span id={id+"-value"}>{value || placeholder}</span><ChevronDown size={15} aria-hidden="true"/>
+    <span id={id+"-label"}>{label}</span>
+    <button ref={trigger} type="button" disabled={disabled} className="brand-select-trigger" aria-labelledby={id+"-label "+id+"-value"} aria-haspopup="listbox" aria-expanded={expanded} aria-controls={id+"-list"} aria-invalid={invalid} onClick={open}>
+      {showLogo && value && <BrandLogo make={value} size="xs"/>}<span id={id+"-value"}>{value || placeholder}</span><ChevronDown size={15} aria-hidden="true"/>
     </button>
-    {required && <input className="brand-required" type="text" tabIndex={-1} aria-hidden="true" required value={value} onChange={()=>undefined} onInvalid={event=>{
+    {required && <input className="brand-required" type="text" tabIndex={-1} aria-hidden="true" required disabled={disabled} value={value} onChange={()=>undefined} onInvalid={event=>{
       event.preventDefault();setInvalid(true);trigger.current?.focus({preventScroll:true});
     }}/>}
-    {invalid && <small className="field-issue" role="alert">Odaberite marku vozila.</small>}
+    {invalid && <small className="field-issue" role="alert">{placeholder}.</small>}
     <div className="brand-select-popover" hidden={!expanded}>
       <div className="brand-select-search"><Search size={16} aria-hidden="true"/>
-        <input ref={search} type="text" role="combobox" aria-label="Pretraži marke" autoComplete="off" aria-expanded={expanded} aria-controls={id+"-list"}
+        <input ref={search} type="text" role="combobox" aria-label={searchLabel} autoComplete="off" aria-expanded={expanded} aria-controls={id+"-list"}
           aria-activedescendant={items.length ? id+"-"+cursor : undefined}
           value={query} onChange={event=>{setQuery(event.target.value);setCursor(0);if(list.current) list.current.scrollTop=0;}} onKeyDown={keys}/>
       </div>
-      <ul ref={list} id={id+"-list"} role="listbox" aria-label="Marke vozila">
+      <ul ref={list} id={id+"-list"} role="listbox" aria-label={label}>
         {expanded && items.map((make,index)=><li key={make} id={id+"-"+index} role="option" aria-selected={make===value}
           data-active={index===cursor} onMouseDown={event=>event.preventDefault()} onClick={()=>choose(make)}>
-          {make && <BrandLogo make={make} size="xs"/>}<span>{make || placeholder}</span>
+          {showLogo && make && <BrandLogo make={make} size="xs"/>}<span>{make || placeholder}</span>
         </li>)}
       </ul>
       {expanded && items.length===0 && <p className="brand-select-empty" role="status">Nema rezultata.</p>}

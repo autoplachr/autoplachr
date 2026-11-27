@@ -1,7 +1,7 @@
 "use client";
 
 import { Checkbox } from "../src/components/Checkbox";
-import { Calculator, ChevronRight, Info } from "lucide-react";
+import { Calculator, ChevronRight, ChevronUp, Info } from "lucide-react";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { bodyTypes, euro, gears, number, registered, type Vehicle } from "./catalog";
 import { CatalogFields, customVariant, VariantField } from "./catalog-fields";
@@ -258,19 +258,28 @@ export function ValuationPage({
 
   const importDiff = result.medianMarketPrice - result.estimatedImportTotalEur;
 
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  useEffect(() => {
+    const updateScrollTop = () => setShowScrollTop(window.scrollY > window.innerHeight);
+    updateScrollTop();
+    window.addEventListener("scroll", updateScrollTop, { passive: true });
+    return () => window.removeEventListener("scroll", updateScrollTop);
+  }, []);
+
+  const targetFuel = fuel === "Električni" ? "Struja" : fuel;
   const matchingVehicles = useMemo(() => {
     return inventory
-      .filter(item => item.price >= result.fairMin && item.price <= result.fairMax)
+      .filter(item => (!("status" in item) || item.status === "active") && item.price >= result.fairMin && item.price <= result.fairMax)
       .map(item => {
         const sameMake = make && item.make === make ? 2 : 0;
-        const sameModel = effectiveModel && item.model === effectiveModel ? 4 : 0;
+        const sameModel = sameMake && effectiveModel && item.model === effectiveModel ? 4 : 0;
+        const sameFuel = item.fuel === targetFuel ? 1 : 0;
         const dist = Math.abs(item.price - result.medianMarketPrice);
-        return { item, score: sameMake + sameModel, dist };
+        return { item, score: sameMake + sameModel + sameFuel, dist };
       })
       .sort((a, b) => b.score - a.score || a.dist - b.dist)
-      .slice(0, 4)
       .map(entry => entry.item);
-  }, [inventory, make, effectiveModel, result.fairMin, result.fairMax, result.medianMarketPrice]);
+  }, [inventory, make, effectiveModel, targetFuel, result.fairMin, result.fairMax, result.medianMarketPrice]);
 
   const ksValue = kw > 0 ? kwToKs(kw) : 0;
 
@@ -279,7 +288,7 @@ export function ValuationPage({
       <header className="valuation-hero">
         <div>
           <span className="eyebrow">Hrvatski tržišni kalkulator</span>
-          <h1>Procjena tržišne cijene vozila u RH</h1>
+          <h1 id="valuation-title" tabIndex={-1}>Procjena tržišne cijene vozila u RH</h1>
           <p>Parametarski izračun vrijednosti za sve marke i godišta (1990.–2026.), prilagođen hrvatskim oglasnicima, verificiranim autokućama i troškovima uvoza (PPMV).</p>
         </div>
         <button type="button" className="btn secondary" onClick={onOpenTax}>
@@ -548,9 +557,9 @@ export function ValuationPage({
             </p>
           </section>
 
-          <section className="detail-panel valuation-matches" aria-label="Slična vozila u ponudi">
+          <section className="detail-panel valuation-matches" aria-labelledby="valuation-matches-title">
             <div className="valuation-matches-head">
-              <h3>Vozila na AUTOPLAC.HR u ovom rasponu</h3>
+              <h3 id="valuation-matches-title">Vozila na AUTOPLAC.HR u ovom rasponu</h3>
               <span className="tabular">{matchingVehicles.length} prijedloga</span>
             </div>
             {matchingVehicles.length > 0 ? (
@@ -558,28 +567,26 @@ export function ValuationPage({
                 {matchingVehicles.map(item => (
                   <a
                     key={item.id}
-                    className="group flex items-center gap-3 p-2.5 rounded-lg border border-slate-200/80 dark:border-zinc-800/90 bg-slate-50/60 dark:bg-zinc-900/50 hover:border-blue-500/50 transition-colors"
+                    className="valuation-match-card"
                     href={vehicleListingPath(item.id)}
                     onClick={e => onOpenListing(e, item.id)}
                   >
-                    <div className="w-[96px] h-[64px] aspect-[3/2] shrink-0 rounded-md overflow-hidden">
+                    <div className="valuation-match-photo">
                       <VehiclePhoto photo={item.photos[0]} alt="" sizes="96px" />
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 overflow-hidden">
                       <h4 className="text-[13px] font-semibold truncate text-[var(--text)]">{item.title}</h4>
                       <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate mt-0.5 tabular">
                         {registered(item.date)} • {number(item.km)} km • {item.city}
                       </p>
-                      <div className="flex items-center justify-between mt-1.5">
-                        <strong className="text-[14px] font-bold tabular-nums text-[var(--text)]">{euro(item.price)}</strong>
-                        <ChevronRight size={14} className="text-slate-400 group-hover:text-blue-500 shrink-0 transition-colors" aria-hidden="true" />
-                      </div>
+                      <strong className="block mt-1.5 text-[14px] font-bold tabular-nums text-[var(--text)]">{euro(item.price)}</strong>
                     </div>
+                    <span className="shrink-0 pr-1 text-[var(--muted)]"><ChevronRight size={14} aria-hidden="true" /></span>
                   </a>
                 ))}
               </div>
             ) : (
-              <p className="fine-print">Trenutačno nema objavljenih vozila u ovom cjenovnom rasponu.</p>
+              <p className="fine-print">Trenutačno nema aktivnih oglasa u rasponu {euro(result.fairMin)} – {euro(result.fairMax)}.</p>
             )}
           </section>
         </aside>
@@ -587,6 +594,13 @@ export function ValuationPage({
 
       {showAllParameters && <ValuationAuditPanel result={result} id="analiza-parametara" />}
       <FaqAccordion title="Česta pitanja o procjeni cijene i PPMV-u" />
+      {showScrollTop && <button className="icon-btn valuation-scroll-top" type="button" aria-label="Vrati se na vrh stranice"
+        onClick={() => {
+          document.getElementById("valuation-title")?.focus({ preventScroll: true });
+          window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+        }}>
+        <ChevronUp size={20} aria-hidden="true" />
+      </button>}
     </main>
   );
 }
