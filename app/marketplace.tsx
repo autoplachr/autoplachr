@@ -474,8 +474,8 @@ function HeroSearch({ search, count, totalCount, activeCount, update, onSubmit, 
             <label className="relative min-w-0 flex-1">
               <span className="sr-only">Opišite vozilo koje tražite</span>
               <SearchIcon size={16} strokeWidth={1.75} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-              <input type="search" maxLength={200} value={query} required
-                className="hero-query h-11 w-full rounded-l-md rounded-r-none border border-r-0 border-white/[0.10] bg-[#0D0F12] pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-[#2563EB] md:h-10"
+              <input type="text" enterKeyHint="search" maxLength={200} value={query} required
+                className="hero-query no-inner-focus outline-none focus:outline-none focus-visible:outline-none focus:ring-0 h-11 w-full rounded-l-md rounded-r-none border border-r-0 border-white/[0.10] bg-[#0D0F12] pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-[#2563EB] md:h-10"
                 placeholder={focused ? "Opišite vozilo koje tražite" : "Npr. " + placeholder}
                 onChange={event => setQuery(event.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
             </label>

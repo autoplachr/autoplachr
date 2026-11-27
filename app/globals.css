@@ -842,14 +842,17 @@ html.dark .marketplace-home {
 .hero-panel .console-segment button + button { border-radius: 0 6px 6px 0; }
 .hero-panel .console-segment button[aria-pressed="true"] { border-color: #2563EB; color: #fff; background: #0D0F12; }
 .hero-panel :is(.console-grid, .split-fields) .select-shell::after { display: none; }
-.hero-panel .field select:focus-visible, .hero-panel .brand-select-trigger:focus-visible, .hero-query:focus-visible {
+.hero-panel .field select:focus-visible, .hero-panel .brand-select-trigger:focus-visible {
   border-color: #2563EB;
   outline: 1px solid #2563EB;
   outline-offset: 0;
   box-shadow: none;
 }
-.hero-query { outline: none; }
-.hero-query::-webkit-search-cancel-button { filter: invert(1); }
+.hero-query::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
 .hero-panel .console-actions button, .hero-panel .console-check { color: #CBD5E1; }
 .hero-panel .console-extra .basic-filters, .hero-panel .active-filter-bar { border-top-color: rgb(255 255 255 / .08); }
 .hero-panel .body-filter { color: #CBD5E1; }
