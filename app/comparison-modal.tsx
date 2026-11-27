@@ -27,7 +27,7 @@ export function ComparisonModal({
     },
     {
       label: "Tržišna ocjena u RH",
-      render: (_, idx) => <Rating valuation={valuations[idx]} showSavings align="left" interactive={false} />,
+      render: (_, idx) => <Rating valuation={valuations[idx]} align="left" interactive={false} />,
     },
     {
       label: "Prva registracija",

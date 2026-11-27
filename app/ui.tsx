@@ -5,6 +5,7 @@ import { ChevronDown, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode, type SelectHTMLAttributes } from "react";
 import { euro, flags, marketValuation, quick, rating, type Flag, type Vehicle } from "./catalog";
 import type { MarketValuationResult, PriceRatingTier } from "../src/lib/price-engine";
+import { publicPriceBadge } from "../src/lib/price-engine";
 import { makeOptions } from "./make-equipment";
 
 export function MakeEquipmentOptions({ make, model, selected, onChange }: {
@@ -177,6 +178,7 @@ export function Rating({
   interactive = true,
   align = "right",
   privateContext = false,
+  showPriceBadge = false,
 }: {
   vehicle?: Vehicle;
   tier?: PriceRatingTier;
@@ -184,8 +186,10 @@ export function Rating({
   showSavings?: boolean;
   interactive?: boolean;
   align?: "left" | "right";
-  /** True in /racun, Step 3 and the calculator: the hidden tier shows a private pill instead of vanishing. */
+  /** Private surfaces (dashboard, Step 3, calculator) keep full tier information. */
   privateContext?: boolean;
+  /** Public price badge is opt-in and only shown when ≥5% below median. */
+  showPriceBadge?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -216,12 +220,17 @@ export function Rating({
   }, [open]);
 
   if (!result) return null;
+  // Public pages never show default price judgments. Only the seller's explicit
+  // opt-in badge ("Ispod tržišne cijene" when ≥5% below median) is rendered publicly.
+  if (!privateContext && !showPriceBadge) return null;
+  if (!privateContext && !publicPriceBadge(resolvedVal?.deltaPercent ?? 0, showPriceBadge)) return null;
+  const publicLabel = !privateContext ? publicPriceBadge(resolvedVal?.deltaPercent ?? 0, showPriceBadge)! : null;
   // Above +18% over median the public badge is hidden so the portal never
   // harms the seller; only private surfaces (dashboard, Step 3) show it.
   if (result.hidden && !privateContext) return null;
   const tone = result.hidden ? ratingTones[3] : ratingTones[result.rank] ?? ratingStyles.pill;
   const style = { ...ratingStyles, pill: tone };
-  const canPopover = Boolean(interactive && resolvedVal);
+  const canPopover = Boolean(interactive && resolvedVal && privateContext);
 
   const absPct = resolvedVal
     ? Math.abs(resolvedVal.deltaPercent).toLocaleString("hr-HR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
@@ -244,7 +253,7 @@ export function Rating({
           />
         ))}
       </span>
-      <span className="whitespace-nowrap">{result.hidden ? "Bez javne oznake (privatno)" : result.label}</span>
+      <span className="whitespace-nowrap">{publicLabel ?? (result.hidden ? "Bez javne oznake (privatno)" : result.label)}</span>
     </>
   );
 
@@ -275,7 +284,7 @@ export function Rating({
         </span>
       )}
 
-      {showSavings && resolvedVal && (
+      {showSavings && privateContext && resolvedVal && (
         <span className={`text-[11.5px] font-medium tabular-nums mt-1 leading-tight truncate max-w-full ${resolvedVal.deltaEur < -50 ? "verified-price-savings" : "text-[var(--spec)]"}`}>
           {ratingSavingsLabel(resolvedVal)}
         </span>

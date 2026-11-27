@@ -1284,6 +1284,12 @@ function classifyRating(asking: number, medianMarketPrice: number): PriceRatingT
   return { bars: 1, label: "", type: "high", rank: 3, hidden: true };
 }
 
+/** Public price badge is opt-in and only for at least 5% below median — no default price judgments. */
+export function publicPriceBadge(deltaPercent: number, showPriceBadge?: boolean): string | null {
+  if (!showPriceBadge || deltaPercent > -5) return null;
+  return "Ispod tržišne cijene";
+}
+
 /** Private advisory shown only to the seller (dashboard / Step 3) when the public badge is hidden. */
 export function sellerAdvisoryText(deltaPercent: number, upperFairPrice: number): string | null {
   if (deltaPercent <= 18) return null;

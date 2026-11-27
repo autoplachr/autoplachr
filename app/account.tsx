@@ -44,7 +44,7 @@ import { demoCredentials, localDemo } from "./local-demo";
 import { profileErrors, type FieldErrors } from "../src/data/profile-validation";
 import { euro, marketValuation, number, registered, type Vehicle } from "./catalog";
 import { sellerAdvisoryText } from "../src/lib/price-engine";
-import { boostPlans, hasActiveBoost, type PaidBoostTier } from "./listing-boost";
+import { boostPlans, B2B_FOUNDER_OFFER, B2B_PACKAGES, hasActiveBoost, type PaidBoostTier } from "./listing-boost";
 import { LocationFields, HoursFields } from "./dealership-fields";
 import { AnalyticsOverview, emptyAnalytics, LeadInbox, TrialReport } from "./seller-analytics";
 import { WindshieldSheet } from "./windshield-sheet";
@@ -1577,34 +1577,13 @@ export function AccountPage({
           <TrialReport data={analytics} name={account.profile.name} startedAt={account.profile.trialStartedAt} />
           <section className="detail-panel rounded-xl flex flex-col gap-3.5">
             <div>
-              <h2 className="!m-0 text-[17px] font-bold">Odabir B2B paketa za autokuće</h2>
+              <h2 className="!m-0 text-[17px] font-bold">Povelja za autokuće · B2B paketi</h2>
               <p className="text-[12.5px] text-[var(--muted)] mt-0.5 !m-0">
-                Promijenite paket u bilo kojem trenutku bez ugovorne obveze.
+                Transparentni mjesečni paketi bez ugovorne obveze. {B2B_FOUNDER_OFFER}.
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {(
-                [
-                  {
-                    id: "starter" as const,
-                    name: "Salon Start",
-                    price: "69 €/mj.",
-                    desc: "Do 30 aktivnih vozila. Neograničene objave, XML/web uvoz lagera, klikovi na telefon i A4 cjenik za staklo.",
-                  },
-                  {
-                    id: "pro" as const,
-                    name: "Salon Pro",
-                    price: "119 €/mj.",
-                    desc: "Do 100 aktivnih vozila. Sve iz Start paketa, web-izlog salona, AI opisi i 10 × Top Prilike mjesečno.",
-                  },
-                  {
-                    id: "ai_partner" as const,
-                    name: "Salon Max",
-                    price: "199 €/mj.",
-                    desc: "Za 100+ vozila. Neograničeni lager, županijski banner i vizuali za društvene mreže.",
-                  },
-                ] as const
-              ).map(plan => {
+              {B2B_PACKAGES.map(plan => {
                 const active = selectedTier === plan.id && Boolean(account.profile.trialStartedAt);
                 return (
                   <div
@@ -1618,9 +1597,9 @@ export function AccountPage({
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between gap-2">
                         <strong className="text-[15px] font-bold text-[var(--text)] !m-0">{plan.name}</strong>
-                        <span className="text-[13px] font-semibold tabular-nums">Zatim {plan.price}</span>
+                        <span className="text-[13px] font-semibold tabular-nums">{plan.priceEur} €/mj.</span>
                       </div>
-                      <p className="tabular font-bold">0 € prvih 30 dana</p>
+                      <p className="tabular font-bold">{B2B_FOUNDER_OFFER}</p>
                       <p className="text-[12.5px] text-[var(--muted)] leading-relaxed !m-0">{plan.desc}</p>
                     </div>
                     <button
@@ -1902,7 +1881,7 @@ export function AccountPage({
             <p className="font-semibold">{confirm.listing.title}</p>
             {hasActiveBoost(confirm.listing) ? <p>Oglas već ima aktivno isticanje.</p> : (
               <>
-                <p>Promo aktivacija je besplatna. Naplate nema.</p>
+                <p>Osnove: {B2B_FOUNDER_OFFER}. Nakon isteka promocije prikazane su cijene paketa.</p>
                 <div className="listing-boost-plans">
                   {(Object.entries(boostPlans) as [PaidBoostTier, (typeof boostPlans)[PaidBoostTier]][]).map(([tier, plan]) => (
                     <section key={tier} className="listing-boost-plan">

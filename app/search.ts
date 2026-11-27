@@ -473,7 +473,7 @@ export function matchVehicles(vehicles: Vehicle[], s: Search, now = Date.now()) 
         return rankCache.get(v)!;
       };
       const featuredRank = (v: Vehicle) =>
-        (boostPriority(v, now) || Number(Boolean(v.isFeatured)) * 0.5) + (priceRank(v) === 0 ? 0.25 : 0);
+        boostPriority(v, now) * 100 + Number(Boolean(v.isFeatured)) * 10 + (priceRank(v) === 0 ? 1 : 0);
       return matching.sort((a, b) => featuredRank(b) - featuredRank(a));
     }
   }

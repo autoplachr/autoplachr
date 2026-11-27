@@ -31,7 +31,7 @@ import { CookieConsent, LegalPage, ReportDialog, legalLinks, type LegalPath } fr
 import { dealershipHoursToday } from "../src/data/working-hours";
 import { croatianCounties } from "../src/data/croatia-locations";
 import { EquipmentSelector } from "./equipment-selector";
-import { getTopFeaturedListings } from "./listing-boost";
+import { B2B_FOUNDER_OFFER, B2B_PACKAGES, getTopFeaturedListings } from "./listing-boost";
 
 type Panel = "filters" | "publish" | "tax" | null;
 const storageKeys = { saved: "autoplac.saved", inventory: "autoplac.inventory" };
@@ -1397,12 +1397,11 @@ export default function Marketplace({
             <a className="footer-link" href="/rabljena-vozila/grad/zagreb">Rabljena vozila po gradovima</a>
           </section>
 
-          <section className="footer-col" aria-label="B2B cjenik za autokuće">
-            <h3 className="footer-heading">Za autokuće · B2B</h3>
+          <section className="footer-col" aria-label="B2B povelja za autokuće">
+            <h3 className="footer-heading">Za autokuće · B2B povelja</h3>
+            <p className="text-[12px] text-[var(--muted)] !m-0">{B2B_FOUNDER_OFFER} · Povelja za autokuće bez skrivenih naknada.</p>
             <ul className="footer-pricing">
-              <li><span>Start</span><strong className="tabular-nums">0 € / 90 dana</strong></li>
-              <li><span>Pro Salon</span><strong className="tabular-nums">99 €/mj.</strong></li>
-              <li><span>AI Partner</span><strong className="tabular-nums">159 €/mj.</strong></li>
+              {B2B_PACKAGES.map(plan => <li key={plan.id}><span>{plan.name}</span><strong className="tabular-nums">{plan.priceEur} €/mj.</strong></li>)}
             </ul>
             <a className="footer-link" href="/registracija">Registriraj autokuću →</a>
           </section>
