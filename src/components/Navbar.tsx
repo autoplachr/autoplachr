@@ -1,12 +1,12 @@
 "use client";
 
-import { Heart, Menu, Plus, X } from "lucide-react";
+import { Heart, Menu, Plus, UserRound, X } from "lucide-react";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 
 const links = [
   { href: "/", label: "Rabljena vozila" },
   { href: "/autokuce", label: "Autokuće" },
-  { href: "/ppmv-kalkulator", label: "PPMV Kalkulator" },
+  { href: "/ppmv-kalkulator", label: "PPMV kalkulator" },
   { href: "/procjena-cijene", label: "Procjena cijene" },
 ] as const;
 
@@ -81,13 +81,13 @@ export function Navbar({ activeRoute, routeKey, savedCount, savedOnly, account, 
     <span className="site-saved-count tabular" data-empty={savedCount === 0}>{savedCount}</span>
   </button>;
   const publishButton = <button type="button" className="site-header-action site-publish tabular" aria-label="Predaj oglas, 0 eura" onClick={publish}>
-    <Plus size={16} aria-hidden="true" /> <span className="site-publish-text">Predaj oglas</span> 0 €
+    <Plus size={15} strokeWidth={2.25} aria-hidden="true" /> <span className="site-publish-text">Predaj oglas</span> <span className="site-publish-price">0 €</span>
   </button>;
 
   return <header ref={header} className="topbar site-header">
     <div className="site-header-inner">
       <a className="site-wordmark" href="/" aria-label="Autoplac HR, početna" onClick={event => follow(event, "/")}>
-        AUTOPLAC <span>.hr</span>
+        AUTOPLAC<span>.HR</span>
       </a>
       <nav className="site-desktop-nav" aria-label="Glavna navigacija">{navigationLinks()}</nav>
       <div className="site-header-actions site-desktop-actions">
@@ -96,8 +96,8 @@ export function Navbar({ activeRoute, routeKey, savedCount, savedOnly, account, 
         <a className="site-header-action site-account" href={accountHref} onClick={event => follow(event, accountHref)}
           aria-current={activeRoute === accountHref ? "page" : undefined} aria-label={account ? "Moj račun" : undefined}>
           {account ? <>
-            <span className="site-account-avatar" aria-hidden="true">{account.avatar ? <img src={account.avatar} alt="" /> : initials}</span>
-            <span className="site-account-name">{account.name.trim().split(/\s+/)[0]}</span>
+            <UserRound size={17} strokeWidth={1.75} aria-hidden="true" />
+            <span className="site-account-name">{account.name.trim().split(/\s+/)[0] || initials}</span>
             {Boolean(account.unread) && <span className="site-account-unread tabular">{account.unread}</span>}
           </> : "Prijava"}
         </a>

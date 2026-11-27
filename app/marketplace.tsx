@@ -357,7 +357,7 @@ function FilterControls({ search, count, update, apply, compact = false }: {
         make:search.marka, model:search.model, generation:search.generacija, catalogEquipment:search.oprema,
       }} onChange={oprema => update({...search,oprema:[...search.oprema.filter(id => typeof id === "string" && !id.startsWith("eq:")), ...oprema.filter(id => typeof id === "string" && id.startsWith("eq:"))]})}/>}
       <ListingOptions selected={search.opcije} onChange={opcije => update({ ...search, opcije })} />
-      {!compact && <LeasingEstimate />}
+      <LeasingEstimate />
     </div>
     <ActiveFilters search={search} update={update} />
     <div className="search-actions">
@@ -1266,12 +1266,11 @@ export default function Marketplace({
         </>
       )}
       <main id="svi-oglasi" className="shell market">
-        <div className="hidden lg:flex flex-col gap-3 min-w-0">
+        <div className="hidden lg:block min-w-0 self-stretch">
           <aside className="filter-sidebar" aria-labelledby="filter-title">
             <h2 id="filter-title">Filteri</h2>
             <FilterControls search={search} count={results.length} update={update} apply={apply} compact />
           </aside>
-          <LeasingEstimate />
         </div>
         <section className="results" id="vozila" aria-labelledby="results-title">
           {dealerProfile && <section className="detail-panel seller-card dealership-profile" aria-label="Profil autokuće">

@@ -1055,7 +1055,7 @@ export function AccountPage({
                 return (
                   <article
                     key={listing.id}
-                    className="p-3 rounded-xl border border-[var(--border)] bg-[var(--hover)] flex flex-col md:flex-row gap-3.5 items-start md:items-center"
+                    className="p-3 rounded-lg border border-[var(--hairline)] flex flex-col md:flex-row md:flex-wrap gap-3 items-start md:items-center"
                   >
                     <div className="w-full md:w-[156px] aspect-[16/10] shrink-0 rounded-lg overflow-hidden border border-[var(--border)]">
                       <VehiclePhoto photo={listing.photos[0]} alt={listing.title} />
@@ -1163,10 +1163,16 @@ export function AccountPage({
                       <PrivateListingValuation vehicle={listing} />
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5 shrink-0">
+                    <div className="seller-table-actions w-full overflow-x-auto border-t border-[var(--hairline)] pt-2 [scrollbar-width:none]">
+                      {listing.status === "active" && (
+                        <button className="seller-action-chip listing-boost-action" type="button" disabled={busy} onClick={() => openBoost(listing)}>
+                          <Zap size={13} aria-hidden="true" /> Istakni
+                        </button>
+                      )}
+                      <button type="button" className="seller-action-chip" onClick={() => setSheet(listing)}>A4 cjenik</button>
                       <button
                         type="button"
-                        className="btn secondary text-[12.5px]"
+                        className="seller-action-link"
                         onClick={() => {
                           setEditingPriceId(editingPriceId === listing.id ? null : listing.id);
                           setDraftPriceEur(String(listing.price));
@@ -1174,48 +1180,27 @@ export function AccountPage({
                       >
                         Uredi cijenu
                       </button>
-                      <button type="button" className="btn secondary" onClick={() => setSheet(listing)}>A4 Cjenik za staklo</button>
-                      <button type="button" className="btn secondary text-[12.5px]" onClick={() => onPublish(listing)}>
+                      <button type="button" className="seller-action-link" onClick={() => onPublish(listing)}>
                         Uredi oglas
                       </button>
                       {listing.status === "active" && (
-                        <button className="btn secondary listing-boost-action" type="button" disabled={busy} onClick={() => openBoost(listing)}>
-                          <Zap size={15} aria-hidden="true" /> Istakni oglas
-                        </button>
-                      )}
-                      {listing.status === "active" && (
-                        <button
-                          type="button"
-                          className="btn secondary text-[12.5px]"
-                          disabled={busy}
-                          onClick={() => void changeStatus(listing, "paused")}
-                        >
-                          <Pause size={13} /> Pauziraj
+                        <button type="button" className="seller-action-link" disabled={busy} onClick={() => void changeStatus(listing, "paused")}>
+                          Pauziraj
                         </button>
                       )}
                       {(listing.status === "paused" || listing.status === "draft") && (
-                        <button
-                          type="button"
-                          className="btn secondary text-[12.5px]"
-                          disabled={busy}
-                          onClick={() => void changeStatus(listing, "active")}
-                        >
-                          <Play size={13} /> Aktiviraj
+                        <button type="button" className="seller-action-link" disabled={busy} onClick={() => void changeStatus(listing, "active")}>
+                          Aktiviraj
                         </button>
                       )}
                       {listing.status !== "sold" && (
-                        <button
-                          type="button"
-                          className="btn secondary text-[12.5px]"
-                          disabled={busy}
-                          onClick={() => void changeStatus(listing, "sold")}
-                        >
-                          <Check size={13} /> Označi kao prodano
+                        <button type="button" className="seller-action-link" disabled={busy} onClick={() => void changeStatus(listing, "sold")}>
+                          Označi kao prodano
                         </button>
                       )}
                       <button
                         type="button"
-                        className="btn quiet text-[12.5px] danger"
+                        className="seller-action-link seller-action-danger"
                         onClick={() => {
                           setError("");
                           setConfirm({ kind: "delete-listing", listing });

@@ -61,7 +61,18 @@ export function getTopFeaturedListings(vehicles: readonly Vehicle[], now = Date.
   const perSeller = new Map<string, number>();
   const head: Ranked[] = [];
   const tail: Ranked[] = [];
+  // The same car re-published (or listed twice) must appear once: match on
+  // normalised title + mileage, or seller + model + mileage. Paid entries win.
+  const seen = new Set<string>();
+  const normalise = (text: string) => text.toLocaleLowerCase("hr").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   for (const entry of [...paid, ...organic]) {
+    const { vehicle } = entry;
+    const keys = [
+      "title:" + normalise(vehicle.title) + "|" + vehicle.km,
+      "seller:" + normalise(vehicle.seller || vehicle.dealershipId || "") + "|" + normalise(vehicle.make + " " + vehicle.model) + "|" + vehicle.km,
+    ];
+    if (keys.some(key => seen.has(key))) continue;
+    keys.forEach(key => seen.add(key));
     const key = entry.vehicle.dealershipId || `seller:${entry.vehicle.seller || entry.vehicle.id}`;
     const used = perSeller.get(key) ?? 0;
     if (head.length < 4 && used < 2) {

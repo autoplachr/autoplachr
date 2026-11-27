@@ -3,7 +3,7 @@ import { contactMetadata, leadSession } from "./lead-session";
 import { listingValuationParams } from "../src/lib/valuation-link";
 
 import { Checkbox } from "../src/components/Checkbox";
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, ExternalLink, Fingerprint, Heart, Maximize, MessageSquare, Phone, Printer, Share2, Star } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, ExternalLink, Fingerprint, Flag, Heart, Maximize, MessageSquare, Phone, Printer, Share2, Star } from "lucide-react";
 import { BrandLogo } from "../src/components/BrandLogo";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent } from "react";
 import { euro, groups, marketValuation, number, power, registered, taxStatus, type Vehicle } from "./catalog";
@@ -325,11 +325,11 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
         </nav>
       </div>
       <div className="detail-actions">
-        <button type="button" className="btn secondary" aria-pressed={saved} onClick={onSave}><Heart size={16} fill={saved ? "currentColor" : "none"}/> {saved ? "Spremljen oglas" : "Spremi oglas"}</button>
-        <button type="button" className="btn secondary" onClick={share}><Share2 size={16}/> Podijeli</button>
-        <button type="button" className="btn secondary" onClick={onReport}>Prijavi oglas</button>
-        {sellerTools && <button className="btn secondary" type="button" onClick={() => setWindshield(true)}><Printer size={16} aria-hidden="true" /> A4 Cjenik za staklo</button>}
-        <button type="button" className="btn secondary detail-print hidden sm:inline-flex" onClick={() => window.print()}><Printer size={16}/> Ispiši</button>
+        <button type="button" aria-pressed={saved} onClick={onSave}><Heart size={14} fill={saved ? "currentColor" : "none"} aria-hidden="true"/> {saved ? "Spremljeno" : "Spremi"}</button>
+        <button type="button" onClick={share}><Share2 size={14} aria-hidden="true"/> Podijeli</button>
+        <button type="button" onClick={onReport}><Flag size={14} aria-hidden="true"/> Prijavi</button>
+        {sellerTools && <button type="button" onClick={() => setWindshield(true)}><Printer size={14} aria-hidden="true" /> A4 cjenik</button>}
+        <button type="button" className="detail-print" onClick={() => window.print()}><Printer size={14} aria-hidden="true"/> Ispiši</button>
       </div>
     </div>
     <div className="vehicle-detail-grid">
@@ -358,7 +358,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
           </div>
           {count > 1 && <div className="thumbnails">{vehicle.photos.map((item, index) => <button key={index} type="button" aria-label={"Fotografija " + (index + 1)} aria-pressed={photo === index} onClick={() => selectPhoto(index)}><VehiclePhoto photo={item} alt="" sizes="106px"/></button>)}</div>}
         </section>
-        <dl className="key-specs detail-panel">{keySpecs.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className="tabular">{value}</dd></div>)}</dl>
+        <dl className="key-specs">{keySpecs.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className="tabular">{value}</dd></div>)}</dl>
         <section className="detail-panel"><h2 className="brand-spec-heading"><BrandLogo make={vehicle.make} size="md"/><span>Tehnički podaci</span></h2>
           <dl className="spec-table">{specs.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className="tabular">{value ?? "Nije navedeno"}</dd></div>)}</dl>
         </section>
@@ -374,13 +374,13 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
         </section>
         {similar.length > 0 && <section className="detail-panel similar-section !mt-0"><h2>Slična vozila u ponudi</h2>
           <div className="similar-list">{similar.map(item => <a key={item.id} className="similar-car" href={vehicleListingPath(item.id)} onClick={event => onOpen(event, item.id)}>
-            <div className="w-[136px] h-[92px] aspect-[3/2] shrink-0 overflow-hidden bg-[var(--hover)]">
-              <VehiclePhoto photo={item.photos[0]} alt="" sizes="136px"/>
+            <div className="similar-car-media">
+              <VehiclePhoto photo={item.photos[0]} alt="" sizes="(min-width: 640px) 280px, 100vw"/>
             </div>
-            <div className="min-w-0 px-3 py-2 flex flex-col justify-center gap-0.5">
-              <h3 className="text-[13.5px] leading-snug text-[var(--text)] line-clamp-2">{item.title}</h3>
-              <span className="tabular text-[12px] text-[var(--muted)] truncate">{registered(item.date)} • {number(item.km)} km</span>
-              <strong className="tabular text-[14.5px] text-[var(--text)] mt-0.5">{euro(item.price)}</strong>
+            <div className="flex min-w-0 flex-col gap-1 px-3 py-2.5">
+              <h3 className="truncate text-[14px] leading-snug text-[var(--text)]" title={item.title}>{item.title}</h3>
+              <span className="truncate text-[12px] text-[var(--muted)] tabular-nums">{registered(item.date)} · {number(item.km)} km</span>
+              <strong className="mt-auto text-[16px] text-[var(--text)] tabular-nums">{euro(item.price)}</strong>
             </div>
           </a>)}</div>
         </section>}
