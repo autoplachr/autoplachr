@@ -456,9 +456,9 @@ function HeroSearch({ search, count, totalCount, activeCount, update, onSubmit, 
           <NextImage src="/images/hero-autoplac.webp" alt="" fill priority sizes="(min-width: 1280px) 1280px, 100vw"
             className="object-cover object-[76%_64%] md:object-[74%_66%]" />
           <div className="absolute inset-0 bg-linear-to-r from-[#0D0F12]/80 via-[#0D0F12]/25 to-transparent" aria-hidden="true" />
-          <div className="absolute inset-y-0 left-0 flex max-w-[78%] flex-col justify-start px-4 pt-6 md:max-w-xl md:px-10 md:pt-10 lg:px-12 lg:pt-14">
+          <div className="absolute inset-y-0 left-0 flex max-w-[78%] flex-col justify-start px-4 pt-6 md:max-w-3xl md:px-10 md:pt-10 lg:px-12 lg:pt-14">
             <h1 id="hero-title" className="text-[22px] font-bold leading-[1.1] tracking-tight text-white md:text-3xl lg:text-[38px]">Pronađi pravi auto.</h1>
-            <p className="mt-1.5 max-w-md text-xs font-normal text-slate-200/95 md:mt-2 md:text-sm lg:text-base">
+            <p className="mt-1.5 max-w-2xl text-xs font-normal text-slate-200/95 md:mt-2 md:text-sm lg:text-base">
               <span className="md:hidden"><span className="tabular-nums">{number(totalCount)}</span> {plural(totalCount, "vozilo", "vozila", "vozila")} u Hrvatskoj</span>
               <span className="hidden md:inline"><span className="tabular-nums">{number(totalCount)}</span> {plural(totalCount, "provjereno vozilo", "provjerena vozila", "provjerenih vozila")} autokuća i privatnih prodavača u Hrvatskoj.</span>
             </p>
@@ -662,6 +662,12 @@ function FeaturedListingsRail({
 }) {
   const railRef = useRef<HTMLDivElement>(null);
   const featured = useMemo(() => getTopFeaturedListings(allList, now), [allList, now]);
+  // When live inventory arrives the card order changes; scroll-snap would otherwise keep the
+  // previously visible card in view and leave the first card cut off at the left edge.
+  const featuredKey = featured.map(entry => entry.vehicle.id).join("|");
+  useLayoutEffect(() => {
+    if (railRef.current) railRef.current.scrollLeft = 0;
+  }, [featuredKey]);
 
   function stepRail(direction: -1 | 1) {
     const rail = railRef.current;
@@ -1208,7 +1214,7 @@ export default function Marketplace({
       path === "/prijava" || path === "/registracija" ? <AuthPage key={path} registration={path === "/registracija"} defaultType={dealerRegistration ? "dealer" : "private"} onDone={signedIn}/> :
       detailId ? detail ? <Detail key={detail.id} vehicle={detail} inventory={allVehicles}
       sellerTools={account?.listings.some(item => item.id === detail.id) ? { phone: account.profile.phone } : undefined}
-      saved={savedIds.includes(detail.id)} onSave={() => toggleSaved(detail.id)} onBack={backToResults}
+      saved={savedIds.includes(detail.id)} onSave={() => toggleSaved(detail.id)} savedIds={savedIds} onSaveVehicle={id => void toggleSaved(id)} onBack={backToResults}
       onOpen={openListing} onNotice={setNotice} onReport={() => setReport({id:detail.id})} onStartChat={startChat}
       onOpenValuation={(e, url) => {
         if (e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
@@ -1386,7 +1392,7 @@ export default function Marketplace({
         </div>
 
         <div className="footer-bottom">
-          <span className="font-bold text-[var(--text)]">AUTOPLAC<span className="tabular text-[var(--muted)]">.hr</span></span>
+          <span className="font-extrabold tracking-tight text-[var(--text)]">AUTOPLAC<span className="text-[#2563EB]">.HR</span></span>
           <span>© 2026 INO-TEH d.o.o. · Sva prava pridržana · <a className="footer-link" href="mailto:info@autoplac.hr">info@autoplac.hr</a></span>
         </div>
       </div>

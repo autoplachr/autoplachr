@@ -78,7 +78,7 @@ export function Navbar({ activeRoute, routeKey, savedCount, savedOnly, account, 
     aria-pressed={savedOnly} onClick={() => showSaved(!savedOnly)}>
     <Heart size={17} aria-hidden="true" />
     <span className="site-saved-text">Spremljeno</span>
-    <span className="site-saved-count tabular" data-empty={savedCount === 0}>{savedCount}</span>
+    {savedCount > 0 && <span className="site-saved-count tabular-nums">{savedCount}</span>}
   </button>;
   const publishButton = <button type="button" className="site-header-action site-publish tabular" aria-label="Predaj oglas, 0 eura" onClick={publish}>
     <Plus size={15} strokeWidth={2.25} aria-hidden="true" /> <span className="site-publish-text">Predaj oglas</span> <span className="site-publish-price">0 €</span>
@@ -86,13 +86,13 @@ export function Navbar({ activeRoute, routeKey, savedCount, savedOnly, account, 
 
   return <header ref={header} className="topbar site-header">
     <div className="site-header-inner">
-      <a className="site-wordmark" href="/" aria-label="Autoplac HR, početna" onClick={event => follow(event, "/")}>
-        AUTOPLAC<span>.HR</span>
+      <a className="site-brand" href="/" aria-label="AUTOPLAC.HR, početna" onClick={event => follow(event, "/")}>
+        <span className="site-wordmark">AUTOPLAC<span>.HR</span></span>
+        <span className="site-brand-descriptor" aria-hidden="true">Hrvatski auto-oglasnik</span>
       </a>
       <nav className="site-desktop-nav" aria-label="Glavna navigacija">{navigationLinks()}</nav>
       <div className="site-header-actions site-desktop-actions">
         {savedButton}
-        <span className="site-header-divider" aria-hidden="true" />
         <a className="site-header-action site-account" href={accountHref} onClick={event => follow(event, accountHref)}
           aria-current={activeRoute === accountHref ? "page" : undefined} aria-label={account ? "Moj račun" : undefined}>
           {account ? <>

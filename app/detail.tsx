@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type M
 import { euro, groups, marketValuation, number, power, registered, taxStatus, type Vehicle } from "./catalog";
 import { vehicleMakeOptions } from "./make-equipment";
 import { Dialog, VehiclePhoto } from "./ui";
+import { VehicleCard } from "./vehicle-card";
 import { JsonLd } from "../src/components/JsonLd";
 import { SITE_URL, slugifyHr, vehicleListingPath, vehicleSeoPath } from "../src/lib/seo";
 import { equipmentFor } from "../src/data/equipment-catalog";
@@ -26,8 +27,9 @@ function formattedPhone(value: string) {
   return match ? match.slice(1).join(" ") : clean;
 }
 
-export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOpen, onNotice, onReport, onStartChat, onOpenValuation, sellerTools }: {
+export default function Detail({ vehicle, inventory, saved, onSave, savedIds = [], onSaveVehicle, onBack, onOpen, onNotice, onReport, onStartChat, onOpenValuation, sellerTools }: {
   vehicle: Vehicle; inventory: Vehicle[]; saved: boolean; onSave: () => void; onBack: () => void;
+  savedIds?: string[]; onSaveVehicle?: (id: string) => void;
   onOpen: (event: MouseEvent<HTMLAnchorElement>, id: string) => void; onNotice: (message: string) => void; onReport: () => void;
   sellerTools?: { phone?: string };
   onStartChat?: (vehicle: Vehicle, initialMessage?: string) => Promise<void>;
@@ -340,9 +342,9 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
             <strong className="tabular">{euro(vehicle.price)}</strong>
             {(vehicle.flags.includes("pdv") || vehicle.flags.includes("kupac")) && <span>{tax}</span>}
           </div>
-          <p>{[vehicle.variant, vehicle.city, vehicle.demo && "Ogledni oglas"].filter(Boolean).join(" • ")}</p>
+          <p>{[vehicle.variant, vehicle.city, vehicle.demo && "Ogledni oglas"].filter(Boolean).join(" · ")}</p>
         </header>
-        <section className="detail-gallery detail-panel" aria-label="Fotografije vozila" onKeyDown={photoKeys}>
+        <section className="detail-gallery" aria-label="Fotografije vozila" onKeyDown={photoKeys}>
           <div className="gallery-main">
             {count ? <div className="detail-gallery-rail" ref={galleryRail} onScroll={event => {
               const rail = event.currentTarget;
@@ -359,30 +361,22 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
           {count > 1 && <div className="thumbnails">{vehicle.photos.map((item, index) => <button key={index} type="button" aria-label={"Fotografija " + (index + 1)} aria-pressed={photo === index} onClick={() => selectPhoto(index)}><VehiclePhoto photo={item} alt="" sizes="106px"/></button>)}</div>}
         </section>
         <dl className="key-specs">{keySpecs.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className="tabular">{value}</dd></div>)}</dl>
-        <section className="detail-panel"><h2 className="brand-spec-heading"><BrandLogo make={vehicle.make} size="md"/><span>Tehnički podaci</span></h2>
+        <section className="detail-section"><h2 className="brand-spec-heading"><BrandLogo make={vehicle.make} size="sm"/><span>Tehnički podaci</span></h2>
           <dl className="spec-table">{specs.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className="tabular">{value ?? "Nije navedeno"}</dd></div>)}</dl>
         </section>
-        <section className="detail-panel"><h2>Oprema vozila</h2>
+        <section className="detail-section"><h2>Oprema vozila</h2>
           <div className="detail-equipment">{equipment.map((items, index) => <section key={equipmentHeadings[index]}>
             <h3>{equipmentHeadings[index]}</h3>
             {items.length ? <ul>{items.map(item => <li key={item}><Check size={15} aria-hidden="true"/>{item}</li>)}</ul> : <p>Nije navedeno</p>}
           </section>)}</div>
         </section>
-        <section className="detail-panel seller-description"><h2>Opis prodavača</h2>
+        <section className="detail-section seller-description"><h2>Opis prodavača</h2>
           <p className="whitespace-pre-wrap">{vehicle.sellerNote || "Prodavač nije unio opis vozila."}</p>
-          {vehicle.history?.length ? <p>{vehicle.history.join(" • ")}</p> : null}
+          {vehicle.history?.length ? <p>{vehicle.history.join(" · ")}</p> : null}
         </section>
-        {similar.length > 0 && <section className="detail-panel similar-section !mt-0"><h2>Slična vozila u ponudi</h2>
-          <div className="similar-list">{similar.map(item => <a key={item.id} className="similar-car" href={vehicleListingPath(item.id)} onClick={event => onOpen(event, item.id)}>
-            <div className="similar-car-media">
-              <VehiclePhoto photo={item.photos[0]} alt="" sizes="(min-width: 640px) 280px, 100vw"/>
-            </div>
-            <div className="flex min-w-0 flex-col gap-1 px-3 py-2.5">
-              <h3 className="truncate text-[14px] leading-snug text-[var(--text)]" title={item.title}>{item.title}</h3>
-              <span className="truncate text-[12px] text-[var(--muted)] tabular-nums">{registered(item.date)} · {number(item.km)} km</span>
-              <strong className="mt-auto text-[16px] text-[var(--text)] tabular-nums">{euro(item.price)}</strong>
-            </div>
-          </a>)}</div>
+        {similar.length > 0 && <section className="detail-section similar-section"><h2>Slična vozila u ponudi</h2>
+          <div className="similar-list">{similar.map(item => <VehicleCard key={item.id} vehicle={item} inRail eager={false}
+            saved={savedIds.includes(item.id)} onSave={() => onSaveVehicle?.(item.id)} onOpen={event => onOpen(event, item.id)} />)}</div>
         </section>}
       </div>
       <aside className="detail-sidebar" aria-label="Cijena i kontakt prodavača">
@@ -404,7 +398,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
           </section>
           <section id="upit-prodavacu" ref={inquiryPanel} tabIndex={-1} className="detail-contact-block" aria-label="Kontakt prodavača">
             <h2 className="flex items-center gap-1.5 text-[15px] font-bold text-[var(--text)]">
-              {vehicle.dealershipId ? <a className="legal-link" href={"/autokuce/"+encodeURIComponent(vehicle.dealershipId)}>{vehicle.seller}</a> : vehicle.seller || "Privatni prodavač"}
+              {vehicle.dealershipId ? <a className="hover:underline underline-offset-4" href={"/autokuce/"+encodeURIComponent(vehicle.dealershipId)}>{vehicle.seller}</a> : vehicle.seller || "Privatni prodavač"}
               {vehicle.verified && <Check size={15} strokeWidth={2.25} className="text-[#2563EB]" role="img" aria-label={vehicle.dealer ? "Verificirana autokuća" : "Verificirani prodavač"} />}
             </h2>
             <div className="mt-1.5 grid gap-1 text-[13px] text-[var(--spec)]">
