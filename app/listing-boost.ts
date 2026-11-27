@@ -87,3 +87,27 @@ export function getTopFeaturedListings(vehicles: readonly Vehicle[], now = Date.
     bucket: entry.priority > 0 ? (entry.priority === 2 ? 0 : 1) : 2,
   }));
 }
+
+const normaliseKey = (text: string) => text.toLocaleLowerCase("hr").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+
+/**
+ * Keep the first occurrence of each physical car. A re-published or doubly imported
+ * listing matches on normalised title + mileage, or seller + make/model + mileage.
+ * Input order is preserved, so call it after sorting.
+ */
+export function dedupeListings(vehicles: readonly Vehicle[]): Vehicle[] {
+  const seen = new Set<string>();
+  const unique: Vehicle[] = [];
+  for (const vehicle of vehicles) {
+    const seller = normaliseKey(vehicle.seller || vehicle.dealershipId || "");
+    const keys = [
+      "id:" + vehicle.id,
+      "title:" + normaliseKey(vehicle.title) + "|" + vehicle.km,
+      ...(seller ? ["seller:" + seller + "|" + normaliseKey(vehicle.make + " " + vehicle.model) + "|" + vehicle.km] : []),
+    ];
+    if (keys.some(key => seen.has(key))) continue;
+    keys.forEach(key => seen.add(key));
+    unique.push(vehicle);
+  }
+  return unique;
+}

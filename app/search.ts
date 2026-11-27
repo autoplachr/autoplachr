@@ -216,11 +216,14 @@ export const cylinderCounts = [2, 3, 4, 5, 6, 8, 10, 12, 16];
 export const colorFinishes = ["Metalik", "Obična", "Perla", "Mat"];
 export const sorts = {
   newest: "Najnovije",
-  lowest: "Cijena: niža prema višoj",
-  highest: "Cijena: viša prema nižoj",
-  mileage: "Kilometraža: najmanja",
+  lowest: "Cijena: niža prvo",
+  highest: "Cijena: viša prvo",
+  mileage: "Kilometraža: manja prvo",
+  year: "Godište: novije prvo",
   rating: "Najbolja ocjena cijene",
 } as const;
+/** Sort options shown in the catalogue dropdown (rating stays URL-compatible only). */
+export const catalogSorts = ["newest", "lowest", "highest", "mileage", "year"] as const satisfies readonly (keyof typeof sorts)[];
 export const bodyFilters = [
   { id: "limuzina", label: "Limuzina", types: ["Limuzina"] },
   { id: "karavan", label: "Karavan", types: ["Karavan"] },
@@ -238,7 +241,7 @@ export type CollectionId = "" | (typeof collections)[number];
 export type Search = {
   kategorija: CategoryId;
   kolekcija: CollectionId;
-  marka: string; model: string; generacija: string; cijena: string; godiste: string; km: string; gorivo: string;
+  marka: string; marke: string[]; model: string; generacija: string; cijena: string; godiste: string; km: string; gorivo: string;
   mjenjac: string; grad: string; opcije: Flag[]; oprema: string[]; sortiranje: keyof typeof sorts; prikaz: "grid" | "lista";
   cilindri: string; zavrsnica: string; upit: string;
   varijanta: string; karoserija: (typeof bodyFilters)[number]["id"][];
@@ -247,14 +250,14 @@ export type Search = {
 export const initialSearch: Search = {
   kategorija: "automobili",
   kolekcija: "",
-  marka: "", model: "", generacija: "", cijena: "", godiste: "", km: "", gorivo: "", mjenjac: "", grad: "",
+  marka: "", marke: [], model: "", generacija: "", cijena: "", godiste: "", km: "", gorivo: "", mjenjac: "", grad: "",
   opcije: [], oprema: [], sortiranje: "newest", prikaz: "lista",
   cilindri: "", zavrsnica: "", upit: "",
   varijanta: "", karoserija: [], sjedalaOd: "", sjedalaDo: "", vrata: "", cijenaOd: "", samoPrilike: false,
 };
 export function searchFilterCount(search: Search) {
-  const { sortiranje, prikaz, opcije, oprema, karoserija, varijanta, kategorija, ...filters } = search;
-  return Number(kategorija !== initialSearch.kategorija) + Object.values(filters).filter(Boolean).length + opcije.length + oprema.length + karoserija.length + Number(!!varijanta.trim());
+  const { sortiranje, prikaz, opcije, oprema, karoserija, marke, varijanta, kategorija, ...filters } = search;
+  return Number(kategorija !== initialSearch.kategorija) + Object.values(filters).filter(Boolean).length + opcije.length + oprema.length + karoserija.length + marke.length + Number(!!varijanta.trim());
 }
 
 export function parseVehicleQuery(query: string, search: Search): Search {
@@ -336,6 +339,10 @@ export function readSearch(query: string): Search {
     kategorija: normalizeVehicleCategory(legacyCategory) ?? initialSearch.kategorija,
     kolekcija: accept("kolekcija", collections) as CollectionId,
     marka, model, generacija: validGeneration(marka, model, generation) ? generation : "", cijena: positiveNumber("cijena"),
+    marke: [...new Set(params.getAll("marke").map(value => {
+      const wanted = normalizeSearchQuery(value);
+      return CAR_MAKES.find(make => normalizeSearchQuery(make) === wanted) ?? "";
+    }).filter(Boolean))],
     godiste: positiveNumber("godiste"), km: positiveNumber("km"),
     gorivo: fuel || legacyFuel, mjenjac: accept("mjenjac", gears), grad: canonicalLocation(params.get("grad") ?? "", [...cities, ...croatianCounties]),
     opcije: flags.filter(flag => generalOptions.includes(flag)),
@@ -367,10 +374,13 @@ function writeSearchParams(search: Search): URLSearchParams {
   return params;
 }
 
-export function writeSearch(search: Search) {
+/** Sync filters to the URL. `replace` is used for continuous input (slider drags, typing). */
+export function writeSearch(search: Search, replace = false) {
   const query = writeSearchParams(search).toString();
   const next = window.location.pathname + (query ? "?" + query : "") + window.location.hash;
-  if (next !== window.location.pathname + window.location.search + window.location.hash) window.history.pushState(null, "", next);
+  if (next !== window.location.pathname + window.location.search + window.location.hash) {
+    window.history[replace ? "replaceState" : "pushState"](null, "", next);
+  }
 }
 
 /** Drop invalid/unknown query params on first paint so URLs reflect applied filters. */
@@ -413,6 +423,7 @@ export function matchVehicles(vehicles: Vehicle[], s: Search, now = Date.now()) 
   const queryMake = normalizeSearchQuery(s.marka);
   const queryModel = normalizeSearchQuery(s.model);
   const variantTerms = searchTerms(s.varijanta);
+  const wantedMakes = new Set((s.marke ?? []).map(normalizeSearchQuery));
   const selectedBodies = bodyFilters.filter(body => s.karoserija.includes(body.id));
   const matchesBodies = (vehicle: Vehicle) => selectedBodies.some(body =>
     body.id === "ostalo"
@@ -438,7 +449,9 @@ export function matchVehicles(vehicles: Vehicle[], s: Search, now = Date.now()) 
   const result = vehicles.filter(v =>
     vehicleCategory(v) === s.kategorija &&
     matchesCollection(v, s.kolekcija) &&
-    (!s.samoPrilike || s.kolekcija === "prilike" || matchesCollection(v, "prilike")) &&
+    // "Samo prilike ispod cijene" = asking price at least 5 % below the market median.
+    (!s.samoPrilike || marketValuation(v).meetsPublicBadge) &&
+    (!wantedMakes.size || wantedMakes.has(normalizeSearchQuery(v.make))) &&
     (!selectedBodies.length || matchesBodies(v)) &&
     (!s.sjedalaOd || (v.seats !== undefined && v.seats >= Number(s.sjedalaOd))) &&
     (!s.sjedalaDo || (v.seats !== undefined && (s.sjedalaDo === "8" || v.seats <= Number(s.sjedalaDo)))) &&
@@ -465,6 +478,7 @@ export function matchVehicles(vehicles: Vehicle[], s: Search, now = Date.now()) 
     case "lowest": return matching.sort((a, b) => a.price - b.price);
     case "highest": return matching.sort((a, b) => b.price - a.price);
     case "mileage": return matching.sort((a, b) => a.km - b.km);
+    case "year": return matching.sort((a, b) => b.date.localeCompare(a.date) || a.km - b.km);
     case "rating":
       return matching.sort((a, b) => {
         const va = marketValuation(a);

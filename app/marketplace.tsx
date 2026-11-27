@@ -3,12 +3,12 @@
 import { categories, type CategoryId } from "./vehicle-category";
 import { Checkbox } from "../src/components/Checkbox";
 import { Navbar } from "../src/components/Navbar";
-import { VehicleCard } from "./vehicle-card";
+import { CatalogCard } from "./vehicle-card";
+import { FilterRail, FilterSheet } from "./filter-rail";
 import { BrandLogo } from "../src/components/BrandLogo";
-import { ArrowRight, Bike, Car, ChevronLeft, ChevronRight, Truck, Check, Grid2X2, List, Navigation, RotateCcw, Search as SearchIcon, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
-import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { Check, ChevronDown, RotateCcw, SlidersHorizontal, X } from "lucide-react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import NextImage from "next/image";
 import { SEO_CITIES, TOP_FOOTER_BRANDS, slugifyHr, vehicleIdFromPath, vehicleListingPath } from "../src/lib/seo";
 import { BrandSelect } from "../src/components/BrandSelect";
 import { matchesModelSearch } from "../src/lib/model-search";
@@ -16,7 +16,7 @@ import { FaqAccordion } from "./faq-accordion";
 import { DealershipDirectoryView } from "./autokuce-directory";
 import { DEALERSHIP_DIRECTORY } from "../src/data/dealerships";
 import { restoreListingPhotos, cities, euro, fuelLabel, fuels, gears, number, quick, vehicles, type Flag, type Vehicle } from "./catalog";
-import { bodyFilters, doorOptions, seatOptions, colorFinishes, cylinderCounts, distances, initialSearch, matchVehicles, normalizeSearchUrl, parseVehicleQuery, prices, readSearch, searchFilterCount, sorts, validEquipmentFilters, writeSearch, years, type Search } from "./search";
+import { bodyFilters, catalogSorts, doorOptions, seatOptions, colorFinishes, cylinderCounts, distances, initialSearch, matchVehicles, normalizeSearchUrl, prices, readSearch, searchFilterCount, sorts, validEquipmentFilters, writeSearch, years, type Search } from "./search";
 import { equipmentFor } from "../src/data/equipment-catalog";
 import { Dialog, ListingOptions, MakeEquipmentOptions, Select } from "./ui";
 import { makeOptions } from "./make-equipment";
@@ -35,26 +35,10 @@ import { CookieConsent, LegalPage, ReportDialog, legalLinks, type LegalPath } fr
 import { dealershipHoursToday } from "../src/data/working-hours";
 import { croatianCounties } from "../src/data/croatia-locations";
 import { EquipmentSelector } from "./equipment-selector";
-import { B2B_FOUNDER_OFFER, B2B_PACKAGES, getTopFeaturedListings } from "./listing-boost";
+import { B2B_FOUNDER_OFFER, B2B_PACKAGES, dedupeListings } from "./listing-boost";
 
 type Panel = "filters" | "publish" | "tax" | null;
 const storageKeys = { saved: "autoplac.saved", inventory: "autoplac.inventory" };
-const popularBrands = [
-  "BMW",
-  "Volkswagen",
-  "Audi",
-  "Mercedes-Benz",
-  "Škoda",
-  "Porsche",
-  "Volvo",
-  "Toyota",
-  "Renault",
-  "Peugeot",
-  "Hyundai",
-  "Tesla",
-  "Mazda",
-  "Cupra",
-] as const;
 
 function vehicleIdentity(vehicle: Vehicle): string {
   return [vehicle.title.trim().toLowerCase(), vehicle.price, vehicle.km, vehicle.date].join("|");
@@ -194,20 +178,6 @@ function PriceRangeFilter({ search, update }: SearchEditorProps) {
       </label>
     </div>
   </fieldset>;
-}
-
-function BasicFilters({ search, update }: SearchEditorProps) {
-  return <section className="basic-filters split-fields" aria-label="Osnovni podaci">
-    <h3>Osnovni podaci</h3>
-    <div className="basic-identity">
-      <VehicleIdentityFields search={search} update={update} />
-      <VariantField search={search} update={update} />
-    </div>
-    <BodyTypeFilter search={search} update={update} />
-    <SeatDoorFilters search={search} update={update} />
-    <PurchaseMode search={search} update={update} />
-    <PriceRangeFilter search={search} update={update} />
-  </section>;
 }
 
 function FilterGroup({ id, title, children }: { id: string; title: string; children: ReactNode }) {
@@ -373,360 +343,12 @@ function FilterControls({ search, count, update, apply, compact = false }: {
   </form>;
 }
 
-const vehicleCategoryIcons = { automobili: Car, gospodarska: Truck, motocikli: Bike };
-const vehicleRail = categories.map(category => ({ ...category, icon: vehicleCategoryIcons[category.id] }));
-
-const queryExamples = [
-  "BMW 320d M-Sport automatik do 25.000 €",
-  "Škoda Octavia dizel do 100.000 km",
-  "Audi A4 S-line s potvrđenim km (CVH)",
-  "Volkswagen Golf 8 GTD do 24.000 €",
-];
-
 /** Croatian count noun: 1 oglas, 2–4 oglasa, 5+ oglasa (11–14 use the plural form). */
 function plural(n: number, one: string, few: string, many: string) {
   const mod10 = n % 10, mod100 = n % 100;
   if (mod10 === 1 && mod100 !== 11) return one;
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
   return many;
-}
-
-function HeroSearch({ search, count, totalCount, activeCount, update, onSubmit, onQuery }: {
-  search: Search;
-  count: number;
-  totalCount: number;
-  activeCount: number;
-  update: (next: Search) => void;
-  onSubmit: () => void;
-  onQuery: (next: Search) => void;
-}) {
-  const [more, setMore] = useState(false);
-  const [query, setQuery] = useState("");
-  const [focused, setFocused] = useState(false);
-  const [placeholder, setPlaceholder] = useState(queryExamples[0]);
-  const typingPosition = useRef({ index: 0, length: queryExamples[0].length, deleting: true });
-  useEffect(() => {
-    if (focused || query) return;
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    let timer: ReturnType<typeof setTimeout>;
-    function schedule(delay: number) {
-      timer = setTimeout(tick, delay);
-    }
-    function tick() {
-      const cursor = typingPosition.current;
-      const example = queryExamples[cursor.index];
-      cursor.length += cursor.deleting ? -1 : 1;
-      setPlaceholder(example.slice(0, cursor.length));
-      if (cursor.length === 0) {
-        cursor.index = (cursor.index + 1) % queryExamples.length;
-        cursor.deleting = false;
-        schedule(260);
-      } else if (cursor.length === example.length) {
-        cursor.deleting = true;
-        schedule(1800);
-      } else {
-        schedule(cursor.deleting ? 25 : 48);
-      }
-    }
-    function configure() {
-      clearTimeout(timer);
-      if (motion.matches) {
-        setPlaceholder(queryExamples[0]);
-      } else {
-        schedule(1200);
-      }
-    }
-    configure();
-    motion.addEventListener("change", configure);
-    return () => {
-      clearTimeout(timer);
-      motion.removeEventListener("change", configure);
-    };
-  }, [focused, query]);
-  const selectedRail = search.kategorija;
-  const numericField = (key: "godiste" | "km" | "cijena", label: string, all: string, values: readonly number[], format: (value: number) => string = number) => {
-    const current = Number(search[key]);
-    const options = current && !values.includes(current) ? [current, ...values] : values;
-    return <Select label={label} className="numeric-select" value={search[key]} onChange={event => {
-      const value = event.target.value;
-      update(key === "cijena" ? updateRange(search, key, value) : { ...search, [key]: value });
-    }}>
-      <option value="">{all}</option>
-      {options.map(value => <option key={value} value={value}>{format(value)}</option>)}
-    </Select>;
-  };
-
-  return (
-    <section id="hero-search" className="marketplace-home hero-search" aria-labelledby="hero-title">
-      <div className="px-3 pt-2 md:px-6 md:pt-3">
-        <div className="relative mx-auto h-[185px] max-w-7xl overflow-hidden rounded-lg bg-[#0D0F12] md:h-[380px] lg:h-[420px]">
-          <NextImage src="/images/hero-autoplac.webp" alt="" fill priority sizes="(min-width: 1280px) 1280px, 100vw"
-            className="object-cover object-[76%_64%] md:object-[74%_66%]" />
-          <div className="absolute inset-0 bg-linear-to-r from-[#0D0F12]/80 via-[#0D0F12]/25 to-transparent" aria-hidden="true" />
-          <div className="absolute inset-y-0 left-0 flex max-w-[78%] flex-col justify-start px-4 pt-6 md:max-w-3xl md:px-10 md:pt-10 lg:px-12 lg:pt-14">
-            <h1 id="hero-title" className="text-[22px] font-bold leading-[1.1] tracking-tight text-white md:text-3xl lg:text-[38px]">Pronađi pravi auto.</h1>
-            <p className="mt-1.5 max-w-2xl text-xs font-normal text-slate-200/95 md:mt-2 md:text-sm lg:text-base">
-              <span className="md:hidden"><span className="tabular-nums">{number(totalCount)}</span> {plural(totalCount, "vozilo", "vozila", "vozila")} u Hrvatskoj</span>
-              <span className="hidden md:inline"><span className="tabular-nums">{number(totalCount)}</span> {plural(totalCount, "oglas", "oglasi", "oglasi")} autokuća i privatnih prodavača u Hrvatskoj · ogledni podaci.</span>
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-3 md:px-6">
-        <div className="hero-panel relative z-10 mx-auto -mt-8 max-w-6xl rounded-lg bg-[#151821] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.65)] ring-1 ring-white/[0.08] md:-mt-10 md:p-6">
-          <form className="flex rounded-md border border-white/[0.10] focus-within:border-[#2563EB]" role="search" aria-label="Pretraga prema opisu vozila" onSubmit={event => {
-            event.preventDefault();
-            if (query.trim()) onQuery(parseVehicleQuery(query, search));
-          }}>
-            <label className="relative min-w-0 flex-1">
-              <span className="sr-only">Opišite vozilo koje tražite</span>
-              <SearchIcon size={16} strokeWidth={1.75} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-              <input type="text" enterKeyHint="search" maxLength={200} value={query} required
-                className="hero-search-input no-inner-focus h-11 w-full rounded-l-md rounded-r-none border-0 bg-[#0D0F12] pl-9 pr-3 text-sm text-white placeholder:text-slate-500 md:h-10"
-                placeholder={focused ? "Opišite vozilo koje tražite" : "Npr. " + placeholder}
-                onChange={event => setQuery(event.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
-            </label>
-            <button type="submit" aria-label="Pretraži opis vozila" className="grid h-11 w-11 flex-none place-items-center rounded-r-md bg-[#2563EB] text-white hover:bg-[#1D4ED8] md:h-10">
-              <ArrowRight size={18} strokeWidth={2} aria-hidden="true" />
-            </button>
-          </form>
-
-          <form id="search-console" className="search-console" aria-label="Filtri vozila" onSubmit={event => { event.preventDefault(); onSubmit(); }}>
-            <div className="mt-3 flex overflow-x-auto border-b border-white/[0.08] [scrollbar-width:none] md:mt-4" role="group" aria-label="Kategorija vozila">
-              {vehicleRail.map(({ id, label, icon: Icon }) => {
-                const active = selectedRail === id;
-                return <button type="button" key={id} aria-pressed={active} onClick={() => update({ ...search, kategorija: id })}
-                  className={"-mb-px inline-flex min-h-11 flex-none items-center gap-2 whitespace-nowrap border-b-2 px-2.5 text-[13px] md:px-4 " + (active ? "border-[#2563EB] font-semibold text-white" : "border-transparent font-medium text-slate-400 hover:text-white")}>
-                  <Icon size={16} strokeWidth={1.75} aria-hidden="true" className="hidden sm:block" />
-                  {label}
-                </button>;
-              })}
-            </div>
-
-            <div className="mt-4 console-grid">
-              <VehicleIdentityFields search={search} update={update} />
-              <div className="console-primary-extra">{numericField("cijena", "Cijena do (€)", "Bez limita", prices, euro)}</div>
-              <div id="console-secondary" className={"console-secondary-fields" + (more ? " is-open" : "")}>
-                {numericField("godiste", "Godište od", "Sva godišta", years, String)}
-                {numericField("km", "Kilometraža do", "Bez limita", distances, value => number(value) + " km")}
-                <PurchaseMode search={search} update={update} />
-                <div className="console-location">
-                  <Select label="Županija / Grad" value={search.grad} onChange={event => update({ ...search, grad: event.target.value })}>
-                    <option value="">Sve županije</option>
-                    <optgroup label="Županije">{croatianCounties.map(county => <option key={county}>{county}</option>)}</optgroup>
-                    <optgroup label="Gradovi">{cities.map(city => <option key={city}>{city}</option>)}</optgroup>
-                  </Select>
-                  <Navigation size={15} strokeWidth={1.75} aria-hidden="true" />
-                </div>
-                <label className="console-check console-mobile-cvh">
-                  <Checkbox checked={search.opcije.includes("cvh")} onChange={event => update(toggleSearchFlag(search, "cvh", event.target.checked))} />
-                  Samo s potvrđenim km (CVH)
-                </label>
-              </div>
-            </div>
-
-            {more && <div id="console-extra" className="console-extra">
-              <BasicFilters search={search} update={update} />
-              <div className="console-grid split-fields filter-details">
-                <GenerationFilter search={search} update={update} />
-                <Select label="Gorivo" value={search.gorivo} onChange={event => update({ ...search, gorivo: event.target.value })}>
-                  <option value="">Sva goriva</option>
-                  {fuels.map(fuel => <option key={fuel} value={fuel}>{fuelLabel(fuel)}</option>)}
-                </Select>
-                <Select label="Mjenjač" value={search.mjenjac} onChange={event => update({ ...search, mjenjac: event.target.value })}>
-                  <option value="">Svi mjenjači</option>
-                  {gears.map(gear => <option key={gear}>{gear}</option>)}
-                </Select>
-                <EngineFilters search={search} update={update} />
-              </div>
-              <ActiveFilters search={search} update={update} onReset={() => {
-                setQuery("");
-                update(resetFilters(search));
-              }} />
-            </div>}
-
-            <div className="mt-3 flex flex-col-reverse gap-1 md:mt-4 md:flex-row md:items-center md:justify-between md:gap-4">
-              <div className="flex flex-wrap items-center justify-between gap-x-4 md:justify-start">
-                <label className="console-check console-desktop-cvh">
-                  <Checkbox checked={search.opcije.includes("cvh")} onChange={event => update(toggleSearchFlag(search, "cvh", event.target.checked))} />
-                  Samo s potvrđenim km (CVH)
-                </label>
-                <div className="console-actions">
-                  <button type="button" disabled={!activeCount && !query} onClick={() => {
-                    setQuery("");
-                    update({ ...initialSearch, sortiranje: search.sortiranje, prikaz: search.prikaz });
-                  }}><RotateCcw size={16} aria-hidden="true" /> Poništi filtere</button>
-                  <button type="button" className="console-more-toggle" aria-expanded={more} aria-controls="console-secondary console-extra" onClick={() => setMore(value => !value)}>
-                    <SlidersHorizontal size={16} aria-hidden="true" />
-                    {more ? "Manje filtera" : "Više filtera"}
-                  </button>
-                </div>
-              </div>
-              <button type="submit" className="h-11 rounded-md bg-[#2563EB] px-6 text-sm font-semibold text-white tabular-nums hover:bg-[#1D4ED8] md:h-10 md:min-w-[220px]">
-                Prikaži {number(count)} {plural(count, "oglas", "oglasa", "oglasa")}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <nav className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 pb-1 pt-1 text-xs text-slate-500 md:pt-2 dark:text-slate-400" aria-label="Objava oglasa i alati za kupce">
-          <div className="flex flex-wrap items-center gap-x-2">
-            <a className="hero-utility-link" href="/predaj-oglas"><span className="home-utility-mobile">Predaja <span className="tabular-nums">0 €</span></span><span className="home-utility-desktop">Privatna predaja oglasa: <span className="tabular-nums">0 €</span></span></a>
-            <span aria-hidden="true">·</span>
-            <a className="hero-utility-link" href="/autokuce"><span className="home-utility-mobile">Autokuće: 6 mj. gratis</span><span className="home-utility-desktop">Za autokuće: 6 mj. gratis (prvih 50 salona)</span></a>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-4">
-            <a className="hero-utility-link" href="/ppmv-kalkulator"><span className="home-utility-mobile">PPMV →</span><span className="home-utility-desktop">PPMV kalkulator →</span></a>
-            <a className="hero-utility-link" href="/procjena-cijene"><span className="home-utility-mobile">Procjena →</span><span className="home-utility-desktop">Procjena tržišne cijene →</span></a>
-          </div>
-        </nav>
-      </div>
-    </section>
-  );
-}
-
-function PartnerStrip() {
-  const affiliateUrl = process.env.NEXT_PUBLIC_CARVERTICAL_AFFILIATE_URL?.trim();
-  return (
-    <section className="partner-strip mx-auto max-w-7xl" aria-label="Objava oglasa i provjera povijesti vozila">
-      <section className="partner-strip-cell" aria-labelledby="dealer-partner-title">
-        <h2 id="dealer-partner-title">Za autokuće i privatne prodavatelje</h2>
-        <p>Automatski uvoz lagera i A4 cjenik za staklo</p>
-        <div className="partner-strip-actions">
-          <a className="btn secondary" href="/autokuce">Za autokuće <ArrowRight size={15} aria-hidden="true" /></a>
-          <a className="btn quiet" href="/predaj-oglas">Predaj oglas · 0 €</a>
-        </div>
-      </section>
-      <section className="partner-strip-cell" aria-labelledby="vin-partner-title">
-        <div className="partner-strip-heading">
-          <h2 id="vin-partner-title">
-            <ShieldCheck size={19} aria-hidden="true" />
-            <span className="partner-wordmark" role="img" aria-label="carVertical" />
-          </h2>
-          <p>Provjera povijesti vozila i kilometara</p>
-        </div>
-        <form className="partner-vin-form" action="https://www.carvertical.com/hr/precheck" method="get" target="_blank" rel="noopener noreferrer"
-          onSubmit={event => {
-            const vin = String(new FormData(event.currentTarget).get("vin")).toUpperCase();
-            const url = new URL(affiliateUrl || event.currentTarget.action, event.currentTarget.action);
-            url.searchParams.set("vin", vin);
-            event.preventDefault();
-            window.open(url.toString(), "_blank", "noopener,noreferrer");
-          }}>
-          <input type="text" name="vin" aria-label="Broj šasije (VIN)"
-            placeholder="Unesite 17-znamenkasti broj šasije (VIN)..."
-            title="Unesite 17 slova ili znamenki. Slova I, O i Q nisu dopuštena."
-            autoComplete="off" autoCapitalize="characters" spellCheck={false}
-            minLength={17} maxLength={17} pattern="[A-HJ-NPR-Za-hj-npr-z0-9]{17}" required />
-          <button type="submit" className="btn primary">Provjeri povijest <ArrowRight size={15} aria-hidden="true" /></button>
-        </form>
-      </section>
-    </section>
-  );
-}
-
-function FeaturedListingsRail({
-  vehicles: allList,
-  now,
-  savedIds,
-  onOpen,
-  onSave,
-  onShowAll,
-}: {
-  vehicles: Vehicle[];
-  now: number;
-  savedIds: string[];
-  onOpen: (event: MouseEvent<HTMLAnchorElement>, id: string) => void;
-  onSave: (id: string) => void;
-  onShowAll: () => void;
-}) {
-  const railRef = useRef<HTMLDivElement>(null);
-  const featured = useMemo(() => getTopFeaturedListings(allList, now), [allList, now]);
-  // When live inventory arrives the card order changes; scroll-snap would otherwise keep the
-  // previously visible card in view and leave the first card cut off at the left edge.
-  const featuredKey = featured.map(entry => entry.vehicle.id).join("|");
-  useLayoutEffect(() => {
-    if (railRef.current) railRef.current.scrollLeft = 0;
-  }, [featuredKey]);
-
-  function stepRail(direction: -1 | 1) {
-    const rail = railRef.current;
-    const first = rail?.children.item(0);
-    const second = rail?.children.item(1);
-    if (!rail || !(first instanceof HTMLElement) || !(second instanceof HTMLElement)) return;
-    rail.scrollBy({
-      left: direction * (second.offsetLeft - first.offsetLeft),
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
-    });
-  }
-
-  if (!featured.length) return null;
-
-  return (
-    <section className="home-section home-section-first shell marketplace-home featured-section scroll-mt-20 mt-5" aria-labelledby="featured-title">
-      <div className="home-section-head featured-heading">
-        <div>
-          <h2 id="featured-title">Istaknuta vozila</h2>
-          <p>Provjerene ponude autokuća i privatnih prodavača</p>
-        </div>
-        <div className="featured-controls">
-          {featured.length > 2 && <>
-            <button type="button" aria-label="Prethodna ponuda" aria-controls="featured-rail" onClick={() => stepRail(-1)}>
-              <ChevronLeft size={16} aria-hidden="true" />
-            </button>
-            <button type="button" aria-label="Sljedeća ponuda" aria-controls="featured-rail" onClick={() => stepRail(1)}>
-              <ChevronRight size={16} aria-hidden="true" />
-            </button>
-          </>}
-          <a href="#svi-oglasi" className="text-link home-more-link" onClick={event => {
-            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-            event.preventDefault();
-            onShowAll();
-          }}><span className="home-utility-mobile">Svi oglasi</span><span className="home-utility-desktop">Prikaži sve oglase</span> <span className="tabular">({number(allList.length)})</span> <ArrowRight size={14} aria-hidden="true" /></a>
-        </div>
-      </div>
-      <div id="featured-rail" ref={railRef} className="featured-rail">
-        {featured.map(({ vehicle }, index) => (
-          <VehicleCard key={vehicle.id} vehicle={vehicle} inRail now={now} saved={savedIds.includes(vehicle.id)}
-            onSave={() => onSave(vehicle.id)} eager={index < 4} onOpen={event => onOpen(event, vehicle.id)} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function PopularBrandsStrip({
-  selectedBrand,
-  onSelectBrand,
-}: {
-  selectedBrand: string;
-  onSelectBrand: (brand: string) => void;
-}) {
-  return (
-    <section className="home-section shell scroll-mt-20" aria-labelledby="brands-title">
-      <div className="home-section-head brand-rail-head">
-        <h2 id="brands-title">Popularne marke</h2>
-        <button type="button" className="brand-rail-all" aria-pressed={!selectedBrand} onClick={() => onSelectBrand("")}>
-          Sve marke <ArrowRight size={14} aria-hidden="true" />
-        </button>
-      </div>
-      <div className="brand-rail" role="group" aria-label="Filtriraj po marki" tabIndex={0}>
-        {popularBrands.map(brand => {
-          const active = selectedBrand === brand;
-          return (
-            <button key={brand} type="button" aria-pressed={active} className={"brand-rail-item" + (active ? " active" : "")}
-              onClick={() => onSelectBrand(active ? "" : brand)}>
-              <span className="brand-rail-pill">
-                <BrandLogo make={brand} size="sm" className="brand-rail-emblem" />
-                <span>{brand}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
 }
 
 function scrollToTop() {
@@ -873,6 +495,7 @@ export default function Marketplace({
   const [savedOnly, setSavedOnly] = useState(false);
   const [dealerOnly, setDealerOnly] = useState(initialDealerOnly);
   const [panel, setPanel] = useState<Panel>(null);
+  const [sheet, setSheet] = useState(false);
   const [dealerId,setDealerId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(initialDetailId);
   const resultsScroll = useRef(0);
@@ -1045,7 +668,8 @@ export default function Marketplace({
   const results = useMemo(() => matchVehicles(inventory, search, boostClock), [inventory, search, boostClock]);
   const savedCount = allVehicles.filter(v => savedIds.includes(v.id)).length;
   const activeCount = searchFilterCount(search);
-  const update = (next: Search) => { setVisibleCount(24); setSearch(next); writeSearch(next); };
+  const update = (next: Search, replace = false) => { setVisibleCount(24); setSearch(next); writeSearch(next, replace); };
+  const listed = useMemo(() => dedupeListings(results), [results]);
   const scrollResults = () => requestAnimationFrame(() => document.getElementById("svi-oglasi")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }));
   const apply = () => {
     cancelResultScroll.current?.();
@@ -1155,6 +779,8 @@ export default function Marketplace({
     document.title = page ? page + " | AUTOPLAC.HR" : "AUTOPLAC.HR — Rabljena vozila i provjera cijena u Hrvatskoj";
   }, [path, detailTitle]);
   const filters = <FilterControls search={search} count={results.length} update={update} apply={apply}/>;
+  // SEO landing pages and dealer profiles bring their own H1.
+  const ResultsHeading = seoHeader || dealerProfile ? "h2" : "h1";
   const isDealershipPath = typeof path === "string" && path.startsWith("/autokuce/");
   const activeHeaderRoute = isDealershipPath ? "/autokuce"
     : path === "/" && (dealerOnly || savedOnly || detailId || dealerId) ? "" : path;
@@ -1166,6 +792,14 @@ export default function Marketplace({
       account={account ? { name: account.profile.name, avatar: account.profile.avatarUrl, unread: account.unreadCount } : undefined}
       onNavigate={href => href === "/" ? showMarket() : navigate(href)}
       onPublish={() => startPublish()}
+      location={search.grad}
+      locations={{ counties: croatianCounties, cities }}
+      onLocation={grad => {
+        const onMarket = !detailId && !legalPath && !isDealershipPath
+          && !["/autokuce", "/procjena-cijene", "/ppmv-kalkulator", "/racun", "/prijava", "/registracija", "/predaj-oglas"].includes(path);
+        if (onMarket) update({ ...search, grad });
+        else navigate("/" + (grad ? "?grad=" + encodeURIComponent(grad) : ""));
+      }}
       onSaved={enabled => {
         if (path !== "/" || dealerId) navigate("/");
         else goToResults();
@@ -1223,104 +857,72 @@ export default function Marketplace({
         <div className="empty-state"><h1>{loadedInventory ? "Oglas nije dostupan" : "Učitavanje oglasa…"}</h1><button type="button" className="btn secondary" onClick={backToResults}>Natrag na rezultate</button></div>
       </main> : <>
       {seoHeader}
-      {!skipHero && (
-        <>
-          <HeroSearch
-            search={search}
-            count={results.length}
-            totalCount={allVehicles.length}
-            activeCount={activeCount}
-            update={update}
-            onSubmit={scrollResults}
-            onQuery={next => {
-              setDealerOnly(false);
-              setSavedOnly(false);
-              update(next);
-              scrollResults();
-            }}
-          />
-          <FeaturedListingsRail
-            vehicles={allVehicles}
-            now={boostClock}
-            savedIds={savedIds}
-            onOpen={openListing}
-            onSave={id => void toggleSaved(id)}
-            onShowAll={() => {
-              setDealerOnly(false);
-              setSavedOnly(false);
-              update({ ...initialSearch, sortiranje: search.sortiranje, prikaz: search.prikaz });
-              scrollResults();
-            }}
-          />
-          <PopularBrandsStrip
-            selectedBrand={search.marka}
-            onSelectBrand={brand => {
-              setDealerOnly(false);
-              setSavedOnly(false);
-              update({
-                ...initialSearch,
-                marka: brand,
-                sortiranje: search.sortiranje,
-                prikaz: search.prikaz,
-              });
-              scrollResults();
-            }}
-          />
-          <PartnerStrip />
-        </>
-      )}
-      <main id="svi-oglasi" className="shell market">
-        <div className="hidden lg:block min-w-0 self-stretch">
-          <aside className="filter-sidebar" aria-labelledby="filter-title">
-            <h2 id="filter-title">Filteri</h2>
-            <FilterControls search={search} count={results.length} update={update} apply={apply} compact />
+      <div id="svi-oglasi" className="ap-market bg-(--ap-canvas)">
+        <div className="mx-auto flex w-full max-w-[1440px] flex-col lg:flex-row">
+          <aside aria-label="Filteri" className="hidden w-full shrink-0 border-r border-(--ap-line-strong) bg-(--ap-card) px-5 py-6 lg:block lg:min-h-[calc(100vh-64px)] lg:w-[272px] min-[1441px]:border-l">
+            <FilterRail search={search} update={update} inventory={inventory} onAdvanced={() => setPanel("filters")} />
           </aside>
-        </div>
-        <section className="results" id="vozila" aria-labelledby="results-title">
-          {dealerProfile && <section className="detail-panel seller-card dealership-profile" aria-label="Profil autokuće">
-            <h1>{dealerProfile.seller}</h1>
-          <ul className="dealer-brand-tags" aria-label="Marke u ponudi">{dealerMakes.map(make => <li key={make}><BrandLogo make={make} size="xs"/>{make}</li>)}</ul>
-            <p>{dealerProfile.sellerAddress || dealerProfile.city}</p>
-            {dealerProfile.sellerWorkingHours && <p className="tabular">{dealershipHoursToday(dealerProfile.sellerWorkingHours)}</p>}
-            {dealerProfile.sellerHours && <p>{dealerProfile.sellerHours}</p>}
-          </section>}
-          <div className="mobile-tools">
-            <button type="button" className="btn secondary" aria-haspopup="dialog" onClick={() => setPanel("filters")}><SlidersHorizontal size={16}/> Filteri {activeCount > 0 && <span className="tabular">({activeCount})</span>}</button>
-            <button type="button" className="btn quiet mobile-nav-action" onClick={() => {scrollToTop();setPanel("tax");}}>PPMV</button>
-            <button type="button" className="btn quiet mobile-nav-action" onClick={() => navigate("/procjena-cijene")}>Procjena</button>
-            <button type="button" className="btn quiet mobile-nav-action" aria-pressed={path === "/autokuce" || isDealershipPath} onClick={() => navigate("/autokuce")}>Autokuće</button>
-          </div>
-          {path === "/rabljena-vozila" && <form className="catalog-text-search" role="search" aria-label="Pretraži rabljena vozila" onSubmit={event => {
-            event.preventDefault();
-            const query = String(new FormData(event.currentTarget).get("query") ?? "").trim();
-            update(parseVehicleQuery(query, search));
-            scrollResults();
-          }}>
-            <input type="search" name="query" maxLength={200} aria-label="Upišite marku, model, grad ili opremu"
-              placeholder="Marka, model, grad ili oprema" defaultValue={search.upit} />
-            <button type="submit" className="btn primary"><SearchIcon size={16} aria-hidden="true" /> Pretraži</button>
-          </form>}
-          <div className="results-toolbar">
-            <h2 id="results-title" className="result-count" aria-live="polite">{savedOnly ? "Spremljeno" : "Pronađeno"} <strong className="tabular">{results.length}</strong> {results.length === 1 ? "vozilo" : "vozila"}{dealerOnly && " iz autokuća"}</h2>
-            <div className="results-controls">
-              <Select className="sort-field" label="Sortiraj vozila" value={search.sortiranje} onChange={event => update({ ...search, sortiranje: event.target.value as Search["sortiranje"] })}>{Object.entries(sorts).map(([key, title]) => <option key={key} value={key}>{title}</option>)}</Select>
-              <div className="view-switch" role="group" aria-label="Prikaz rezultata">
-                <button type="button" aria-label="Lista" title="Lista" aria-pressed={search.prikaz === "lista"} onClick={() => update({ ...search, prikaz: "lista" })}><List size={17}/></button>
-                <button type="button" aria-label="Mreža" title="Mreža" aria-pressed={search.prikaz === "grid"} onClick={() => update({ ...search, prikaz: "grid" })}><Grid2X2 size={16}/></button>
+          <main className="min-w-0 flex-1 px-4 py-6 sm:px-5 lg:px-8 lg:py-7" aria-labelledby="results-title">
+            {dealerProfile && <section className="mb-6 rounded-2xl border border-(--ap-line-strong) bg-(--ap-card) p-5" aria-label="Profil autokuće">
+              <h1 className="text-[20px] font-extrabold tracking-[-0.02em] text-(--ap-ink)">{dealerProfile.seller}</h1>
+              <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1.5 text-[12.5px] text-(--ap-text-2)" aria-label="Marke u ponudi">
+                {dealerMakes.map(make => <li key={make} className="inline-flex items-center gap-1.5"><BrandLogo make={make} size="xs"/>{make}</li>)}
+              </ul>
+              <p className="mt-2 text-[13px] text-(--ap-text-2)">{dealerProfile.sellerAddress || dealerProfile.city}</p>
+              {dealerProfile.sellerWorkingHours && <p className="text-[13px] text-(--ap-text-2) tabular-nums">{dealershipHoursToday(dealerProfile.sellerWorkingHours)}</p>}
+              {dealerProfile.sellerHours && <p className="text-[13px] text-(--ap-text-2)">{dealerProfile.sellerHours}</p>}
+            </section>}
+            <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--ap-mute)">
+                  {savedOnly ? "Spremljena vozila" : "Rabljena vozila"} · {search.grad || "Hrvatska"}
+                </p>
+                <ResultsHeading id="results-title" className="mt-1 text-[24px] font-extrabold tracking-[-0.02em] text-(--ap-ink) tabular-nums lg:text-[26px]" aria-live="polite">
+                  {number(listed.length)} {plural(listed.length, "vozilo", "vozila", "vozila")} {dealerOnly ? "iz autokuća" : "u ponudi"}
+                </ResultsHeading>
               </div>
+              <label className="flex items-center gap-2">
+                <span className="text-[12px] text-(--ap-text-2)">Sortiraj:</span>
+                <span className="relative">
+                  <select value={catalogSorts.includes(search.sortiranje as typeof catalogSorts[number]) ? search.sortiranje : "newest"}
+                    onChange={event => update({ ...search, sortiranje: event.target.value as Search["sortiranje"] })}
+                    className="ap-select h-9 appearance-none rounded-full border border-(--ap-line) bg-(--ap-card) pl-3.5 pr-8 text-[13px] font-medium text-(--ap-ink) shadow-[0_1px_2px_rgba(16,24,40,0.05)] outline-none focus-visible:ring-2 focus-visible:ring-(--ap-focus)/40">
+                    {catalogSorts.map(key => <option key={key} value={key}>{sorts[key]}</option>)}
+                  </select>
+                  <ChevronDown size={14} aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-(--ap-text-2)" />
+                </span>
+              </label>
             </div>
-          </div>
-          {results.length ? <div className={"listings " + (search.prikaz === "lista" ? "list-view" : "grid-view")}>{results.slice(0, visibleCount).map((vehicle, index) => (
-            <Fragment key={vehicle.id}>
-              <VehicleCard vehicle={vehicle} saved={savedIds.includes(vehicle.id)} eager={false}
-                horizontal={search.prikaz === "lista"} onOpen={event => openListing(event, vehicle.id)} onSave={() => toggleSaved(vehicle.id)} />
-            </Fragment>
-          ))}</div> : <div className="empty-state"><h2>{savedOnly && !savedCount ? "Nemate spremljenih vozila" : "Nema vozila za odabrane filtre"}</h2><button type="button" className="btn secondary" onClick={() => { if (savedOnly && !savedCount) setSavedOnly(false); update({ ...initialSearch, prikaz: search.prikaz }); }}>{savedOnly && !savedCount ? "Pogledaj ponudu" : "Poništi filtere"}</button></div>}
-          {results.length > visibleCount && <button className="btn secondary mt-3 min-h-11" type="button" onClick={() => setVisibleCount(count => count + 24)}>
-            Prikaži još vozila
-          </button>}
-        </section>
-      </main>
+            <div className="sticky top-[72px] z-20 -mt-2 mb-5 lg:hidden">
+              <button type="button" aria-haspopup="dialog" onClick={() => setSheet(true)}
+                className="ap-press inline-flex h-10 items-center gap-2 rounded-full bg-(--ap-ink) px-4 text-[13px] font-semibold text-(--ap-on-ink) shadow-[0_4px_12px_rgba(16,24,40,0.12)]">
+                <SlidersHorizontal size={15} aria-hidden="true" /> Filteri{activeCount > 0 && <span className="tabular-nums">({activeCount})</span>}
+              </button>
+            </div>
+            {listed.length ? <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {listed.slice(0, visibleCount).map((vehicle, index) => <CatalogCard key={vehicle.id} vehicle={vehicle}
+                saved={savedIds.includes(vehicle.id)} eager={index < 3}
+                onOpen={event => openListing(event, vehicle.id)} onSave={() => void toggleSaved(vehicle.id)} />)}
+            </div> : <div className="rounded-2xl border border-(--ap-line-strong) bg-(--ap-card) px-6 py-14 text-center">
+              <h2 className="text-[17px] font-bold text-(--ap-ink)">{savedOnly && !savedCount ? "Nemate spremljenih vozila" : "Nema vozila za odabrane filtre"}</h2>
+              <button type="button" className="ap-press mt-4 inline-flex h-9 items-center gap-2 rounded-full bg-(--ap-ink) px-4 text-[13px] font-semibold text-(--ap-on-ink) hover:bg-(--ap-ink-hover)"
+                onClick={() => { if (savedOnly && !savedCount) setSavedOnly(false); update({ ...initialSearch, prikaz: search.prikaz }); }}>
+                <RotateCcw size={14} aria-hidden="true" /> {savedOnly && !savedCount ? "Pogledaj ponudu" : "Resetiraj sve filtere"}
+              </button>
+            </div>}
+            {listed.length > visibleCount && <div className="mt-8 flex justify-center">
+              <button type="button" onClick={() => setVisibleCount(count => count + 24)}
+                className="ap-press h-10 rounded-full border border-(--ap-line) bg-(--ap-card) px-5 text-[13px] font-semibold text-(--ap-ink) hover:bg-(--ap-fill)">
+                Prikaži još vozila <span className="text-(--ap-faint) tabular-nums">({number(listed.length - visibleCount)})</span>
+              </button>
+            </div>}
+          </main>
+        </div>
+      </div>
+      {sheet && <FilterSheet count={listed.length} onClose={() => setSheet(false)}>
+        <FilterRail search={search} update={update} inventory={inventory} showTitle={false}
+          onAdvanced={() => { setSheet(false); setPanel("filters"); }} />
+      </FilterSheet>}
     </>}
     </div>
     <footer className="site-footer">

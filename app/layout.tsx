@@ -51,9 +51,15 @@ export const metadata: Metadata = {
   },
 };
 
+const themeScript = `try{if(localStorage.getItem("autoplac.theme")==="dark"){var d=document.documentElement;d.classList.add("dark");d.style.colorScheme="dark"}}catch(e){}`;
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="hr" className="dark" style={{ colorScheme: "dark" }} suppressHydrationWarning>
+    <html lang="hr" style={{ colorScheme: "light" }} suppressHydrationWarning>
+      <head>
+        {/* Light is the default (DESIGN.md §2). Apply an explicit dark opt-in before first paint. */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>
         {children}
         <AdSenseScript />

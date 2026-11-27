@@ -113,8 +113,16 @@ export const number = (value: number) => num.format(value);
 export const euro = (value: number, cents = false) => (cents ? decimals : num).format(value) + " €";
 export const registered = (date: string) => date.slice(5, 7) + "/" + date.slice(0, 4);
 export const power = (kw: number) => kw + " kW (" + Math.round(kw * 1.35962) + " KS)";
+// Listing objects are replaced, never mutated, so a per-object cache is safe and keeps
+// live filtering (slider drags, histogram, brand counts) cheap.
+const valuationCache = new WeakMap<Vehicle, MarketValuationResult>();
 export function marketValuation(vehicle: Vehicle): MarketValuationResult {
-  return evaluateVehiclePrice(vehicle);
+  let result = valuationCache.get(vehicle);
+  if (!result) {
+    result = evaluateVehiclePrice(vehicle);
+    valuationCache.set(vehicle, result);
+  }
+  return result;
 }
 export function rating(vehicle: Vehicle): PriceRatingTier {
   return evaluateVehiclePrice(vehicle).rating;
