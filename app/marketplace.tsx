@@ -1147,6 +1147,10 @@ export default function Marketplace({
     if (path !== "/racun") navigate(status === "active" ? "/" : "/racun");
   }
   useEffect(() => {
+    // /spremljeno is a dedicated saved-vehicles view backed by the same inventory.
+    if (path === "/spremljeno") { setSavedOnly(true); setDealerOnly(false); }
+  }, [path]);
+  useEffect(() => {
     if (path === "/predaj-oglas") {
       if (account) {
         setEditing(undefined);
@@ -1172,6 +1176,7 @@ export default function Marketplace({
       "/prijava": "Prijava na račun | AUTOPLAC.HR",
       "/registracija": "Registracija računa | AUTOPLAC.HR",
       "/predaj-oglas": "Predaj oglas | AUTOPLAC.HR",
+      "/spremljeno": "Spremljena vozila | AUTOPLAC.HR",
       "/autokuce": "Autokuće i saloni | AUTOPLAC.HR",
       "/ppmv-kalkulator": "PPMV Kalkulator 2026 | AUTOPLAC.HR",
       "/procjena-cijene": "Procjena tržišne cijene vozila | AUTOPLAC.HR",

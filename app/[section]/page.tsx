@@ -24,6 +24,11 @@ const sectionMeta = {
     description: "Besplatno predajte oglas za rabljeno vozilo na AUTOPLAC.HR uz AI prepoznavanje opreme i procjenu tržišne cijene.",
     noindex: true,
   },
+  spremljeno: {
+    title: "Spremljena vozila",
+    description: "Vaša spremljena vozila i obavijesti o promjeni cijene na AUTOPLAC.HR.",
+    noindex: true,
+  },
   "procjena-cijene": {
     title: "Besplatna procjena tržišne cijene rabljenog vozila u RH",
     description:
