@@ -75,7 +75,7 @@ export function AdSlot({
         aria-label={campaign.badge}
       >
         <div className="flex items-center justify-between mb-1 px-1">
-          <span className="text-[10.5px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
             {campaign.badge}
           </span>
         </div>
@@ -104,7 +104,7 @@ export function AdSlot({
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="px-1.5 py-0.5 rounded bg-[var(--hover)] border border-[var(--border)] text-[10.5px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+                <span className="px-1.5 py-0.5 rounded bg-[var(--hover)] border border-[var(--border)] text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
                   {campaign.badge}
                 </span>
                 <span className="text-[11.5px] font-semibold text-[#2563EB]">{campaign.eyebrow}</span>
@@ -137,7 +137,7 @@ export function AdSlot({
       >
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
-            <span className="px-1.5 py-0.5 rounded bg-[var(--hover)] border border-[var(--border)] text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+            <span className="px-1.5 py-0.5 rounded bg-[var(--hover)] border border-[var(--border)] text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
               {campaign.badge}
             </span>
             <span className="text-[11px] font-semibold text-[#2563EB]">{campaign.eyebrow}</span>
@@ -183,7 +183,7 @@ export function AdSlot({
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-1.5 py-0.5 rounded bg-[var(--hover)] border border-[var(--border)] text-[10.5px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+              <span className="px-1.5 py-0.5 rounded bg-[var(--hover)] border border-[var(--border)] text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
                 {campaign.badge}
               </span>
               <span className="text-[11.5px] font-semibold text-emerald-700 dark:text-emerald-400">
@@ -217,7 +217,7 @@ export function AdSlot({
     >
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="px-1.5 py-0.5 rounded bg-[var(--hover)] border border-[var(--border)] text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+          <span className="px-1.5 py-0.5 rounded bg-[var(--hover)] border border-[var(--border)] text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
             {campaign.badge}
           </span>
           <span className="text-[11px] font-semibold text-[#2563EB]">{campaign.eyebrow}</span>

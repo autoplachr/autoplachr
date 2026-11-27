@@ -56,7 +56,7 @@ export function ValuationAuditPanel({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span
-                    className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[10.5px] font-semibold border-[var(--border)] bg-[var(--hover)] text-[var(--spec)]`}
+                    className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[11px] font-semibold border-[var(--border)] bg-[var(--hover)] text-[var(--spec)]`}
                   >
                     {factor.category}
                   </span>

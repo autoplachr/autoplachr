@@ -1399,7 +1399,7 @@ export function AccountPage({
                         >
                           <p className="!m-0 whitespace-pre-wrap">{msg.body}</p>
                           <span
-                            className={`block text-[10.5px] mt-1 tabular-nums ${
+                            className={`block text-[11px] mt-1 tabular-nums ${
                               mine ? "text-blue-100 text-right" : "text-[var(--muted)]"
                             }`}
                           >

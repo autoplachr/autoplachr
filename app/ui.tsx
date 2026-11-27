@@ -298,7 +298,7 @@ export function Rating({
             event.preventDefault();
             event.stopPropagation();
           }}
-          className={`absolute bottom-full mb-1.5 ${align === "right" ? "right-0" : "left-0"} z-30 w-[250px] max-w-[calc(100vw-32px)] rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-2.5 text-[11.5px] leading-[1.45] text-slate-700 dark:text-zinc-200 shadow-lg pointer-events-auto`}
+          className={`absolute bottom-full mb-1.5 ${align === "right" ? "right-0" : "left-0"} z-30 w-[250px] max-w-[calc(100vw-32px)] rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-2.5 text-[11.5px] leading-[1.45] text-slate-700 dark:text-zinc-200 pointer-events-auto`}
         >
           {popoverText}
         </div>
