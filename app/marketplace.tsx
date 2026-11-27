@@ -406,11 +406,11 @@ function HeroSearch({ search, count, totalCount, activeCount, update, onSubmit, 
   return (
     <section id="hero-search" className="marketplace-home hero-search" aria-labelledby="hero-title">
       <div className="px-3 pt-2 md:px-6 md:pt-3">
-        <div className="relative mx-auto h-[150px] max-w-7xl overflow-hidden rounded-lg bg-[#0D0F12] md:h-[290px] lg:h-[330px]">
+        <div className="relative mx-auto h-[185px] max-w-7xl overflow-hidden rounded-lg bg-[#0D0F12] md:h-[380px] lg:h-[420px]">
           <NextImage src="/images/hero-autoplac.webp" alt="" fill priority sizes="(min-width: 1280px) 1280px, 100vw"
-            className="object-cover object-[78%_46%] md:object-[76%_44%]" />
+            className="object-cover object-[76%_64%] md:object-[74%_66%]" />
           <div className="absolute inset-0 bg-linear-to-r from-[#0D0F12]/80 via-[#0D0F12]/25 to-transparent" aria-hidden="true" />
-          <div className="absolute inset-y-0 left-0 flex max-w-[78%] flex-col justify-center px-4 pb-9 md:max-w-xl md:px-10 md:pb-14 lg:px-12">
+          <div className="absolute inset-y-0 left-0 flex max-w-[78%] flex-col justify-start px-4 pt-6 md:max-w-xl md:px-10 md:pt-10 lg:px-12 lg:pt-14">
             <h1 id="hero-title" className="text-[22px] font-bold leading-[1.1] tracking-tight text-white md:text-3xl lg:text-[38px]">Pronađi pravi auto.</h1>
             <p className="mt-1.5 max-w-md text-xs font-normal text-slate-200/95 md:mt-2 md:text-sm lg:text-base">
               <span className="md:hidden"><span className="tabular-nums">{number(totalCount)}</span> {plural(totalCount, "vozilo", "vozila", "vozila")} u Hrvatskoj</span>
@@ -421,7 +421,7 @@ function HeroSearch({ search, count, totalCount, activeCount, update, onSubmit, 
       </div>
 
       <div className="px-3 md:px-6">
-        <div className="hero-panel relative z-10 mx-auto -mt-9 max-w-5xl rounded-lg bg-[#151821] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.65)] ring-1 ring-white/[0.08] md:-mt-14 md:p-6">
+        <div className="hero-panel relative z-10 mx-auto -mt-8 max-w-6xl rounded-lg bg-[#151821] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.65)] ring-1 ring-white/[0.08] md:-mt-10 md:p-6">
           <form className="flex" role="search" aria-label="Pretraga prema opisu vozila" onSubmit={event => {
             event.preventDefault();
             if (query.trim()) onQuery(parseVehicleQuery(query, search));
@@ -517,7 +517,7 @@ function HeroSearch({ search, count, totalCount, activeCount, update, onSubmit, 
           </form>
         </div>
 
-        <nav className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 pb-1 pt-1 text-xs text-slate-500 md:pt-2 dark:text-slate-400" aria-label="Objava oglasa i alati za kupce">
+        <nav className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 pb-1 pt-1 text-xs text-slate-500 md:pt-2 dark:text-slate-400" aria-label="Objava oglasa i alati za kupce">
           <div className="flex flex-wrap items-center gap-x-2">
             <a className="hero-utility-link" href="/predaj-oglas"><span className="home-utility-mobile">Predaja <span className="tabular-nums">0 €</span></span><span className="home-utility-desktop">Privatna predaja oglasa: <span className="tabular-nums">0 €</span></span></a>
             <span aria-hidden="true">·</span>
@@ -596,29 +596,6 @@ function LeasingEstimate() {
       </ul>
       <a href="/ppmv-kalkulator">Izračunaj PPMV <ArrowRight size={15} aria-hidden="true" /></a>
     </section>
-  );
-}
-
-function DiscoveryBar({ search, onApply }: { search: Search; onApply: (next: Search) => void }) {
-  const base = { ...initialSearch, sortiranje: search.sortiranje, prikaz: search.prikaz };
-  const pills: { label: string; active: boolean; filters: Partial<Search> }[] = [
-    { label: "Novo danas", active: search.kolekcija === "danas", filters: { kolekcija: "danas", sortiranje: "newest" } },
-    { label: "Dizel", active: search.gorivo === "Dizel", filters: { gorivo: "Dizel" } },
-    { label: "Automatik", active: search.mjenjac === "Automatski", filters: { mjenjac: "Automatski" } },
-    { label: "Do 15.000 €", active: search.cijena === "15000", filters: { cijena: "15000" } },
-    { label: "Autokuće", active: search.kolekcija === "autokuce", filters: { kolekcija: "autokuce" } },
-    { label: "Potvrđeni km (CVH)", active: search.opcije.includes("cvh"), filters: { opcije: ["cvh"] } },
-  ];
-
-  return (
-    <nav className="quick-discovery shell marketplace-home" aria-label="Brzi odabir vozila">
-      <div className="quick-discovery-pills">
-        {pills.map(({ label, active, filters }) => (
-          <button key={label} type="button" className="quick-pill" aria-pressed={active}
-            onClick={() => onApply(active ? base : { ...base, ...filters })}>{label}</button>
-        ))}
-      </div>
-    </nav>
   );
 }
 
@@ -1206,15 +1183,6 @@ export default function Marketplace({
             update={update}
             onSubmit={scrollResults}
             onQuery={next => {
-              setDealerOnly(false);
-              setSavedOnly(false);
-              update(next);
-              scrollResults();
-            }}
-          />
-          <DiscoveryBar
-            search={search}
-            onApply={next => {
               setDealerOnly(false);
               setSavedOnly(false);
               update(next);
