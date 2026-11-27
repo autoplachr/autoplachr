@@ -918,52 +918,37 @@ export function AccountPage({
 
   return (
     <main className="shell account-shell seller-center flex flex-col gap-4 max-w-[1200px]">
-      <header className="detail-panel rounded-xl flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 rounded-full bg-[#2563EB]/15 border border-[#2563EB]/30 text-[#2563EB] flex items-center justify-center font-bold text-[15px] shrink-0">
+      <header className="account-header flex flex-wrap items-center justify-between gap-4 border-b border-[var(--hairline)] pb-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--hover)] text-[15px] font-bold text-[var(--spec)]">
             {account.profile.avatarUrl ? (
-              <img src={account.profile.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
+              <img src={account.profile.avatarUrl} alt="" className="h-full w-full object-cover" />
             ) : (
               initials
             )}
           </div>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="!m-0 text-[20px] font-bold text-[var(--text)] truncate">{account.profile.name}</h1>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--border)] bg-[var(--hover)] text-[11px] font-semibold text-[var(--spec)]">
-                {account.profile.type === "dealer" ? (
-                  <>
-                    <Building2 size={12} className="text-[#2563EB]" /> Autokuća B2B
-                  </>
-                ) : (
-                  <>
-                    <UserRound size={12} className="text-[#2563EB]" /> Privatni račun
-                  </>
-                )}
-              </span>
-              {account.verified && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                  <ShieldCheck size={12} /> Verificiran
-                </span>
-              )}
-            </div>
-            <p className="text-[13px] text-[var(--muted)] !m-0 truncate">
-              {account.email} · {account.profile.city}
-              {account.profile.type === "dealer" && account.profile.subdomain ? ` · ${account.profile.subdomain}.autoplac.hr` : ""}
+            <h1 className="!m-0 truncate text-[20px] font-bold leading-tight text-[var(--text)]">{account.profile.name}</h1>
+            <p className="!m-0 flex flex-wrap items-center gap-x-1.5 text-[13px] text-[var(--muted)]">
+              <span>{account.profile.type === "dealer" ? "Autokuća B2B" : "Privatni račun"}</span>
+              {account.verified && <><span aria-hidden="true">·</span><span className="inline-flex items-center gap-1"><Check size={13} strokeWidth={2.25} aria-hidden="true" />Verificiran</span></>}
+              <span aria-hidden="true">·</span><span className="truncate">{account.email}</span>
+              {account.profile.city && <><span aria-hidden="true">·</span><span>{account.profile.city}</span></>}
+              {account.profile.type === "dealer" && account.profile.subdomain && <><span aria-hidden="true">·</span><span>{account.profile.subdomain}.autoplac.hr</span></>}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button type="button" className="btn primary" onClick={() => onPublish()}>
-            <Plus size={15} /> Predaj novi oglas
+        <div className="flex items-center gap-1">
+          <button type="button" className="account-primary" onClick={() => onPublish()}>
+            <Plus size={15} aria-hidden="true" /> Predaj novi oglas
           </button>
-          <button className="btn secondary" type="button" onClick={signOut}>
+          <button className="account-text-button" type="button" onClick={signOut}>
             Odjava
           </button>
         </div>
       </header>
 
-      <nav className="flex flex-wrap gap-1.5 border-b border-[var(--border)] pb-2.5" aria-label="Odjeljci računa">
+      <nav className="account-tabs" aria-label="Odjeljci računa">
         {tabs.map(item => {
           const active = tab === item.key || (item.key === "pregled" && tab === "oglasi");
           return (
@@ -976,23 +961,9 @@ export function AccountPage({
                 setError("");
                 setMessage("");
               }}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-semibold border transition-colors ${
-                active
-                  ? "bg-[#2563EB] text-white border-[#2563EB]"
-                  : "bg-[var(--surface)] text-[var(--spec)] border-[var(--border)] hover:bg-[var(--hover)]"
-              }`}
             >
-              {item.icon}
-              <span>{item.label}</span>
-              {item.badge !== undefined && (
-                <span
-                  className={`px-1.5 py-0.2 rounded-full text-[11px] font-bold tabular-nums ${
-                    active ? "bg-white/20 text-white" : "bg-[var(--hover)] text-[var(--text)] border border-[var(--border)]"
-                  }`}
-                >
-                  {item.badge}
-                </span>
-              )}
+              {item.label}
+              {item.badge !== undefined && <span className="tabular-nums text-[var(--muted)]">({item.badge})</span>}
             </button>
           );
         })}
@@ -1008,11 +979,6 @@ export function AccountPage({
                 setError(errorText(problem));
               }
             }}
-            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-semibold border transition-colors ${
-              tab === "moderiranje"
-                ? "bg-[#2563EB] text-white border-[#2563EB]"
-                : "bg-[var(--surface)] text-[var(--spec)] border-[var(--border)] hover:bg-[var(--hover)]"
-            }`}
           >
             DSA moderiranje
           </button>
@@ -1267,9 +1233,9 @@ export function AccountPage({
       )}
 
       {/* TAB 3: PORUKE */}
-      {tab === "poruke" && <div className="seller-inbox-switch" role="group" aria-label="Vrsta poruka">
-        <button type="button" className="btn secondary" aria-pressed={inboxMode === "leads"} onClick={() => setInboxMode("leads")}>Upiti s oglasa</button>
-        <button type="button" className="btn secondary" aria-pressed={inboxMode === "chat"} onClick={() => setInboxMode("chat")}>Razgovori</button>
+      {tab === "poruke" && <div className="account-tabs account-subtabs" role="group" aria-label="Vrsta poruka">
+        <button type="button" aria-pressed={inboxMode === "leads"} onClick={() => setInboxMode("leads")}>Upiti s oglasa</button>
+        <button type="button" aria-pressed={inboxMode === "chat"} onClick={() => setInboxMode("chat")}>Razgovori</button>
       </div>}
       {tab === "poruke" && inboxMode === "leads" && <LeadInbox items={analytics.inquiries} listings={account.listings} reload={loadAnalytics} />}
       {tab === "poruke" && inboxMode === "chat" && (

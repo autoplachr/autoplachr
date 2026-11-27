@@ -1,9 +1,14 @@
 import Marketplace from "./marketplace";
 import { JsonLd } from "../src/components/JsonLd";
 import { SITE_NAME, SITE_URL, staticCatalogVehicles, vehicleSeoPath } from "../src/lib/seo";
+import { getPublicCatalog } from "../src/lib/public-catalog";
 
-export default function Page() {
-  const catalog = staticCatalogVehicles();
+// Re-render at most once a minute so the SSR listing count matches the live inventory.
+export const revalidate = 60;
+
+export default async function Page() {
+  // Same catalog the client would fetch, so hydration starts at the final count (no 38 -> 40 jump).
+  const catalog = await getPublicCatalog().catch(() => staticCatalogVehicles());
   const structuredData = [
     {
       "@context": "https://schema.org",
@@ -42,7 +47,7 @@ export default function Page() {
   return (
     <>
       <JsonLd data={structuredData} />
-      <Marketplace />
+      <Marketplace initialVehicles={catalog} />
     </>
   );
 }

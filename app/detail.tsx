@@ -386,82 +386,68 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
         </section>}
       </div>
       <aside className="detail-sidebar" aria-label="Cijena i kontakt prodavača">
-        <section className="detail-panel price-evaluation p-4 flex flex-col gap-2.5" id="kontakt-prodavaca" aria-label="Cijena oglasa">
-          <div className="flex items-baseline justify-between gap-2 flex-wrap">
-            <div className="flex flex-col gap-0.5">
-              {vehicle.previousPriceEur && vehicle.previousPriceEur > vehicle.price && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[13px] line-through text-[var(--muted)] tabular-nums">
-                    {euro(vehicle.previousPriceEur)}
-                  </span>
-                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/12 border border-emerald-500/25 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold tabular-nums">
-                    -{euro(vehicle.previousPriceEur - vehicle.price)}
-                  </span>
-                </div>
-              )}
-              <strong className="detail-price tabular !m-0">{euro(vehicle.price)}</strong>
-            </div>
-            <span className="text-[12px] text-[var(--muted)]">{tax}</span>
-          </div>
-
-          <div className="pt-2 border-t border-[var(--border)] flex flex-col gap-2">
-            {showPriceBadge && <span className="verified-price-savings text-[13px] font-semibold">Ispod tržišne cijene</span>}
-            <a
-              href={valuationUrl}
-              onClick={e => {
-                if (onOpenValuation) onOpenValuation(e, valuationUrl);
-              }}
-              className="text-link min-h-11 self-start"
-            >
+        <div className="detail-contact">
+          <section className="detail-contact-block" id="kontakt-prodavaca" aria-label="Cijena oglasa">
+            {vehicle.previousPriceEur && vehicle.previousPriceEur > vehicle.price && (
+              <p className="flex items-center gap-2 text-[13px] tabular-nums">
+                <span className="line-through text-[var(--muted)]">{euro(vehicle.previousPriceEur)}</span>
+                <span className="font-semibold text-[#047857] dark:text-[#10B981]">−{euro(vehicle.previousPriceEur - vehicle.price)}</span>
+              </p>
+            )}
+            <strong className="block text-3xl font-bold leading-tight tracking-tight tabular-nums text-[var(--text)]">{euro(vehicle.price)}</strong>
+            <p className="mt-1 text-[13px] text-[var(--muted)]">{tax}</p>
+            {showPriceBadge && <p className="verified-price-savings mt-2 text-[13px] font-semibold">Ispod tržišne cijene</p>}
+            <a href={valuationUrl} onClick={e => { if (onOpenValuation) onOpenValuation(e, valuationUrl); }}
+              className="text-link mt-1 inline-flex min-h-11 items-center text-[13px]">
               Kako računamo tržišnu cijenu? →
             </a>
-          </div>
-        </section>
-        <section id="upit-prodavacu" ref={inquiryPanel} tabIndex={-1} className="detail-panel seller-card" aria-label="Kontakt prodavača">
-          <h2>{vehicle.dealershipId ? <a className="legal-link" href={"/autokuce/"+encodeURIComponent(vehicle.dealershipId)}>{vehicle.seller}</a> : vehicle.seller || "Privatni prodavač"}</h2>
-          {vehicle.verified && <p className="verified-label"><Check size={15}/> Verificirana autokuća</p>}
-          {vehicle.sellerRating && <p className="seller-rating"><Star size={15} fill="currentColor"/><span className="tabular">{vehicle.sellerRating.score.toLocaleString("hr-HR")} ({vehicle.sellerRating.reviews} recenzija)</span></p>}
-          <p>{vehicle.sellerAddress || [vehicle.postalCode, vehicle.city].filter(Boolean).join(" ")}</p>
-          {vehicle.sellerWorkingHours ? <>
-            <p className="tabular">{dealershipHoursToday(vehicle.sellerWorkingHours)}</p>
-            <details className="seller-hours"><summary>Tjedno radno vrijeme</summary><p>{vehicle.sellerHours}</p></details>
-            {vehicle.sellerWorkingHours.afterHours && !vehicle.sellerWorkingHours.appointmentOnly && <p>{appointmentLabel}.</p>}
-          </> : vehicle.sellerHours && <p>Radno vrijeme: <span className="tabular">{vehicle.sellerHours}</span></p>}
-          <div className="contact-actions">
-            {phone && (!vehicle.demo || vehicle.dealer) ? <a className="btn primary tabular" href={"tel:" + phone.replace(/[^+\d]/g, "")}><Phone size={16}/>{phone}</a> :
-              <button className="btn primary" type="button" disabled={Boolean(phone) || revealing} onClick={reveal}><Phone size={16}/>{phone ? phone + " (demo)" : "Prikaži broj telefona"}</button>}
-            {(vehicle.phone || phone || (vehicle.contactAvailable && leadTrackingAvailable())) &&
-              <button type="button" className="btn secondary" disabled={revealing} onClick={() => void whatsapp()}>WhatsApp upit</button>}
-            <button type="button" className="btn secondary" aria-expanded={inquiry} onClick={() => setInquiry(!inquiry)}>
-              <MessageSquare size={16} aria-hidden="true" /> Pošalji upit prodavaču
-            </button>
-            {onStartChat && <button type="button" className="text-link" onClick={() => void onStartChat(vehicle)}>Započni razgovor</button>}
-          </div>
-          {inquiry && <form className="inquiry form-stack" onSubmit={send}>
-            <fieldset className="inquiry-questions"><legend>Brza pitanja</legend>{questions.map((question, index) => <label key={question}><Checkbox name="question" value={question} defaultChecked={index === 0}/> {question}</label>)}</fieldset>
-            <label className="field"><span>Ime</span><input name="name" required maxLength={70}/></label>
-            <label className="field"><span>Telefon</span><input name="phone" type="tel" maxLength={40}/></label>
-            <label className="field"><span>E-pošta</span><input name="email" type="email" maxLength={160}/></label>
-            <label className="field"><span>Dodatna poruka</span><textarea rows={3} maxLength={1000} value={message} onChange={event => setMessage(event.target.value)}/></label>
-            <button className="btn primary" type="submit" disabled={sendingInquiry}>Pošalji upit</button>
-            <p role="status">{confirmation}</p>
-          </form>}
-          {replies.length > 0 && <section className="lead-buyer-replies" aria-label="Odgovori prodavača" aria-live="polite">
-            <h3>Odgovori prodavača</h3>
-            {replies.map((reply, index) => <p key={reply.created_at + index}>{reply.text}</p>)}
-          </section>}
-        </section>
-        <a
-          href={vinHref}
-          target="_blank"
-          rel="noopener noreferrer sponsored"
-          className="detail-panel py-2.5 px-3.5 flex items-center justify-between gap-2 text-[13px] font-semibold text-[var(--spec)] hover:text-[#2563EB] hover:border-[#2563EB]/40 transition-colors"
-        >
+          </section>
+          <section id="upit-prodavacu" ref={inquiryPanel} tabIndex={-1} className="detail-contact-block" aria-label="Kontakt prodavača">
+            <h2 className="flex items-center gap-1.5 text-[15px] font-bold text-[var(--text)]">
+              {vehicle.dealershipId ? <a className="legal-link" href={"/autokuce/"+encodeURIComponent(vehicle.dealershipId)}>{vehicle.seller}</a> : vehicle.seller || "Privatni prodavač"}
+              {vehicle.verified && <Check size={15} strokeWidth={2.25} className="text-[#2563EB]" role="img" aria-label={vehicle.dealer ? "Verificirana autokuća" : "Verificirani prodavač"} />}
+            </h2>
+            <div className="mt-1.5 grid gap-1 text-[13px] text-[var(--spec)]">
+              {vehicle.sellerRating && <p className="seller-rating tabular-nums"><Star size={14} fill="currentColor" aria-hidden="true"/><span>{vehicle.sellerRating.score.toLocaleString("hr-HR")} · {vehicle.sellerRating.reviews} {[2, 3, 4].includes(vehicle.sellerRating.reviews % 10) && ![12, 13, 14].includes(vehicle.sellerRating.reviews % 100) ? "recenzije" : "recenzija"}</span></p>}
+              <p>{vehicle.sellerAddress || [vehicle.postalCode, vehicle.city].filter(Boolean).join(" ")}</p>
+              {vehicle.sellerWorkingHours ? <>
+                <p className="tabular-nums text-[var(--muted)]">{dealershipHoursToday(vehicle.sellerWorkingHours)}</p>
+                <details className="seller-hours !m-0"><summary>Tjedno radno vrijeme</summary><p>{vehicle.sellerHours}</p></details>
+                {vehicle.sellerWorkingHours.afterHours && !vehicle.sellerWorkingHours.appointmentOnly && <p className="text-[var(--muted)]">{appointmentLabel}.</p>}
+              </> : vehicle.sellerHours && <p className="text-[var(--muted)]">Radno vrijeme: <span className="tabular-nums">{vehicle.sellerHours}</span></p>}
+            </div>
+            <div className="detail-contact-actions">
+              {phone && (!vehicle.demo || vehicle.dealer) ? <a className="detail-contact-primary tabular-nums" href={"tel:" + phone.replace(/[^+\d]/g, "")}><Phone size={16} aria-hidden="true"/>{phone}</a> :
+                <button className="detail-contact-primary" type="button" disabled={Boolean(phone) || revealing} onClick={reveal}><Phone size={16} aria-hidden="true"/>{phone ? phone + " (demo)" : "Prikaži broj telefona"}</button>}
+              {(vehicle.phone || phone || (vehicle.contactAvailable && leadTrackingAvailable())) &&
+                <button type="button" className="detail-contact-secondary" disabled={revealing} onClick={() => void whatsapp()}>WhatsApp upit</button>}
+              <button type="button" className="detail-contact-secondary" aria-expanded={inquiry} onClick={() => setInquiry(!inquiry)}>
+                <MessageSquare size={16} aria-hidden="true" /> Pošalji upit prodavaču
+              </button>
+              {onStartChat && <button type="button" className="text-link min-h-11 justify-self-center text-[13px]" onClick={() => void onStartChat(vehicle)}>Započni razgovor</button>}
+            </div>
+            {inquiry && <form className="inquiry form-stack mt-3" onSubmit={send}>
+              <fieldset className="inquiry-questions"><legend>Brza pitanja</legend>{questions.map((question, index) => <label key={question}><Checkbox name="question" value={question} defaultChecked={index === 0}/> {question}</label>)}</fieldset>
+              <label className="field"><span>Ime</span><input name="name" required maxLength={70}/></label>
+              <label className="field"><span>Telefon</span><input name="phone" type="tel" maxLength={40}/></label>
+              <label className="field"><span>E-pošta</span><input name="email" type="email" maxLength={160}/></label>
+              <label className="field"><span>Dodatna poruka</span><textarea rows={3} maxLength={1000} value={message} onChange={event => setMessage(event.target.value)}/></label>
+              <button className="btn primary" type="submit" disabled={sendingInquiry}>Pošalji upit</button>
+              <p role="status">{confirmation}</p>
+            </form>}
+            {replies.length > 0 && <section className="lead-buyer-replies mt-3" aria-label="Odgovori prodavača" aria-live="polite">
+              <h3>Odgovori prodavača</h3>
+              {replies.map((reply, index) => <p key={reply.created_at + index}>{reply.text}</p>)}
+            </section>}
+          </section>
+        </div>
+        <a href={vinHref} target="_blank" rel="noopener noreferrer sponsored"
+          className="flex min-h-11 items-center justify-between gap-2 px-1 text-[13px] font-semibold text-[var(--spec)] hover:text-[var(--text)] hover:underline underline-offset-4">
           <span className="inline-flex items-center gap-2">
-            <Fingerprint size={15} className="text-[#2563EB] shrink-0" aria-hidden="true" />
+            <Fingerprint size={15} className="shrink-0 text-[var(--muted)]" aria-hidden="true" />
             <span>Provjeri povijest vozila (VIN)</span>
           </span>
-          <ExternalLink size={14} className="text-[var(--muted)] shrink-0" aria-hidden="true" />
+          <ExternalLink size={14} className="shrink-0 text-[var(--muted)]" aria-hidden="true" />
         </a>
       </aside>
     </div>

@@ -7,7 +7,7 @@ import { VehicleCard } from "./vehicle-card";
 import { BrandLogo } from "../src/components/BrandLogo";
 import { AdSlot } from "../src/components/AdSlot";
 import { ArrowRight, Bike, Car, ChevronLeft, ChevronRight, Truck, Check, Grid2X2, List, Navigation, RotateCcw, Search as SearchIcon, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import NextImage from "next/image";
 import { SEO_CITIES, TOP_FOOTER_BRANDS, slugifyHr, vehicleIdFromPath, vehicleListingPath } from "../src/lib/seo";
@@ -117,7 +117,54 @@ const compactBodyLabels: Partial<Record<(typeof bodyFilters)[number]["id"], stri
   kombi: "Kombi / Van",
 };
 
-function BasicFilters({ search, update, compact = false }: SearchEditorProps & { compact?: boolean }) {
+function VariantField({ search, update }: SearchEditorProps) {
+  return <label className="field basic-variant">
+    <span>Varijanta / Paket</span>
+    <input type="search" maxLength={100} placeholder="npr. M-Sport, GTI, S-Line..." value={search.varijanta}
+      onChange={event => update({ ...search, varijanta: event.target.value })} />
+  </label>;
+}
+
+function BodyTypeFilter({ search, update, compact = false }: SearchEditorProps & { compact?: boolean }) {
+  return <fieldset>
+    <legend>Tip karoserije</legend>
+    <div className="body-filter-grid">
+      {bodyFilters.map(({ id, label }) => (
+        <label className="body-filter" key={id}>
+          <Checkbox checked={search.karoserija.includes(id)} onChange={event => update({
+            ...search, karoserija: event.target.checked ? [...search.karoserija, id] : search.karoserija.filter(body => body !== id),
+          })} />
+          <span>{compact ? compactBodyLabels[id] ?? label : label}</span>
+        </label>
+      ))}
+    </div>
+  </fieldset>;
+}
+
+function SeatDoorFilters({ search, update }: SearchEditorProps) {
+  return <div className="seat-door-row">
+    <fieldset>
+      <legend>Broj sjedala</legend>
+      <div className="paired-filters">
+        {(["sjedalaOd", "sjedalaDo"] as const).map(key => (
+          <Select key={key} label={key === "sjedalaOd" ? "Od" : "Do"}
+            aria-label={key === "sjedalaOd" ? "Broj sjedala od" : "Broj sjedala do"} className="numeric-select"
+            value={search[key]} onChange={event => update(updateRange(search, key, event.target.value))}>
+            <option value="">Sve</option>
+            {seatOptions.map(seats => <option key={seats} value={seats}>{seats === "8" ? "8+" : seats}</option>)}
+          </Select>
+        ))}
+      </div>
+    </fieldset>
+    <Select label="Broj vrata" className="numeric-select" value={search.vrata}
+      onChange={event => update({ ...search, vrata: event.target.value })}>
+      <option value="">Sve</option>
+      {doorOptions.map(doors => <option key={doors} value={doors}>{doors} vrata</option>)}
+    </Select>
+  </div>;
+}
+
+function PriceRangeFilter({ search, update }: SearchEditorProps) {
   function priceField(key: "cijenaOd" | "cijena", label: string) {
     const selected = Number(search[key]);
     const options = selected && !prices.includes(selected) ? [...prices, selected].sort((a, b) => a - b) : prices;
@@ -127,65 +174,41 @@ function BasicFilters({ search, update, compact = false }: SearchEditorProps & {
       {options.map(price => <option key={price} value={price}>{euro(price)}</option>)}
     </Select>;
   }
+  return <fieldset>
+    <legend>Cijena (€)</legend>
+    <div className="price-filter-row">
+      <div className="paired-filters">
+        {priceField("cijenaOd", "Od")}
+        {priceField("cijena", "Do")}
+      </div>
+      <label className="inline-filter-check">
+        <Checkbox checked={search.samoPrilike || search.kolekcija === "prilike"} onChange={event => update({
+          ...search, samoPrilike: event.target.checked, kolekcija: search.kolekcija === "prilike" ? "" : search.kolekcija,
+        })} />
+        Samo prilike ispod cijene
+      </label>
+    </div>
+  </fieldset>;
+}
+
+function BasicFilters({ search, update }: SearchEditorProps) {
   return <section className="basic-filters split-fields" aria-label="Osnovni podaci">
     <h3>Osnovni podaci</h3>
     <div className="basic-identity">
       <VehicleIdentityFields search={search} update={update} />
-      <label className="field basic-variant">
-        <span>Varijanta / Paket</span>
-        <input type="search" maxLength={100} placeholder="npr. M-Sport, GTI, S-Line..." value={search.varijanta}
-          onChange={event => update({ ...search, varijanta: event.target.value })} />
-      </label>
+      <VariantField search={search} update={update} />
     </div>
-    <fieldset>
-      <legend>Tip karoserije</legend>
-      <div className="body-filter-grid">
-        {bodyFilters.map(({ id, label }) => (
-          <label className="body-filter" key={id}>
-            <Checkbox checked={search.karoserija.includes(id)} onChange={event => update({
-              ...search, karoserija: event.target.checked ? [...search.karoserija, id] : search.karoserija.filter(body => body !== id),
-            })} />
-            <span>{compact ? compactBodyLabels[id] ?? label : label}</span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
-    <div className="seat-door-row">
-      <fieldset>
-        <legend>Broj sjedala</legend>
-        <div className="paired-filters">
-          {(["sjedalaOd", "sjedalaDo"] as const).map(key => (
-            <Select key={key} label={key === "sjedalaOd" ? "Od" : "Do"}
-              aria-label={key === "sjedalaOd" ? "Broj sjedala od" : "Broj sjedala do"} className="numeric-select"
-              value={search[key]} onChange={event => update(updateRange(search, key, event.target.value))}>
-              <option value="">Sve</option>
-              {seatOptions.map(seats => <option key={seats} value={seats}>{seats === "8" ? "8+" : seats}</option>)}
-            </Select>
-          ))}
-        </div>
-      </fieldset>
-      <Select label="Broj vrata" className="numeric-select" value={search.vrata}
-        onChange={event => update({ ...search, vrata: event.target.value })}>
-        <option value="">Sve</option>
-        {doorOptions.map(doors => <option key={doors} value={doors}>{doors} vrata</option>)}
-      </Select>
-    </div>
+    <BodyTypeFilter search={search} update={update} />
+    <SeatDoorFilters search={search} update={update} />
     <PurchaseMode search={search} update={update} />
-    <fieldset>
-      <legend>Cijena (€)</legend>
-      <div className="price-filter-row">
-        <div className="paired-filters">
-          {priceField("cijenaOd", "Od")}
-          {priceField("cijena", "Do")}
-        </div>
-        <label className="inline-filter-check">
-          <Checkbox checked={search.samoPrilike || search.kolekcija === "prilike"} onChange={event => update({
-            ...search, samoPrilike: event.target.checked, kolekcija: search.kolekcija === "prilike" ? "" : search.kolekcija,
-          })} />
-          Samo prilike ispod cijene
-        </label>
-      </div>
-    </fieldset>
+    <PriceRangeFilter search={search} update={update} />
+  </section>;
+}
+
+function FilterGroup({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  return <section className="basic-filters split-fields filter-group" aria-labelledby={id}>
+    <h3 id={id} className="filter-group-title">{title}</h3>
+    {children}
   </section>;
 }
 
@@ -287,6 +310,7 @@ function FilterControls({ search, count, update, apply, compact = false }: {
     { key: "mjenjac", title: "Mjenjač", all: "Svi mjenjači", values: gears },
     { key: "grad", title: "Županija", all: "Sve županije", values: croatianCounties },
   ];
+  const groupId = useId();
   function renderField({ key, title, all, values, format, numeric }: FilterField) {
     const current = numeric ? Number(search[key]) : search[key];
     const options = current && !values.includes(current) ? [current, ...values] : values;
@@ -295,17 +319,39 @@ function FilterControls({ search, count, update, apply, compact = false }: {
       {options.map(value => <option key={value} value={value}>{format ? format(value) : value}</option>)}
     </Select>;
   }
+  const field = (key: FilterKey) => renderField(fields.find(item => item.key === key)!);
   return <form className="filter-form" onSubmit={event => { event.preventDefault(); apply(); }}>
     <div className="filter-body">
-      <BasicFilters search={search} update={update} compact={compact} />
-      <div className="search-fields split-fields filter-details">
-        <Select label="Kategorija" value={search.kategorija} onChange={event => update({ ...search, kategorija: event.target.value as CategoryId })}>
-          {categories.map(cat => <option key={cat.id || "all"} value={cat.id}>{cat.label}</option>)}
-        </Select>
-        <GenerationFilter search={search} update={update} />
-        {fields.map(renderField)}
-        <EngineFilters search={search} update={update} />
-      </div>
+      <FilterGroup id={groupId + "-osnovno"} title="Osnovni podaci">
+        <div className="basic-identity">
+          <VehicleIdentityFields search={search} update={update} />
+          <VariantField search={search} update={update} />
+        </div>
+        <div className="search-fields">
+          <Select label="Kategorija" value={search.kategorija} onChange={event => update({ ...search, kategorija: event.target.value as CategoryId })}>
+            {categories.map(cat => <option key={cat.id || "all"} value={cat.id}>{cat.label}</option>)}
+          </Select>
+          <GenerationFilter search={search} update={update} />
+          {field("grad")}
+        </div>
+      </FilterGroup>
+      <FilterGroup id={groupId + "-cijena"} title="Cijena i godište">
+        <PriceRangeFilter search={search} update={update} />
+        <div className="search-fields">
+          {field("godiste")}
+          {field("km")}
+        </div>
+        <PurchaseMode search={search} update={update} />
+      </FilterGroup>
+      <FilterGroup id={groupId + "-pogon"} title="Pogon i karoserija">
+        <div className="search-fields">
+          {field("gorivo")}
+          {field("mjenjac")}
+          <EngineFilters search={search} update={update} />
+        </div>
+        <BodyTypeFilter search={search} update={update} compact={compact} />
+        <SeatDoorFilters search={search} update={update} />
+      </FilterGroup>
       <MakeEquipmentOptions make={search.marka} model={search.model} selected={search.oprema.filter(id => typeof id === "string" && !id.startsWith("eq:"))} onChange={oprema => update({ ...search, oprema: [...search.oprema.filter(id => typeof id === "string" && id.startsWith("eq:")), ...oprema] })}/>
       {search.marka && <EquipmentSelector filter key={search.marka + search.model} vehicle={{
         make:search.marka, model:search.model, generation:search.generacija, catalogEquipment:search.oprema,
@@ -536,7 +582,7 @@ function HeroSearch({ search, count, totalCount, activeCount, update, onSubmit, 
 function PartnerStrip() {
   const affiliateUrl = process.env.NEXT_PUBLIC_CARVERTICAL_AFFILIATE_URL?.trim();
   return (
-    <section className="shell partner-strip" aria-label="Objava oglasa i provjera povijesti vozila">
+    <section className="partner-strip mx-auto max-w-7xl" aria-label="Objava oglasa i provjera povijesti vozila">
       <section className="partner-strip-cell" aria-labelledby="dealer-partner-title">
         <h2 id="dealer-partner-title">Za autokuće i privatne prodavatelje</h2>
         <p>Automatski uvoz lagera i A4 cjenik za staklo</p>
@@ -551,7 +597,7 @@ function PartnerStrip() {
             <ShieldCheck size={19} aria-hidden="true" />
             <span className="partner-wordmark" role="img" aria-label="carVertical" />
           </h2>
-          <span className="partner-strip-tag">Službeni partner · -20% popusta</span>
+          <p>Provjera povijesti vozila · <span className="tabular-nums">−20 %</span> popusta</p>
         </div>
         <form className="partner-vin-form" action="https://www.carvertical.com/hr/precheck" method="get" target="_blank" rel="noopener noreferrer"
           onSubmit={event => {
@@ -1275,10 +1321,6 @@ export default function Marketplace({
           {results.length > visibleCount && <button className="btn secondary mt-3 min-h-11" type="button" onClick={() => setVisibleCount(count => count + 24)}>
             Prikaži još vozila
           </button>}
-          <section id="autokuce" className="dealership">
-            <h2>Za autokuće i uvoznike</h2>
-            <button className="btn secondary" type="button" onClick={() => {setDealerRegistration(true);navigate(account ? "/racun" : "/registracija?tip=dealer");}}>Registriraj autokuću</button>
-          </section>
         </section>
       </main>
     </>}

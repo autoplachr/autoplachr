@@ -28,18 +28,19 @@ export function AnalyticsOverview({ data, account, open, onEdit, onSheet, onPaus
   const metrics = new Map(data.metrics.map(item => [item.listingId, item]));
   const active = account.listings.filter(item => item.status === "active");
   return <div className="seller-dashboard">
-    <div className="seller-kpis">
+    <dl className="seller-kpis" aria-label="Učinak oglasa u zadnjih 30 dana">
       {[
-        ["Ukupni pregledi (30 dana)", views],
-        ["Klikovi na broj telefona", phone],
+        ["Ukupni pregledi (30d)", views],
+        ["Klikovi na telefon", phone],
         ["WhatsApp upiti", whatsapp],
         ["Primljene poruke", messages],
-      ].map(([label, total], index) => <section key={label} className="seller-panel seller-kpi">
-        <h2>{label}</h2><strong className="tabular">{number(Number(total))}</strong>
-        {index === 1 && <span className="seller-kpi-roi">Kontaktni klikovi</span>}
-        {index === 3 && <span className="tabular">{number(data.unread)} nepročitano</span>}
-      </section>)}
-    </div>
+      ].map(([label, total], index) => <div key={label} className="seller-kpi">
+        <dt>{label}</dt>
+        <dd className="tabular-nums">{number(Number(total))}
+          {index === 3 && data.unread > 0 && <span className="seller-kpi-note tabular-nums">{number(data.unread)} nepročitano</span>}
+        </dd>
+      </div>)}
+    </dl>
     <section className="seller-panel">
       <div className="seller-section-head"><h2>Učinak aktivnih oglasa</h2><button className="btn secondary" type="button" onClick={onManage}>Upravljaj svim oglasima</button></div>
       {active.length ? <div className="seller-table-scroll"><table className="seller-performance tabular">
@@ -55,13 +56,13 @@ export function AnalyticsOverview({ data, account, open, onEdit, onSheet, onPaus
             <td>{number(metric?.whatsapp ?? 0)}</td><td>{number(metric?.messages ?? 0)}</td>
             <td>{conversion === null ? "—" : new Intl.NumberFormat("hr-HR", { maximumFractionDigits: 1 }).format(conversion) + " %"}</td>
             <td><div className="seller-table-actions">
-              <button className="btn secondary listing-boost-action" type="button" onClick={() => onBoost(listing)}>
-                <Zap size={15} aria-hidden="true" /> Istakni oglas
+              <button className="seller-action-chip listing-boost-action" type="button" onClick={() => onBoost(listing)}>
+                <Zap size={13} aria-hidden="true" /> Istakni
               </button>
-              <button className="btn secondary" type="button" onClick={() => onSheet(listing)}>A4 Cjenik za staklo</button>
-              <button className="btn quiet" type="button" onClick={() => onEdit(listing)}>Uredi</button>
-              <button className="btn quiet" type="button" onClick={() => onPause(listing)}>Pauziraj</button>
-              <button className="btn quiet" type="button" onClick={() => onDelete(listing)}>Obriši</button>
+              <button className="seller-action-chip" type="button" onClick={() => onSheet(listing)}>A4 cjenik</button>
+              <button className="seller-action-link" type="button" onClick={() => onEdit(listing)}>Uredi</button>
+              <button className="seller-action-link" type="button" onClick={() => onPause(listing)}>Pauziraj</button>
+              <button className="seller-action-link seller-action-danger" type="button" onClick={() => onDelete(listing)}>Obriši</button>
             </div></td>
           </tr>;
         })}</tbody>
@@ -106,9 +107,10 @@ export function LeadInbox({ items, listings, reload }: { items: ListingLead[]; l
     } catch (problem) { setError(problem instanceof Error ? problem.message : "Odgovor nije poslan."); }
     finally { setBusy(false); }
   }
+  if (!items.length) return <p className="seller-empty">Još nema upita s oglasa.</p>;
   return <section className="seller-panel">
     <h2>Upiti s oglasa</h2>
-    {!items.length ? <p>Još nema upita s oglasa.</p> : <div className="seller-lead-inbox">
+    <div className="seller-lead-inbox">
       <ul className="seller-lead-list">{items.map(item => {
         const listing = listings.find(vehicle => vehicle.id === item.listing_id);
         return <li key={item.id}>
@@ -138,7 +140,7 @@ export function LeadInbox({ items, listings, reload }: { items: ListingLead[]; l
           </form>
         </> : <p>Odaberite upit za pregled razgovora.</p>}
       </div>
-    </div>}
+    </div>
     {error && <p role="alert">{error}</p>}
   </section>;
 }
