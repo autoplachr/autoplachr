@@ -1,4 +1,4 @@
-import { CalendarDays, Check, Gauge, Route, Settings2 } from "lucide-react";
+import { CalendarDays, Check, Gauge, MapPin, Route, Settings2 } from "lucide-react";
 import type { MouseEvent } from "react";
 import { ListingPhoto } from "../src/components/ListingPhoto";
 import { vehicleListingPath } from "../src/lib/seo";
@@ -58,12 +58,14 @@ export function VehicleCard({ vehicle, saved, onOpen, onSave, eager, horizontal 
           {note && <span>{note}</span>}
         </div>
         <div className="vehicle-card-seller">
-          {vehicle.city && <span className="vehicle-card-city">{vehicle.city}</span>}
-          <span className="vehicle-card-seller-line">
-            <span className="vehicle-card-seller-name" title={seller}>{seller}</span>
-            {vehicle.verified && <Check size={13} strokeWidth={2} role="img"
-              aria-label={vehicle.dealer ? "Verificirana autokuća" : "Verificirani prodavač"} />}
-          </span>
+          {vehicle.city && <>
+            <MapPin size={13} aria-hidden="true" />
+            <span className="vehicle-card-city">{vehicle.city}</span>
+            <span aria-hidden="true">·</span>
+          </>}
+          <span className="vehicle-card-seller-name" title={seller}>{seller}</span>
+          {vehicle.verified && <Check size={13} strokeWidth={2} role="img"
+            aria-label={vehicle.dealer ? "Verificirana autokuća" : "Verificirani prodavač"} />}
         </div>
       </footer>
     </div>

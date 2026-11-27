@@ -6,7 +6,7 @@ import { Navbar } from "../src/components/Navbar";
 import { VehicleCard } from "./vehicle-card";
 import { BrandLogo } from "../src/components/BrandLogo";
 import { AdSlot } from "../src/components/AdSlot";
-import { ArrowDown, ArrowRight, Bike, Car, ChevronLeft, ChevronRight, Truck, Check, Grid2X2, List, Navigation, Pause, Play, RotateCcw, Search as SearchIcon, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
+import { ArrowRight, Bike, Car, ChevronLeft, ChevronRight, Truck, Check, Grid2X2, List, Navigation, RotateCcw, Search as SearchIcon, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { SEO_CITIES, TOP_FOOTER_BRANDS, slugifyHr, vehicleIdFromPath, vehicleListingPath } from "../src/lib/seo";
@@ -329,9 +329,10 @@ const queryExamples = [
   "Volkswagen Golf 8 GTD do 24.000 €",
 ];
 
-function HeroSearch({ search, count, activeCount, update, onSubmit, onQuery }: {
+function HeroSearch({ search, count, totalCount, activeCount, update, onSubmit, onQuery }: {
   search: Search;
   count: number;
+  totalCount: number;
   activeCount: number;
   update: (next: Search) => void;
   onSubmit: () => void;
@@ -395,18 +396,15 @@ function HeroSearch({ search, count, activeCount, update, onSubmit, onQuery }: {
 
   return (
     <section id="hero-search" className="shell marketplace-home hero-search" aria-label="Pretraga vozila">
-      <header className="market-showcase">
-        <img src="/hero-twilight.webp" alt="" fetchPriority="high" />
-        <div className="market-showcase-copy">
-          <h1>Pronađite provjereno vozilo u Hrvatskoj</h1>
-          <p>Stvarne tržišne cijene, provjera CVH kilometraže i PPMV kalkulator.</p>
-          <nav className="market-showcase-promo" aria-label="Objava oglasa i kalkulator">
-            <a href="/predaj-oglas"><strong>0 €</strong> Privatni oglasi</a>
-            <a href="/autokuce">Autokuće · 30 dana gratis</a>
-            <a href="/ppmv-kalkulator">PPMV Kalkulator <ArrowRight size={14} aria-hidden="true" /></a>
-          </nav>
-        </div>
+      <header className="home-search-heading">
+        <h1>Rabljena vozila u Hrvatskoj</h1>
+        <p><span className="tabular">{number(totalCount)}</span> {totalCount === 1 ? "aktivan oglas" : "aktivnih oglasa"} · Verificirane autokuće i privatni prodavači</p>
       </header>
+      <nav className="home-search-utility" aria-label="Objava oglasa i kalkulator">
+        <a href="/predaj-oglas"><span className="home-utility-mobile">Privatni oglasi 0 €</span><span className="home-utility-desktop">Predaj oglas besplatno (0 €)</span></a>
+        <a href="/autokuce"><span className="home-utility-mobile">Autokuće: 6 mj. gratis</span><span className="home-utility-desktop">Za autokuće · 6 mj. gratis</span></a>
+        <a href="/ppmv-kalkulator">PPMV kalkulator</a>
+      </nav>
 
       <div className="search-dock">
         <form className="natural-search" aria-label="Pretraga prema opisu vozila" onSubmit={event => {
@@ -454,7 +452,7 @@ function HeroSearch({ search, count, activeCount, update, onSubmit, onQuery }: {
                   Samo s potvrđenim km (CVH)
                 </label>
               </div>
-              <button type="submit" className="console-cta">Pretraži {number(count)} oglasa</button>
+              <button type="submit" className="console-cta">Prikaži {number(count)} {count === 1 ? "oglas" : "oglasa"}</button>
             </div>
 
             {more && <div id="console-extra" className="console-extra">
@@ -605,87 +603,45 @@ function FeaturedListingsRail({
   onShowAll: () => void;
 }) {
   const railRef = useRef<HTMLDivElement>(null);
-  const interaction = useRef({ hover: false, touch: false, resumeAt: 0, autoUntil: 0 });
-  const [paused, setPaused] = useState(false);
   const featured = useMemo(() => getTopFeaturedListings(allList, now), [allList, now]);
 
-  function stepRail(direction: -1 | 1, automatic = false) {
+  function stepRail(direction: -1 | 1) {
     const rail = railRef.current;
-    const first = rail?.children[0] as HTMLElement | undefined;
-    const second = rail?.children[1] as HTMLElement | undefined;
-    if (!rail || !first || !second) return;
-    const max = rail.scrollWidth - rail.clientWidth;
-    if (max < 2) return;
-    const stride = second.offsetLeft - first.offsetLeft;
-    const wrap = direction === 1 ? rail.scrollLeft >= max - 1 : rail.scrollLeft <= 1;
-    const left = wrap ? (direction === 1 ? 0 : max)
-      : Math.max(0, Math.min(max, (Math.round(rail.scrollLeft / stride) + direction) * stride));
-    const smooth = !wrap && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (automatic) interaction.current.autoUntil = performance.now() + 700;
-    rail.scrollTo({ left, behavior: smooth ? "smooth" : "instant" });
+    const first = rail?.children.item(0);
+    const second = rail?.children.item(1);
+    if (!rail || !(first instanceof HTMLElement) || !(second instanceof HTMLElement)) return;
+    rail.scrollBy({
+      left: direction * (second.offsetLeft - first.offsetLeft),
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+    });
   }
-
-  function stopAutoScroll() {
-    const rail = railRef.current;
-    const state = interaction.current;
-    const time = performance.now();
-    if (rail && time < state.autoUntil) rail.scrollTo({ left: rail.scrollLeft, behavior: "instant" });
-    state.autoUntil = 0;
-    state.resumeAt = time + 4500;
-  }
-
-  useEffect(() => {
-    if (paused || featured.length <= 1) return;
-    const interval = window.setInterval(() => {
-      const rail = railRef.current;
-      const state = interaction.current;
-      if (document.hidden || state.hover || state.touch || state.resumeAt > performance.now()
-        || rail?.parentElement?.contains(document.activeElement)
-        || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-      stepRail(1, true);
-    }, 4500);
-    return () => window.clearInterval(interval);
-  }, [paused, featured.length]);
 
   if (!featured.length) return null;
 
   return (
-    <section className="home-section home-section-first shell marketplace-home featured-section scroll-mt-20 mt-5" aria-labelledby="featured-title"
-      onMouseEnter={() => { interaction.current.hover = true; stopAutoScroll(); }}
-      onMouseLeave={() => { interaction.current.hover = false; }}
-      onFocus={stopAutoScroll}>
+    <section className="home-section home-section-first shell marketplace-home featured-section scroll-mt-20 mt-5" aria-labelledby="featured-title">
       <div className="home-section-head featured-heading">
         <div>
           <h2 id="featured-title">Istaknuta vozila</h2>
           <p>Provjerene ponude autokuća i privatnih prodavača</p>
         </div>
         <div className="featured-controls">
-          <button type="button" className="featured-motion-toggle" aria-label="Pauziraj automatsko pomicanje" aria-pressed={paused}
-            onClick={() => { stopAutoScroll(); setPaused(!paused); }}>
-            {paused ? <Play size={16} aria-hidden="true" /> : <Pause size={16} aria-hidden="true" />}
-          </button>
-          <button type="button" aria-label="Prethodna ponuda" aria-controls="featured-rail" onClick={() => stepRail(-1)}>
-            <ChevronLeft size={19} aria-hidden="true" />
-          </button>
-          <button type="button" aria-label="Sljedeća ponuda" aria-controls="featured-rail" onClick={() => stepRail(1)}>
-            <ChevronRight size={19} aria-hidden="true" />
-          </button>
+          {featured.length > 2 && <>
+            <button type="button" aria-label="Prethodna ponuda" aria-controls="featured-rail" onClick={() => stepRail(-1)}>
+              <ChevronLeft size={16} aria-hidden="true" />
+            </button>
+            <button type="button" aria-label="Sljedeća ponuda" aria-controls="featured-rail" onClick={() => stepRail(1)}>
+              <ChevronRight size={16} aria-hidden="true" />
+            </button>
+          </>}
           <a href="#svi-oglasi" className="text-link home-more-link" onClick={event => {
             if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
             event.preventDefault();
             onShowAll();
-          }}>Prikaži sve oglase (<span className="tabular">{number(allList.length)}</span>) <ArrowDown size={15} aria-hidden="true" /></a>
+          }}><span className="home-utility-mobile">Svi oglasi</span><span className="home-utility-desktop">Prikaži sve oglase</span> <span className="tabular">({number(allList.length)})</span> <ArrowRight size={14} aria-hidden="true" /></a>
         </div>
       </div>
-      <div id="featured-rail" ref={railRef} className="featured-rail"
-        onWheel={stopAutoScroll}
-        onPointerDown={stopAutoScroll}
-        onTouchStart={() => { interaction.current.touch = true; stopAutoScroll(); }}
-        onTouchEnd={() => { interaction.current.touch = false; stopAutoScroll(); }}
-        onTouchCancel={() => { interaction.current.touch = false; stopAutoScroll(); }}
-        onScroll={() => {
-          if (performance.now() >= interaction.current.autoUntil) interaction.current.resumeAt = performance.now() + 4500;
-        }}>
+      <div id="featured-rail" ref={railRef} className="featured-rail">
         {featured.map(({ vehicle }, index) => (
           <VehicleCard key={vehicle.id} vehicle={vehicle} inRail now={now} saved={savedIds.includes(vehicle.id)}
             onSave={() => onSave(vehicle.id)} eager={index < 4} onOpen={event => onOpen(event, vehicle.id)} />
@@ -702,64 +658,27 @@ function PopularBrandsStrip({
   selectedBrand: string;
   onSelectBrand: (brand: string) => void;
 }) {
-  const [paused, setPaused] = useState(false);
-  const railRef = useRef<HTMLDivElement>(null);
   return (
-    <section className="home-section shell scroll-mt-20 overflow-visible" aria-labelledby="brands-title">
+    <section className="home-section shell scroll-mt-20" aria-labelledby="brands-title">
       <div className="home-section-head brand-rail-head">
         <h2 id="brands-title">Popularne marke</h2>
-        <div className="brand-rail-controls">
-          <button type="button" className="brand-rail-toggle"
-            aria-label={paused ? "Pokreni pomicanje marki" : "Zaustavi pomicanje marki"}
-            onClick={() => {
-              if (paused && railRef.current) railRef.current.scrollLeft = 0;
-              setPaused(!paused);
-            }}>
-            {paused ? <Play size={16} aria-hidden="true" /> : <Pause size={16} aria-hidden="true" />}
-          </button>
-          <button type="button" className="brand-rail-all" aria-pressed={!selectedBrand} onClick={() => onSelectBrand("")}>
-            Sve marke <ArrowRight size={14} aria-hidden="true" />
-          </button>
-        </div>
+        <button type="button" className="brand-rail-all" aria-pressed={!selectedBrand} onClick={() => onSelectBrand("")}>
+          Sve marke <ArrowRight size={14} aria-hidden="true" />
+        </button>
       </div>
-      <div className="brand-rail" data-paused={paused} role="group" aria-label="Filtriraj po marki" ref={railRef}
-        onFocus={event => {
-          if (!event.target.matches(":focus-visible")) return;
-          const rail = event.currentTarget;
-          const pill = event.target;
-          rail.scrollLeft = Math.min(Math.max(rail.scrollLeft, pill.offsetLeft + pill.offsetWidth + 12 - rail.clientWidth), pill.offsetLeft - 12);
-        }}
-        onBlur={event => {
-          if (!paused && !event.currentTarget.contains(event.relatedTarget) &&
-            !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-            event.currentTarget.scrollLeft = 0;
-          }
-        }}>
-        <div className="brand-rail-track">
-          {[false, true].map(copy => (
-            <div className="brand-rail-group" key={String(copy)} aria-hidden={copy || undefined}>
-              {popularBrands.map(brand => {
-                const active = selectedBrand === brand;
-                return (
-                  <button
-                    key={brand}
-                    type="button"
-                    tabIndex={copy ? -1 : undefined}
-                    aria-pressed={copy ? undefined : active}
-                    onMouseDown={copy ? event => event.preventDefault() : undefined}
-                    className={"brand-rail-item" + (active ? " active" : "")}
-                    onClick={() => onSelectBrand(active ? "" : brand)}
-                  >
-                    <span className="brand-rail-pill">
-                      <BrandLogo make={brand} size="sm" className="brand-rail-emblem" />
-                      <span>{brand}</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </div>
+      <div className="brand-rail" role="group" aria-label="Filtriraj po marki" tabIndex={0}>
+        {popularBrands.map(brand => {
+          const active = selectedBrand === brand;
+          return (
+            <button key={brand} type="button" aria-pressed={active} className={"brand-rail-item" + (active ? " active" : "")}
+              onClick={() => onSelectBrand(active ? "" : brand)}>
+              <span className="brand-rail-pill">
+                <BrandLogo make={brand} size="sm" className="brand-rail-emblem" />
+                <span>{brand}</span>
+              </span>
+            </button>
+          );
+        })}
       </div>
     </section>
   );
@@ -1247,6 +1166,7 @@ export default function Marketplace({
           <HeroSearch
             search={search}
             count={results.length}
+            totalCount={allVehicles.length}
             activeCount={activeCount}
             update={update}
             onSubmit={scrollResults}
