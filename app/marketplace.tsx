@@ -9,6 +9,7 @@ import { AdSlot } from "../src/components/AdSlot";
 import { ArrowRight, Bike, Car, ChevronLeft, ChevronRight, Truck, Check, Grid2X2, List, Navigation, RotateCcw, Search as SearchIcon, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import NextImage from "next/image";
 import { SEO_CITIES, TOP_FOOTER_BRANDS, slugifyHr, vehicleIdFromPath, vehicleListingPath } from "../src/lib/seo";
 import { BrandSelect } from "../src/components/BrandSelect";
 import { matchesModelSearch } from "../src/lib/model-search";
@@ -329,6 +330,14 @@ const queryExamples = [
   "Volkswagen Golf 8 GTD do 24.000 €",
 ];
 
+/** Croatian count noun: 1 oglas, 2–4 oglasa, 5+ oglasa (11–14 use the plural form). */
+function plural(n: number, one: string, few: string, many: string) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
+
 function HeroSearch({ search, count, totalCount, activeCount, update, onSubmit, onQuery }: {
   search: Search;
   count: number;
@@ -395,44 +404,54 @@ function HeroSearch({ search, count, totalCount, activeCount, update, onSubmit, 
   };
 
   return (
-    <section id="hero-search" className="shell marketplace-home hero-search" aria-label="Pretraga vozila">
-      <header className="home-search-heading">
-        <h1>Rabljena vozila u Hrvatskoj</h1>
-        <p><span className="tabular">{number(totalCount)}</span> {totalCount === 1 ? "aktivan oglas" : "aktivnih oglasa"} · Verificirane autokuće i privatni prodavači</p>
-      </header>
-      <nav className="home-search-utility" aria-label="Objava oglasa i kalkulator">
-        <a href="/predaj-oglas"><span className="home-utility-mobile">Privatni oglasi 0 €</span><span className="home-utility-desktop">Predaj oglas besplatno (0 €)</span></a>
-        <a href="/autokuce"><span className="home-utility-mobile">Autokuće: 6 mj. gratis</span><span className="home-utility-desktop">Za autokuće · 6 mj. gratis</span></a>
-        <a href="/ppmv-kalkulator">PPMV kalkulator</a>
-      </nav>
+    <section id="hero-search" className="marketplace-home hero-search" aria-labelledby="hero-title">
+      <div className="px-3 pt-2 md:px-6 md:pt-3">
+        <div className="relative mx-auto h-[150px] max-w-7xl overflow-hidden rounded-lg bg-[#0D0F12] md:h-[290px] lg:h-[330px]">
+          <NextImage src="/images/hero-autoplac.webp" alt="" fill priority sizes="(min-width: 1280px) 1280px, 100vw"
+            className="object-cover object-[78%_46%] md:object-[76%_44%]" />
+          <div className="absolute inset-0 bg-linear-to-r from-[#0D0F12]/80 via-[#0D0F12]/25 to-transparent" aria-hidden="true" />
+          <div className="absolute inset-y-0 left-0 flex max-w-[78%] flex-col justify-center px-4 pb-9 md:max-w-xl md:px-10 md:pb-14 lg:px-12">
+            <h1 id="hero-title" className="text-[22px] font-bold leading-[1.1] tracking-tight text-white md:text-3xl lg:text-[38px]">Pronađi pravi auto.</h1>
+            <p className="mt-1.5 max-w-md text-xs font-normal text-slate-200/95 md:mt-2 md:text-sm lg:text-base">
+              <span className="md:hidden"><span className="tabular-nums">{number(totalCount)}</span> {plural(totalCount, "vozilo", "vozila", "vozila")} u Hrvatskoj</span>
+              <span className="hidden md:inline"><span className="tabular-nums">{number(totalCount)}</span> {plural(totalCount, "provjereno vozilo", "provjerena vozila", "provjerenih vozila")} autokuća i privatnih prodavača u Hrvatskoj.</span>
+            </p>
+          </div>
+        </div>
+      </div>
 
-      <div className="search-dock">
-        <form className="natural-search" aria-label="Pretraga prema opisu vozila" onSubmit={event => {
-          event.preventDefault();
-          if (query.trim()) onQuery(parseVehicleQuery(query, search));
-        }}>
-          <div className="natural-search-row">
-            <SearchIcon size={20} strokeWidth={1.75} aria-hidden="true" />
-            <input className="no-inner-focus" type="search" aria-label="Opišite vozilo koje tražite" maxLength={200} value={query}
-              placeholder={focused ? "Opišite vozilo koje tražite" : "Npr. " + placeholder} onChange={event => setQuery(event.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} required />
-            <button type="submit" className="natural-submit" aria-label="Pretraži opis vozila">
-              <ArrowRight size={20} strokeWidth={1.75} aria-hidden="true" />
+      <div className="px-3 md:px-6">
+        <div className="hero-panel relative z-10 mx-auto -mt-9 max-w-5xl rounded-lg bg-[#151821] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.65)] ring-1 ring-white/[0.08] md:-mt-14 md:p-6">
+          <form className="flex" role="search" aria-label="Pretraga prema opisu vozila" onSubmit={event => {
+            event.preventDefault();
+            if (query.trim()) onQuery(parseVehicleQuery(query, search));
+          }}>
+            <label className="relative min-w-0 flex-1">
+              <span className="sr-only">Opišite vozilo koje tražite</span>
+              <SearchIcon size={16} strokeWidth={1.75} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input type="search" maxLength={200} value={query} required
+                className="hero-query h-11 w-full rounded-l-md rounded-r-none border border-r-0 border-white/[0.10] bg-[#0D0F12] pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-[#2563EB] md:h-10"
+                placeholder={focused ? "Opišite vozilo koje tražite" : "Npr. " + placeholder}
+                onChange={event => setQuery(event.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />
+            </label>
+            <button type="submit" aria-label="Pretraži opis vozila" className="grid h-11 w-11 flex-none place-items-center rounded-r-md bg-[#2563EB] text-white hover:bg-[#1D4ED8] md:h-10">
+              <ArrowRight size={18} strokeWidth={2} aria-hidden="true" />
             </button>
-          </div>
-        </form>
+          </form>
 
-        <form id="search-console" className="search-console" aria-label="Filtri vozila" onSubmit={event => { event.preventDefault(); onSubmit(); }}>
-          <div className="vehicle-rail" role="group" aria-label="Kategorija vozila">
-            {vehicleRail.map(({ id, label, icon: Icon }) => (
-              <button type="button" key={id} title={label} aria-label={label} aria-pressed={selectedRail === id}
-                onClick={() => update({ ...search, kategorija: id })}>
-                <Icon size={20} strokeWidth={1.75} aria-hidden="true" />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
-          <div className="console-body">
-            <div className="console-grid">
+          <form id="search-console" className="search-console" aria-label="Filtri vozila" onSubmit={event => { event.preventDefault(); onSubmit(); }}>
+            <div className="mt-3 flex overflow-x-auto border-b border-white/[0.08] [scrollbar-width:none] md:mt-4" role="group" aria-label="Kategorija vozila">
+              {vehicleRail.map(({ id, label, icon: Icon }) => {
+                const active = selectedRail === id;
+                return <button type="button" key={id} aria-pressed={active} onClick={() => update({ ...search, kategorija: id })}
+                  className={"-mb-px inline-flex min-h-11 flex-none items-center gap-2 whitespace-nowrap border-b-2 px-2.5 text-[13px] md:px-4 " + (active ? "border-[#2563EB] font-semibold text-white" : "border-transparent font-medium text-slate-400 hover:text-white")}>
+                  <Icon size={16} strokeWidth={1.75} aria-hidden="true" className="hidden sm:block" />
+                  {label}
+                </button>;
+              })}
+            </div>
+
+            <div className="mt-4 console-grid">
               <VehicleIdentityFields search={search} update={update} />
               <div className="console-primary-extra">{numericField("cijena", "Cijena do (€)", "Bez limita", prices, euro)}</div>
               <div id="console-secondary" className={"console-secondary-fields" + (more ? " is-open" : "")}>
@@ -452,7 +471,6 @@ function HeroSearch({ search, count, totalCount, activeCount, update, onSubmit, 
                   Samo s potvrđenim km (CVH)
                 </label>
               </div>
-              <button type="submit" className="console-cta">Prikaži {number(count)} {count === 1 ? "oglas" : "oglasa"}</button>
             </div>
 
             {more && <div id="console-extra" className="console-extra">
@@ -475,24 +493,41 @@ function HeroSearch({ search, count, totalCount, activeCount, update, onSubmit, 
               }} />
             </div>}
 
-            <div className="console-utilities">
-              <label className="console-check console-desktop-cvh">
-                <Checkbox checked={search.opcije.includes("cvh")} onChange={event => update(toggleSearchFlag(search, "cvh", event.target.checked))} />
-                Samo s potvrđenim km (CVH)
-              </label>
-              <div className="console-actions">
-                <button type="button" disabled={!activeCount && !query} onClick={() => {
-                  setQuery("");
-                  update({ ...initialSearch, sortiranje: search.sortiranje, prikaz: search.prikaz });
-                }}><RotateCcw size={16} aria-hidden="true" /> Poništi filtere</button>
-                <button type="button" className="console-more-toggle" aria-expanded={more} aria-controls="console-secondary console-extra" onClick={() => setMore(value => !value)}>
-                  <SlidersHorizontal size={16} aria-hidden="true" />
-                  {more ? "Manje filtera" : "Više filtera"}
-                </button>
+            <div className="mt-3 flex flex-col-reverse gap-1 md:mt-4 md:flex-row md:items-center md:justify-between md:gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 md:justify-start">
+                <label className="console-check console-desktop-cvh">
+                  <Checkbox checked={search.opcije.includes("cvh")} onChange={event => update(toggleSearchFlag(search, "cvh", event.target.checked))} />
+                  Samo s potvrđenim km (CVH)
+                </label>
+                <div className="console-actions">
+                  <button type="button" disabled={!activeCount && !query} onClick={() => {
+                    setQuery("");
+                    update({ ...initialSearch, sortiranje: search.sortiranje, prikaz: search.prikaz });
+                  }}><RotateCcw size={16} aria-hidden="true" /> Poništi filtere</button>
+                  <button type="button" className="console-more-toggle" aria-expanded={more} aria-controls="console-secondary console-extra" onClick={() => setMore(value => !value)}>
+                    <SlidersHorizontal size={16} aria-hidden="true" />
+                    {more ? "Manje filtera" : "Više filtera"}
+                  </button>
+                </div>
               </div>
+              <button type="submit" className="h-11 rounded-md bg-[#2563EB] px-6 text-sm font-semibold text-white tabular-nums hover:bg-[#1D4ED8] md:h-10 md:min-w-[220px]">
+                Prikaži {number(count)} {plural(count, "oglas", "oglasa", "oglasa")}
+              </button>
             </div>
+          </form>
+        </div>
+
+        <nav className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 pb-1 pt-1 text-xs text-slate-500 md:pt-2 dark:text-slate-400" aria-label="Objava oglasa i alati za kupce">
+          <div className="flex flex-wrap items-center gap-x-2">
+            <a className="hero-utility-link" href="/predaj-oglas"><span className="home-utility-mobile">Predaja <span className="tabular-nums">0 €</span></span><span className="home-utility-desktop">Privatna predaja oglasa: <span className="tabular-nums">0 €</span></span></a>
+            <span aria-hidden="true">·</span>
+            <a className="hero-utility-link" href="/autokuce"><span className="home-utility-mobile">Autokuće: 6 mj. gratis</span><span className="home-utility-desktop">Za autokuće: 6 mj. gratis (prvih 50 salona)</span></a>
           </div>
-        </form>
+          <div className="flex flex-wrap items-center gap-x-4">
+            <a className="hero-utility-link" href="/ppmv-kalkulator"><span className="home-utility-mobile">PPMV →</span><span className="home-utility-desktop">PPMV kalkulator →</span></a>
+            <a className="hero-utility-link" href="/procjena-cijene"><span className="home-utility-mobile">Procjena →</span><span className="home-utility-desktop">Procjena tržišne cijene →</span></a>
+          </div>
+        </nav>
       </div>
     </section>
   );
