@@ -14,18 +14,23 @@ export function TaxCalculator({ vehicle, prefillPrice = false }: { vehicle?: Veh
   const [date, setDate] = useState(vehicle ? vehicle.date + "-01" : "");
   const [condition, setCondition] = useState("used");
   const [range, setRange] = useState("");
+  const [changed, setChanged] = useState(false);
   const now = new Date();
   const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
-  const estimate = (!priceConfirmed && fuel !== "electric") || co2 === "" && fuel !== "electric" || fuel === "plugin" && range === "" ? null : estimateTax({
+  const invalidPrice = price !== "" && (!Number.isFinite(Number(price)) || Number(price) < 500);
+  const invalidCo2 = co2 !== "" && (!Number.isFinite(Number(co2)) || Number(co2) < 0 || Number(co2) > 500);
+  const invalidRange = fuel === "plugin" && range !== "" && (!Number.isFinite(Number(range)) || Number(range) < 0);
+  const invalidInputs = fuel !== "electric" && (invalidPrice || invalidCo2 || invalidRange);
+  const estimate = invalidInputs || (!priceConfirmed && fuel !== "electric") || co2 === "" && fuel !== "electric" || fuel === "plugin" && range === "" ? null : estimateTax({
     price: Number(price), co2: Number(co2), registration: condition === "new" ? today : date,
     diesel: fuel === "diesel", used: condition === "used", plugInKm: fuel === "plugin" ? Number(range) : undefined, electric: fuel === "electric",
   }, now);
   return <div className="utility">
     {prefillPrice && <p>Unesena je cijena oglasa kao početna vrijednost. Za procjenu PPMV-a zamijenite je hrvatskom cijenom novog vozila.</p>}
     <p>Unesite hrvatsku cijenu vozila dok je bilo novo, s PDV-om i bez PPMV-a. Za vozila od 2021. unesite WLTP emisiju, a za starija NEDC.</p>
-    <div className="form-grid">
-      <label className="field"><span>Cijena novog vozila (€)</span><input type="number" min="0" step=".01" className="tabular" placeholder="npr. 42.000" value={price} onChange={event => { setPrice(event.target.value); setPriceConfirmed(true); }} disabled={fuel === "electric"} /></label>
-      <label className="field"><span>Emisija CO₂ (g/km)</span><input type="number" min="0" className="tabular" placeholder="npr. 138" value={co2} onChange={event => setCo2(event.target.value)} disabled={fuel === "electric"} /></label>
+    <div className="form-grid" onChangeCapture={() => setChanged(true)}>
+      <label className="field"><span>Cijena novog vozila (€)</span><input type="number" min="500" step=".01" aria-invalid={fuel !== "electric" && invalidPrice} className="tabular" placeholder="npr. 42.000" value={price} onChange={event => { setPrice(event.target.value); setPriceConfirmed(true); }} disabled={fuel === "electric"} /></label>
+      <label className="field"><span>Emisija CO₂ (g/km)</span><input type="number" min="0" max="500" aria-invalid={fuel !== "electric" && invalidCo2} className="tabular" placeholder="npr. 138" value={co2} onChange={event => setCo2(event.target.value)} disabled={fuel === "electric"} /></label>
       <Select label="Gorivo" value={fuel} onChange={event => setFuel(event.target.value)}>
         <option value="other">Benzin / ostalo</option><option value="diesel">Dizel</option><option value="plugin">Plug-in hibrid</option><option value="electric">Struja</option>
       </Select>
@@ -33,6 +38,14 @@ export function TaxCalculator({ vehicle, prefillPrice = false }: { vehicle?: Veh
       {condition === "used" && <label className="field"><span>Prva registracija</span><input type="date" className="tabular" max={today} value={date} onChange={event => setDate(event.target.value)} /></label>}
       {fuel === "plugin" && <label className="field"><span>Električni doseg (km)</span><input type="number" min="0" className="tabular" value={range} onChange={event => setRange(event.target.value)} /></label>}
     </div>
+    {invalidInputs && <p className="form-error" role="alert">{invalidRange
+      ? "Unesite ispravan električni doseg (0 km ili više)."
+      : "Unesite ispravnu vrijednost vozila (min. 500 €) i emisiju CO₂ (0–500 g/km)."}</p>}
+    {!invalidInputs && changed && estimate === null && <p className="form-error" role="status">
+      {condition === "used" && (!date || date > today)
+        ? "Unesite valjan datum prve registracije."
+        : "Provjerite cijenu, emisiju CO₂ i ostale podatke potrebne za izračun."}
+    </p>}
     <div className="calculation" aria-live="polite"><span>Procjena PPMV-a</span><strong className="tabular">{estimate === null ? "—" : euro(estimate, true)}</strong></div>
     <p className="fine-print">Informativni izračun prema tablici ostatka vrijednosti. Ako oglas navodi samo mjesec registracije, unesite točan datum.</p>
     <div className="flex flex-wrap gap-4"><a className="text-link" href={customs} target="_blank" rel="noreferrer">Službeni kalkulator <ExternalLink size={13} /></a><a className="text-link" href={customsTables} target="_blank" rel="noreferrer">Tablice Carinske uprave <ExternalLink size={13} /></a></div>
@@ -51,8 +64,8 @@ function Finance({ price }: { price: number }) {
   const payment = monthlyPayment(price, down, term);
   return <div className="utility">
     <div className="form-grid">
-      <label className="field"><span>Učešće <b className="tabular">{down}%</b></span><input type="range" min="10" max="50" step="5" value={down} onChange={event => setDown(Number(event.target.value))} /></label>
-      <label className="field"><span>Trajanje <b className="tabular">{term} mj.</b></span><input type="range" min="24" max="84" step="12" value={term} onChange={event => setTerm(Number(event.target.value))} /></label>
+      <label className="field"><span>Učešće <b className="tabular">{down}%</b></span><input type="range" aria-label="Učešće u postocima" aria-valuetext={down + "%"} min="10" max="50" step="5" value={down} onChange={event => setDown(Number(event.target.value))} /></label>
+      <label className="field"><span>Trajanje <b className="tabular">{term} mj.</b></span><input type="range" aria-label="Rok otplate u mjesecima" aria-valuetext={term + " mjeseci"} min="24" max="84" step="12" value={term} onChange={event => setTerm(Number(event.target.value))} /></label>
     </div>
     <div className="calculation" aria-live="polite"><span>Procijenjena mjesečna rata</span><strong className="tabular">{euro(payment, true)} / mj.</strong></div>
     <p className="fine-print">Primjer anuiteta uz fiksnu nominalnu kamatu <span className="tabular">6,9%</span> godišnje, bez naknada i ostatka vrijednosti.</p>

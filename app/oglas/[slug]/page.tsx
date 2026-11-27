@@ -1,3 +1,5 @@
+import { notFound, permanentRedirect } from "next/navigation";
+import { getPublicListing } from "../../../src/lib/public-catalog";
 import type { Metadata } from "next";
 import Marketplace from "../../marketplace";
 import { euro, registered, type Vehicle } from "../../catalog";
@@ -14,7 +16,6 @@ import {
 
 type Props = { params: Promise<{ slug: string }> };
 
-export const dynamicParams = false;
 
 export function generateStaticParams() {
   return staticCatalogVehicles().map(vehicle => ({ slug: vehicleSeoSlug(vehicle) }));
@@ -26,7 +27,7 @@ function carJsonLd(vehicle: Vehicle, slug: string) {
   return [
     {
       "@context": "https://schema.org",
-      "@type": "Car",
+      "@type": ["Vehicle", "Car"],
       name: vehicle.title,
       url,
       image: vehicle.photos.map(photo => absoluteImageUrl(photo.src || photo.backup)).filter(Boolean),
@@ -102,13 +103,13 @@ function carJsonLd(vehicle: Vehicle, slug: string) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const vehicle = findVehicleBySeoSlug(slug);
+  const vehicle = findVehicleBySeoSlug(slug) ?? await getPublicListing(slug);
   if (!vehicle) return { title: "Oglas nije dostupan" };
 
   const title = `${vehicle.title} (${registered(vehicle.date)}) • ${euro(vehicle.price)}`;
   const description = `${vehicle.title}, ${registered(vehicle.date)}, ${vehicle.km.toLocaleString("hr-HR")} km, ${vehicle.kw} kW, ${vehicle.fuel}, ${vehicle.gear}, ${vehicle.city}. Provjerite tržišnu cijenu, povijest vozila i kontakt prodavača na AUTOPLAC.HR.`;
   const image = absoluteImageUrl(vehicle.photos[0]?.src || vehicle.photos[0]?.backup);
-  const canonical = `/oglas/${slug}`;
+  const canonical = `/oglas/${vehicleSeoSlug(vehicle)}`;
 
   return {
     title,
@@ -139,11 +140,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function VehicleListingPage({ params }: Props) {
   const { slug } = await params;
-  const vehicle = findVehicleBySeoSlug(slug);
+  const vehicle = findVehicleBySeoSlug(slug) ?? await getPublicListing(slug);
+  if (!vehicle) {
+    const seed = staticCatalogVehicles().find(item => item.id === slug);
+    if (seed) permanentRedirect(`/oglas/${vehicleSeoSlug(seed)}`);
+    notFound();
+  }
   return (
     <>
-      {vehicle && <JsonLd data={carJsonLd(vehicle, slug)} />}
-      <Marketplace initialDetailId={vehicle?.id ?? null} />
+      <JsonLd data={carJsonLd(vehicle, vehicleSeoSlug(vehicle))} />
+      <Marketplace initialPath={`/oglas/${slug}`} initialDetailId={vehicle.id} initialVehicles={[vehicle]} />
     </>
   );
 }

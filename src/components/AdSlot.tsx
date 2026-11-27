@@ -1,11 +1,11 @@
 "use client";
 
+import { consentUpdated, readCookieConsent } from "../lib/cookie-consent";
 import { Building2, Calculator, ExternalLink, Fingerprint, ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NATIVE_AD_CAMPAIGNS, type AdPlacement } from "../data/ad-campaigns";
 
 const ADSENSE_CLIENT_ID = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID?.trim() || "";
-const CONSENT_KEY = "autoplac.cookies.v1";
 
 const SLOT_MIN_HEIGHT: Record<AdPlacement, string> = {
   "hero-leaderboard": "min-h-[90px]",
@@ -21,16 +21,6 @@ const ADSENSE_SLOTS: Record<AdPlacement, string> = {
   "detail-vin-card": process.env.NEXT_PUBLIC_ADSENSE_SLOT_DETAIL?.trim() || "",
 };
 
-function readMarketingConsent(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const raw = localStorage.getItem(CONSENT_KEY) || localStorage.getItem("autoplac_cookie_consent");
-    if (!raw) return false;
-    return (JSON.parse(raw) as { marketing?: boolean })?.marketing === true;
-  } catch {
-    return false;
-  }
-}
 
 export function AdSlot({
   placement,
@@ -50,13 +40,13 @@ export function AdSlot({
 
   useEffect(() => {
     const sync = () => {
-      setUseAdSense(Boolean(ADSENSE_CLIENT_ID && slotId && readMarketingConsent()));
+      setUseAdSense(Boolean(ADSENSE_CLIENT_ID && slotId && (readCookieConsent()?.marketing === true)));
     };
     sync();
-    window.addEventListener("autoplac:cookies-updated", sync);
+    window.addEventListener(consentUpdated, sync);
     window.addEventListener("storage", sync);
     return () => {
-      window.removeEventListener("autoplac:cookies-updated", sync);
+      window.removeEventListener(consentUpdated, sync);
       window.removeEventListener("storage", sync);
     };
   }, [slotId]);

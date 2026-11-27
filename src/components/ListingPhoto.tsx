@@ -49,6 +49,7 @@ function ListingGallery({
   const suppressClickUntil = useRef(0);
 
   const photos = vehicle.photos ?? [];
+  const sizes = "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw";
   const total = photos.length;
   const zoneCount = Math.min(total, 5);
   const active = hoverIndex ?? selection.index;
@@ -149,10 +150,10 @@ function ListingGallery({
       onTouchEnd={handleTouchEnd}
       onTouchCancel={() => { swipe.current = null; }}
     >
-      <CarImage className="listing-photo-layer" layer dim={displayIndex > 0} photo={photos[0]} alt={vehicle.title} eager={eager}
+      <CarImage className="listing-photo-layer" layer dim={displayIndex > 0} photo={photos[0]} alt={vehicle.title} sizes={sizes} eager={eager}
         onUnavailable={total ? () => handleUnavailable(0) : undefined} />
       {active > 0 && (
-        <CarImage key={active} className="listing-photo-layer" layer photo={photos[active]} alt="" eager
+        <CarImage key={active} className="listing-photo-layer" layer photo={photos[active]} alt="" sizes={sizes}
           onReady={() => setReadyIndex(active)}
           onUnavailable={() => handleUnavailable(active)} />
       )}

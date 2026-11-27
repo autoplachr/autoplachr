@@ -83,6 +83,7 @@ export function staticCatalogVehicles(): Vehicle[] {
 
 /** Stable, descriptive per-vehicle slug: title + godište + grad + id (e.g. bmw-320d-g20-m-sport-xdrive-2021-zagreb-g20). */
 export function vehicleSeoSlug(vehicle: Vehicle): string {
+  if (isListingUuid(vehicle.id)) return vehicle.id;
   const year = vehicle.date.slice(0, 4);
   return `${slugifyHr(`${vehicle.title} ${year} ${vehicle.city}`)}-${slugifyHr(vehicle.id)}`;
 }
@@ -98,7 +99,7 @@ export function vehicleSeoPath(vehicle: Vehicle): string {
 /** Descriptive static URL for known catalog vehicles, `?oglas=` fallback for user-created listings. */
 export function vehicleListingPath(id: string): string {
   const slug = VEHICLE_SEO_SLUGS.get(id);
-  return slug ? `/oglas/${slug}` : `/?oglas=${encodeURIComponent(id)}`;
+  return slug ? `/oglas/${slug}` : `/oglas/${encodeURIComponent(id)}`;
 }
 
 export function findVehicleBySeoSlug(slug: string): Vehicle | undefined {
@@ -106,11 +107,16 @@ export function findVehicleBySeoSlug(slug: string): Vehicle | undefined {
 }
 
 /** Resolve an `/oglas/<slug>` pathname back to its vehicle id (SPA + ?oglas= fallback). */
+export function isListingUuid(id: string) {
+  return /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(id);
+}
+
 export function vehicleIdFromPath(pathname: string): string | null {
   const match = /^\/oglas\/([^/]+)\/?$/.exec(pathname);
   if (!match) return null;
   let slug = match[1];
   try { slug = decodeURIComponent(slug); } catch { /* keep raw */ }
+  if (isListingUuid(slug)) return slug.toLowerCase();
   for (const [id, candidate] of VEHICLE_SEO_SLUGS) {
     if (candidate === slug) return id;
   }
@@ -118,7 +124,7 @@ export function vehicleIdFromPath(pathname: string): string | null {
 }
 
 export function absoluteImageUrl(src?: string): string {
-  if (!src) return `${SITE_URL}/hero-twilight.webp`;
+  if (!src || !/^(?:https?:\/\/|\/[^/])/i.test(src)) return `${SITE_URL}/hero-twilight.webp`;
   if (/^https?:\/\//i.test(src)) return src;
   return `${SITE_URL}${typeof src === "string" && src.startsWith("/") ? src : "/" + String(src)}`;
 }

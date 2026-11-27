@@ -1,33 +1,22 @@
 "use client";
 
+import { consentUpdated, readCookieConsent } from "../lib/cookie-consent";
 import Script from "next/script";
 import { useEffect, useState } from "react";
 
 const ADSENSE_CLIENT_ID = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID?.trim() || "";
-const CONSENT_KEY = "autoplac.cookies.v1";
 
-function hasMarketingConsent(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const raw = localStorage.getItem(CONSENT_KEY) || localStorage.getItem("autoplac_cookie_consent");
-    if (!raw) return false;
-    const parsed = JSON.parse(raw) as { marketing?: boolean };
-    return parsed?.marketing === true;
-  } catch {
-    return false;
-  }
-}
 
 export function AdSenseScript() {
   const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
-    const sync = () => setAllowed(Boolean(ADSENSE_CLIENT_ID) && hasMarketingConsent());
+    const sync = () => setAllowed(Boolean(ADSENSE_CLIENT_ID) && (readCookieConsent()?.marketing === true));
     sync();
-    window.addEventListener("autoplac:cookies-updated", sync);
+    window.addEventListener(consentUpdated, sync);
     window.addEventListener("storage", sync);
     return () => {
-      window.removeEventListener("autoplac:cookies-updated", sync);
+      window.removeEventListener(consentUpdated, sync);
       window.removeEventListener("storage", sync);
     };
   }, []);

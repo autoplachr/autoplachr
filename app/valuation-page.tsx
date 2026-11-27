@@ -259,18 +259,14 @@ export function ValuationPage({
   const importDiff = result.medianMarketPrice - result.estimatedImportTotalEur;
 
   const matchingVehicles = useMemo(() => {
-    const low = Math.round(result.fairMin * 0.85);
-    const high = Math.round(result.fairMax * 1.15);
     return inventory
+      .filter(item => item.price >= result.fairMin && item.price <= result.fairMax)
       .map(item => {
         const sameMake = make && item.make === make ? 2 : 0;
         const sameModel = effectiveModel && item.model === effectiveModel ? 4 : 0;
-        const inStrictRange = item.price >= result.fairMin && item.price <= result.fairMax ? 3 : 0;
-        const inNearRange = item.price >= low && item.price <= high ? 1 : 0;
         const dist = Math.abs(item.price - result.medianMarketPrice);
-        return { item, score: sameMake + sameModel + inStrictRange + inNearRange, dist };
+        return { item, score: sameMake + sameModel, dist };
       })
-      .filter(entry => (entry.item.price >= low && entry.item.price <= high) || entry.score >= 4)
       .sort((a, b) => b.score - a.score || a.dist - b.dist)
       .slice(0, 4)
       .map(entry => entry.item);
@@ -583,7 +579,7 @@ export function ValuationPage({
                 ))}
               </div>
             ) : (
-              <p className="fine-print">Trenutačno nema aktivnih oglasa u ovom cjenovnom razredu.</p>
+              <p className="fine-print">Trenutačno nema objavljenih vozila u ovom cjenovnom rasponu.</p>
             )}
           </section>
         </aside>

@@ -1,3 +1,5 @@
+import { connection } from "next/server";
+import { getPublicFacet } from "../../../src/lib/public-catalog";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Marketplace from "../../marketplace";
@@ -10,7 +12,6 @@ import {
   SEO_CITIES,
   SITE_NAME,
   SITE_URL,
-  staticCatalogVehicles,
   vehicleSeoPath,
 } from "../../../src/lib/seo";
 
@@ -46,8 +47,8 @@ export default async function BrandSeoPage({ params }: Props) {
   const { slug } = await params;
   const brand = findBrandBySlug(slug);
   const brandName = brand?.name ?? slug;
-  const all = staticCatalogVehicles();
-  const matching = all.filter(v => v.make === brandName);
+  if (process.env.AUTOPLAC_STATIC_EXPORT !== "1") await connection();
+  const matching = await getPublicFacet("make", brandName);
   const avgPrice = matching.length
     ? Math.round(matching.reduce((s, v) => s + v.price, 0) / matching.length)
     : 0;
@@ -143,6 +144,8 @@ export default async function BrandSeoPage({ params }: Props) {
     <>
       <JsonLd data={jsonLd} />
       <Marketplace
+        initialPath={`/rabljena-vozila/${slug}`}
+        initialVehicles={matching.filter(vehicle => !vehicle.demo).slice(-24)}
         initialSearchOverride={{ marka: brandName }}
         skipHero
         seoHeader={seoBanner}

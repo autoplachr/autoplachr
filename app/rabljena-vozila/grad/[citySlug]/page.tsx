@@ -1,3 +1,5 @@
+import { connection } from "next/server";
+import { getPublicFacet } from "../../../../src/lib/public-catalog";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Marketplace from "../../../marketplace";
@@ -8,7 +10,6 @@ import {
   SEO_CITIES,
   SITE_NAME,
   SITE_URL,
-  staticCatalogVehicles,
   TOP_FOOTER_BRANDS,
   slugifyHr,
   vehicleSeoPath,
@@ -31,11 +32,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: { canonical: `/rabljena-vozila/grad/${city.slug}` },
+    alternates: { canonical: `/grad/${city.slug}` },
     openGraph: {
       title: `${title} | ${SITE_NAME}`,
       description,
-      url: `${SITE_URL}/rabljena-vozila/grad/${city.slug}`,
+      url: `${SITE_URL}/grad/${city.slug}`,
       locale: "hr_HR",
       type: "website",
     },
@@ -47,8 +48,8 @@ export default async function CitySeoPage({ params }: Props) {
   const cityInfo = findCityBySlug(citySlug);
   const cityName = cityInfo?.city ?? citySlug;
   const countyName = cityInfo?.county ?? "";
-  const all = staticCatalogVehicles();
-  const matching = all.filter(v => v.city === cityName || (countyName && v.county === countyName));
+  if (process.env.AUTOPLAC_STATIC_EXPORT !== "1") await connection();
+  const matching = await getPublicFacet("city", cityName);
   const avgPrice = matching.length
     ? Math.round(matching.reduce((s, v) => s + v.price, 0) / matching.length)
     : 0;
@@ -63,7 +64,7 @@ export default async function CitySeoPage({ params }: Props) {
           "@type": "ListItem",
           position: 2,
           name: `Rabljena vozila ${cityName}`,
-          item: `${SITE_URL}/rabljena-vozila/grad/${citySlug}`,
+          item: `${SITE_URL}/grad/${citySlug}`,
         },
       ],
     },
@@ -121,7 +122,7 @@ export default async function CitySeoPage({ params }: Props) {
           {SEO_CITIES.filter(c => c.slug !== citySlug).slice(0, 5).map(c => (
             <Link
               key={c.slug}
-              href={`/rabljena-vozila/grad/${c.slug}`}
+              href={`/grad/${c.slug}`}
               className="px-2 py-0.5 rounded border border-[var(--border)] bg-[var(--hover)] text-[var(--spec)] hover:border-[#2563EB]"
             >
               {c.city}
@@ -136,6 +137,8 @@ export default async function CitySeoPage({ params }: Props) {
     <>
       <JsonLd data={jsonLd} />
       <Marketplace
+        initialPath={`/grad/${citySlug}`}
+        initialVehicles={matching.filter(vehicle => !vehicle.demo).slice(-24)}
         initialSearchOverride={{ grad: countyName || cityName }}
         skipHero
         seoHeader={seoBanner}

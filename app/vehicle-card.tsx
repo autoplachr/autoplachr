@@ -49,7 +49,7 @@ export function VehicleCard({ vehicle, saved, onOpen, onSave, eager, horizontal 
       <dl className="vehicle-card-specs tabular">
         {specs.map(({ icon: Icon, label, value }) => <div key={label}>
           <dt><Icon size={13} aria-hidden="true" /><span className="sr-only">{label}</span></dt>
-          <dd title={value}>{value || "—"}</dd>
+          <dd title={value}>{(value || "—").split(" · ").map((part, index) => <span key={index}>{index > 0 && " · "}{part}</span>)}</dd>
         </div>)}
       </dl>
       <footer className="vehicle-card-footer">

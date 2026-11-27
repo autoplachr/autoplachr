@@ -7,8 +7,8 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "AUTOPLAC.HR — Rabljena vozila i provjera cijena u Hrvatskoj",
-    template: "%s | AUTOPLAC.HR — Rabljena vozila i provjera cijena u Hrvatskoj",
+    default: "AUTOPLAC.HR",
+    template: "%s | AUTOPLAC.HR",
   },
   description:
     "Pronađite provjerena rabljena vozila u Hrvatskoj, usporedite stvarne tržišne cijene, provjerite kilometražu i izračunajte PPMV trošarinu uvoza iz EU.",

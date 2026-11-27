@@ -6,8 +6,12 @@ const config: NextConfig = {
   ...(staticExport ? { pageExtensions: ["export.tsx", "tsx", "jsx", "js"] } : {}),
   allowedDevOrigins: ["*.trycloudflare.com", "*.loca.lt", "*.ngrok-free.app", "localhost", "127.0.0.1"],
   poweredByHeader: false,
-  experimental: { inlineCss: true },
-  images: { unoptimized: true },
+  experimental: { inlineCss: staticExport },
+  env: { NEXT_PUBLIC_AUTOPLAC_STATIC_EXPORT: staticExport ? "1" : "0" },
+  images: {
+    unoptimized: staticExport,
+    remotePatterns: [{ protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" }],
+  },
   async headers() {
     return [
       {

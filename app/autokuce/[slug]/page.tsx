@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+import { getPublicDealer } from "../../../src/lib/public-catalog";
 import type { Metadata } from "next";
 import Marketplace from "../../marketplace";
 import { JsonLd } from "../../../src/components/JsonLd";
@@ -6,7 +8,6 @@ import { SITE_NAME, SITE_URL } from "../../../src/lib/seo";
 
 type Props = { params: Promise<{ slug: string }> };
 
-export const dynamicParams = false;
 export function generateStaticParams() {
   return DEALERSHIP_DIRECTORY.map(d => ({ slug: d.slug }));
 }
@@ -14,7 +15,14 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const dealer = findDealershipBySlug(slug);
-  if (!dealer) return { title: "Autokuća nije pronađena" };
+  if (!dealer) {
+    const [vehicle] = await getPublicDealer(slug);
+    if (!vehicle) return { title: "Autokuća nije pronađena" };
+    const title = vehicle.seller;
+    const description = `Aktivni oglasi i kontakt autokuće ${vehicle.seller} u gradu ${vehicle.city}.`;
+    const canonical = `/autokuce/${slug}`;
+    return { title, description, alternates: { canonical }, openGraph: { title, description, url: canonical } };
+  }
 
   const title = `${dealer.name} (${dealer.city}) — Ponuda vozila i kontakt`;
   const description = `${dealer.name}, ${dealer.address}. ${dealer.description}`;
@@ -36,6 +44,8 @@ export default async function DealershipShowroomPage({ params }: Props) {
   const { slug } = await params;
   const dealer = findDealershipBySlug(slug);
 
+  const stock = dealer ? [] : await getPublicDealer(slug);
+  if (!dealer && !stock.length) notFound();
   const jsonLd = dealer
     ? {
         "@context": "https://schema.org",
@@ -60,8 +70,14 @@ export default async function DealershipShowroomPage({ params }: Props) {
 
   return (
     <>
-      {jsonLd && <JsonLd data={jsonLd} />}
-      <Marketplace initialPath={`/autokuce/${slug}`} />
+      <JsonLd data={jsonLd ?? {
+        "@context": "https://schema.org",
+        "@type": "AutoDealer",
+        name: stock[0]?.seller,
+        url: `${SITE_URL}/autokuce/${slug}`,
+        address: { "@type": "PostalAddress", addressLocality: stock[0]?.city, streetAddress: stock[0]?.sellerAddress, addressCountry: "HR" },
+      }} />
+      <Marketplace initialPath={`/autokuce/${slug}`} initialVehicles={stock.slice(0, 24)} />
     </>
   );
 }

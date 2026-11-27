@@ -1,4 +1,5 @@
 "use client";
+import { contactMetadata, leadSession } from "./lead-session";
 import { listingValuationParams } from "../src/lib/valuation-link";
 
 import { Checkbox } from "../src/components/Checkbox";
@@ -18,21 +19,6 @@ import { appointmentLabel, dealershipHoursToday } from "../src/data/working-hour
 
 const equipmentHeadings = ["Sigurnost i asistencije", "Udobnost i interijer", "Multimedija i navigacija", "Eksterijer i ovjes"];
 const questions = ["Je li vozilo još dostupno?", "Je li moguća zamjena?", "Možete li poslati broj šasije?"];
-
-function leadSession() {
-  const key = "autoplac.lead-session";
-  const stored = sessionStorage.getItem(key);
-  if (stored) return stored;
-  const id = crypto.randomUUID();
-  sessionStorage.setItem(key, id);
-  return id;
-}
-
-function contactMetadata() {
-  let source = "";
-  try { if (document.referrer) source = new URL(document.referrer).origin; } catch { /* No referrer. */ }
-  return { session: leadSession(), source, device: matchMedia("(pointer: coarse)").matches ? "mobile" : "desktop" };
-}
 
 function formattedPhone(value: string) {
   const clean = normalizePhone(value);
@@ -410,7 +396,7 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
             {vehicle.sellerWorkingHours.afterHours && !vehicle.sellerWorkingHours.appointmentOnly && <p>{appointmentLabel}.</p>}
           </> : vehicle.sellerHours && <p>Radno vrijeme: <span className="tabular">{vehicle.sellerHours}</span></p>}
           <div className="contact-actions">
-            {phone && !vehicle.demo ? <a className="btn primary tabular" href={"tel:" + phone.replace(/[^+\d]/g, "")}><Phone size={16}/>{phone}</a> :
+            {phone && (!vehicle.demo || vehicle.dealer) ? <a className="btn primary tabular" href={"tel:" + phone.replace(/[^+\d]/g, "")}><Phone size={16}/>{phone}</a> :
               <button className="btn primary" type="button" disabled={Boolean(phone) || revealing} onClick={reveal}><Phone size={16}/>{phone ? phone + " (demo)" : "Prikaži broj telefona"}</button>}
             {(vehicle.phone || phone || (vehicle.contactAvailable && leadTrackingAvailable())) &&
               <button type="button" className="btn secondary" disabled={revealing} onClick={() => void whatsapp()}>WhatsApp upit</button>}

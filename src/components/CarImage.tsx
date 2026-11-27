@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import { CarFront } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Photo } from "../../app/catalog";
@@ -33,16 +34,16 @@ function CarImageSource({
   const sources = [photo?.backup, photo?.src].filter((src): src is string => Boolean(src));
   const options = [...new Set(sources)];
   const image = useRef<HTMLImageElement>(null);
+  const [sourceIndex, setSourceIndex] = useState(0);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   function recover() {
     const element = image.current;
     if (!element || !element.complete || element.naturalWidth) return;
-    const next = options[options.indexOf(element.getAttribute("src") ?? "") + 1];
-    if (next) {
+    if (sourceIndex + 1 < options.length) {
       setLoaded(false);
-      element.src = next;
+      setSourceIndex(sourceIndex + 1);
     } else {
       setFailed(true);
       onUnavailable?.();
@@ -60,15 +61,21 @@ function CarImageSource({
     // Cached images may finish before React attaches onLoad; cover that case.
     const element = image.current;
     if (element?.complete && element.naturalWidth > 0) ready();
-  }, [photo?.src, photo?.backup]);
+  }, [sourceIndex]);
 
-  const src = options[0];
+  const src = options[sourceIndex];
+  const optimizable = !!src && (/^\/(?!\/)/.test(src)
+    || /^https:\/\/[a-z0-9-]+\.supabase\.co\/storage\/v1\/object\/public\//i.test(src));
 
   return (
     <div className={`vehicle-photo ${className}`.trim()} style={dim ? { opacity: 0 } : undefined}>
       {!failed && src ? (
         <>
-          <img
+          <Image
+            key={src}
+            fill
+            unoptimized={!optimizable}
+            priority={eager}
             ref={image}
             alt={alt}
             src={src}
@@ -78,15 +85,15 @@ function CarImageSource({
               imageRendering: "auto",
               transform: "translateZ(0)",
               backfaceVisibility: "hidden",
-              opacity: loaded ? 1 : 0,
+
             }}
-            loading={eager ? "eager" : "lazy"}
+            loading={eager ? undefined : "lazy"}
             decoding="async"
             draggable={false}
             onLoad={ready}
             onError={recover}
           />
-          {!layer && !loaded && (
+          {!layer && !eager && !loaded && (
             <span className="car-image-shimmer animate-pulse" role="status" aria-label="Učitavanje fotografije" />
           )}
         </>

@@ -1,4 +1,5 @@
 "use client";
+import { readCookieConsent, saveCookieConsent, type CookieChoice } from "../src/lib/cookie-consent";
 import { Checkbox } from "../src/components/Checkbox";
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "./account-api";
@@ -86,26 +87,18 @@ export function ReportDialog({ listing, onClose }: { listing?:string; onClose:()
   </Dialog>;
 }
 
-type CookieChoice = { analytics:boolean; marketing:boolean };
-const consentKey = "autoplac.cookies.v1";
 export function CookieConsent({ settings, close }: { settings:boolean; close:()=>void }) {
   const [choice,setChoice] = useState<CookieChoice | null | undefined>();
   const [analytics,setAnalytics] = useState(false);
   const [marketing,setMarketing] = useState(false);
   const [configure,setConfigure] = useState(false);
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(consentKey) || "null");
-      setChoice(saved);setAnalytics(saved?.analytics === true);setMarketing(saved?.marketing === true);
-    } catch {setChoice(null);}
+    const saved = readCookieConsent();
+    setChoice(saved);setAnalytics(saved?.analytics === true);setMarketing(saved?.marketing === true);
   },[]);
   const open = settings || configure;
   function save(next:CookieChoice) {
-    try {
-      localStorage.setItem(consentKey,JSON.stringify(next));
-      localStorage.setItem("autoplac_cookie_consent",JSON.stringify(next));
-      window.dispatchEvent(new Event("autoplac:cookies-updated"));
-    } catch {}
+    saveCookieConsent(next);
     setChoice(next);setAnalytics(next.analytics);setMarketing(next.marketing);setConfigure(false);close();
   }
   if (choice !== null && !open) return null;

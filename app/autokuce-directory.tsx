@@ -10,8 +10,34 @@ import {
   findDealershipBySlug,
   type DealershipDirectoryEntry,
 } from "../src/data/dealerships";
+import { normalizePhone } from "../src/data/profile-validation";
 import { dealershipHoursToday } from "../src/data/working-hours";
+import { contactMetadata } from "./lead-session";
+import { api, leadTrackingAvailable } from "./account-api";
 import { euro, number, type Vehicle } from "./catalog";
+
+function DealerPhone({ vehicle }: { vehicle: Vehicle }) {
+  const [phone, setPhone] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function reveal() {
+    setError("");
+    setBusy(true);
+    try {
+      const result = vehicle.phone ? { phone: vehicle.phone }
+        : await api<{ phone?: string }>(leadTrackingAvailable() ? "lead/log" : "phone",
+          { id: vehicle.id, event: "phone_reveal", ...contactMetadata() });
+      if (!result.phone?.replace(/[^+\d]/g, "")) throw new Error("Broj telefona nije dostupan.");
+      setPhone(normalizePhone(result.phone));
+    } catch { setError("Broj telefona trenutačno nije dostupan."); }
+    finally { setBusy(false); }
+  }
+  return <div>
+    {phone ? <a className="btn primary min-h-11 tabular" href={`tel:${phone.replace(/[^+\d]/g, "")}`}><Phone size={15} aria-hidden="true" />{phone}</a>
+      : <button className="btn primary min-h-11" type="button" disabled={busy} onClick={() => void reveal()}><Phone size={15} aria-hidden="true" />Prikaži broj telefona</button>}
+    {error && <p role="status">{error}</p>}
+  </div>;
+}
 
 export function DealershipDirectoryView({
   vehicles,
@@ -62,6 +88,21 @@ export function DealershipDirectoryView({
 
   if (selectedSlug) {
     if (!activeDealer) {
+      const stock = vehicles.filter(item => item.dealer && item.dealershipId === selectedSlug);
+      const [dealer] = stock;
+      if (dealer) return <main className="shell py-6">
+        <a className="btn quiet min-h-11" href="/autokuce"><ArrowLeft size={15} aria-hidden="true" /> Sve autokuće</a>
+        <section className="detail-panel form-stack mb-4">
+          <h1 className="font-bold text-xl">{dealer.seller}</h1>
+          <p>{dealer.city}{dealer.sellerAddress ? " · " + dealer.sellerAddress : ""}</p>
+          {(dealer.phone || dealer.contactAvailable) && <DealerPhone key={dealer.id} vehicle={dealer} />}
+        </section>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {stock.map(vehicle => <VehicleCard key={vehicle.id} vehicle={vehicle} saved={savedIds.includes(vehicle.id)}
+            onSave={() => onSave(vehicle.id)} eager={false} onOpen={event => onOpenListing(event, vehicle.id)} />)}
+        </div>
+      </main>;
+
       return (
         <main className="shell max-w-[1380px] mx-auto px-4 sm:px-6 py-8">
           <div className="empty-state">
@@ -177,7 +218,7 @@ export function DealershipDirectoryView({
 
               <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-[var(--border)]">
                 {showPhone ? (
-                  <a href={`tel:${activeDealer.phone.replace(/\s+/g, "")}`} className="btn primary tabular-nums">
+                  <a href={`tel:${normalizePhone(activeDealer.phone)}`} className="btn primary tabular-nums">
                     <Phone size={15} aria-hidden="true" />
                     {activeDealer.phone}
                   </a>
@@ -220,9 +261,9 @@ export function DealershipDirectoryView({
 
           {dealerVehicles.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {dealerVehicles.map((vehicle, index) => (
+              {dealerVehicles.map((vehicle) => (
                 <VehicleCard key={vehicle.id} vehicle={vehicle} saved={savedIds.includes(vehicle.id)}
-                  onSave={() => onSave(vehicle.id)} eager={index < 4}
+                  onSave={() => onSave(vehicle.id)} eager={false}
                   onOpen={event => onOpenListing(event, vehicle.id)} />
               ))}
             </div>
@@ -328,7 +369,7 @@ export function DealershipDirectoryView({
       {filteredDealers.length + filteredOtherDealers.length > 0 ? (
         <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" aria-label="Popis autokuća">
           {filteredOtherDealers.map(({ vehicle, stock }) => {
-            const href = "/?salon=" + encodeURIComponent(vehicle.dealershipId ?? "");
+            const href = "/autokuce/" + encodeURIComponent(vehicle.dealershipId ?? "");
             return <article key={vehicle.dealershipId} className="imported-dealer">
               <h2>{vehicle.seller}</h2>
               <p>{vehicle.city}{vehicle.sellerAddress && " · " + vehicle.sellerAddress}</p>

@@ -23,6 +23,7 @@ import PublishForm from "./publish";
 import { ValuationPage } from "./valuation-page";
 import { describeFamily, modelFor, modelsFor } from "../src/data/car-catalog";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "../src/lib/supabase/client";
+import { safeAuthNext } from "../src/lib/auth-next";
 import { getSiteOrigin } from "../src/lib/site-origin";
 
 import { AccountPage, AuthPage, type AccountTabKey } from "./account";
@@ -555,7 +556,7 @@ function LeasingEstimate() {
       <h2>Brzi izračun rate leasinga</h2>
       <div className="leasing-presets" role="group" aria-label="Cijena vozila">
         {[15000, 20000].map(amount => (
-          <button key={amount} type="button" aria-pressed={price === amount} onClick={() => setPrice(amount)}>
+          <button key={amount} type="button" aria-label={`Izračunaj leasing za vozilo od ${euro(amount)}`} aria-pressed={price === amount} onClick={() => setPrice(amount)}>
             {euro(amount)}
           </button>
         ))}
@@ -783,6 +784,7 @@ export default function Marketplace({
   initialSearchOverride,
   initialDealerOnly = false,
   initialDetailId = null,
+  initialVehicles = [],
   seoHeader,
   skipHero = false,
 }: {
@@ -790,6 +792,7 @@ export default function Marketplace({
   initialSearchOverride?: Partial<Search>;
   initialDealerOnly?: boolean;
   initialDetailId?: string | null;
+  initialVehicles?: Vehicle[];
   seoHeader?: ReactNode;
   skipHero?: boolean;
 }) {
@@ -797,7 +800,8 @@ export default function Marketplace({
   const [saved, setSaved] = useState<string[]>([]);
   const [published, setPublished] = useState<Vehicle[]>([]);
   const [account,setAccount] = useState<Account | null>();
-  const [remote,setRemote] = useState<Vehicle[]>([]);
+  const [remote,setRemote] = useState<Vehicle[]>(initialVehicles);
+  const [visibleCount, setVisibleCount] = useState(24);
   const [path,setPath] = useState(initialPath);
   const [editing,setEditing] = useState<OwnedListing>();
   const [cookieSettings,setCookieSettings] = useState(false);
@@ -837,8 +841,13 @@ export default function Marketplace({
     setLoadedInventory(true);
     setAccountError("");
   }
-  function navigate(target: string, replace = false) {
+  function navigate(target: string, replace = false, keepClient = false) {
     cancelResultScroll.current?.();
+    const targetPath = new URL(target, location.origin).pathname;
+    if (!keepClient && process.env.NEXT_PUBLIC_AUTOPLAC_STATIC_EXPORT !== "1" && targetPath !== location.pathname) {
+      router[replace ? "replace" : "push"](target);
+      return;
+    }
     if (location.pathname + location.search !== target) history[replace ? "replaceState" : "pushState"](null,"",target);
     setPath(location.pathname.replace(/\/$/,"") || "/");
     const params = new URLSearchParams(location.search);
@@ -854,7 +863,7 @@ export default function Marketplace({
   async function startChat(vehicle: Vehicle, initialMessage?: string) {
     if (!account) {
       setPendingChatVehicle(vehicle);
-      navigate("/prijava");
+      navigate("/prijava", false, true);
       return;
     }
     try {
@@ -897,8 +906,9 @@ export default function Marketplace({
         // Fallback to /racun
       }
     }
-    router.push("/racun");
-    router.refresh();
+    const next = safeAuthNext(new URLSearchParams(location.search).get("next")) ?? "/racun";
+    if (process.env.NEXT_PUBLIC_AUTOPLAC_STATIC_EXPORT === "1") navigate(next, true);
+    else window.location.replace(next);
   }
   async function signOut() {
     try { await api("auth/logout",{});await refresh();navigate("/",true); }
@@ -965,6 +975,7 @@ export default function Marketplace({
       const rawTab = params.get("tab") as AccountTabKey | null;
       setAccountTab(rawTab && ["pregled", "oglasi", "poruke", "favoriti", "b2b", "postavke", "moderiranje"].includes(rawTab) ? rawTab : "pregled");
       setAccountConvId(params.get("razgovor") || undefined);
+      setDealerRegistration(params.get("tip") === "dealer");
       setDealerId(params.get("salon"));
       const urlSearch = readSearch(window.location.search);
       const hasUrlFilter = Boolean(window.location.search);
@@ -1037,6 +1048,10 @@ export default function Marketplace({
     if (!detailId) resultsScroll.current = window.scrollY;
     const url = new URL(window.location.href);
     const target = new URL(vehicleListingPath(id), url.origin);
+    if (process.env.NEXT_PUBLIC_AUTOPLAC_STATIC_EXPORT !== "1") {
+      router.push(target.pathname);
+      return;
+    }
     url.pathname = target.pathname;
     url.search = target.search;
     const depth = detailId ? Number(history.state?.autoplacDetailDepth ?? 0) : 0;
@@ -1047,6 +1062,7 @@ export default function Marketplace({
     scrollToTop();
   }
   function backToResults() {
+    if (process.env.NEXT_PUBLIC_AUTOPLAC_STATIC_EXPORT !== "1") { router.push("/#svi-oglasi"); return; }
     scrollToTop();
     const depth = Number(history.state?.autoplacDetailDepth ?? 0);
     if (depth > 0) {
@@ -1068,7 +1084,7 @@ export default function Marketplace({
   const results = useMemo(() => matchVehicles(inventory, search, boostClock), [inventory, search, boostClock]);
   const savedCount = allVehicles.filter(v => savedIds.includes(v.id)).length;
   const activeCount = searchFilterCount(search);
-  const update = (next: Search) => { setSearch(next); writeSearch(next); };
+  const update = (next: Search) => { setVisibleCount(24); setSearch(next); writeSearch(next); };
   const scrollResults = () => requestAnimationFrame(() => document.getElementById("svi-oglasi")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }));
   const apply = () => {
     cancelResultScroll.current?.();
@@ -1121,7 +1137,7 @@ export default function Marketplace({
   function startPublish(listing?: OwnedListing) {
     if (!account) {
       setPublishAfterLogin(true);
-      navigate("/prijava");
+      navigate("/prijava?next=/predaj-oglas");
       return;
     }
     setEditing(listing);setPanel("publish");
@@ -1157,7 +1173,7 @@ export default function Marketplace({
         setPanel("publish");
       } else if (account === null) {
         setPublishAfterLogin(true);
-        navigate("/prijava");
+        navigate("/prijava?next=/predaj-oglas");
       }
     } else if (publishAfterLogin && account && path === "/racun") {
       setPublishAfterLogin(false);setEditing(undefined);setPanel("publish");
@@ -1168,22 +1184,6 @@ export default function Marketplace({
   const isDealershipPath = typeof path === "string" && path.startsWith("/autokuce/");
   const activeHeaderRoute = isDealershipPath ? "/autokuce"
     : path === "/" && (dealerOnly || savedOnly || detailId || dealerId) ? "" : path;
-  useEffect(() => {
-    const detail = detailId ? allVehicles.find(vehicle => vehicle.id === detailId) : undefined;
-    const titles: Record<string, string> = {
-      "/": "AUTOPLAC.HR — Rabljena vozila i provjera cijena",
-      "/racun": "Moj račun | AUTOPLAC.HR",
-      "/prijava": "Prijava na račun | AUTOPLAC.HR",
-      "/registracija": "Registracija računa | AUTOPLAC.HR",
-      "/predaj-oglas": "Predaj oglas | AUTOPLAC.HR",
-      "/spremljeno": "Spremljena vozila | AUTOPLAC.HR",
-      "/autokuce": "Autokuće i saloni | AUTOPLAC.HR",
-      "/ppmv-kalkulator": "PPMV Kalkulator 2026 | AUTOPLAC.HR",
-      "/procjena-cijene": "Procjena tržišne cijene vozila | AUTOPLAC.HR",
-    };
-    document.title = detail ? `${detail.title} | AUTOPLAC.HR`
-      : titles[path] ?? (isDealershipPath ? "Autokuće i saloni | AUTOPLAC.HR" : "AUTOPLAC.HR");
-  }, [path, detailId, allVehicles]);
   return <div className="min-h-screen flex flex-col overflow-x-clip">
     <Navbar
       activeRoute={activeHeaderRoute}
@@ -1219,7 +1219,7 @@ export default function Marketplace({
         <main className="shell valuation-shell max-w-[1160px] mx-auto px-4 sm:px-6 flex flex-col gap-5">
           <header className="valuation-hero">
             <div>
-              <span className="eyebrow">Carinska uprava RH · 2026</span>
+              <span className="eyebrow">Prema tablicama Carinske uprave</span>
               <h1>PPMV Kalkulator 2026 — Izračun trošarine za uvoz auta iz Njemačke i EU</h1>
               <p>Informativni izračun posebnog poreza na motorna vozila (vrijednosna + CO₂ komponenta) za rabljena i nova vozila pri unosu iz EU.</p>
             </div>
@@ -1336,9 +1336,9 @@ export default function Marketplace({
               </div>
             </div>
           </div>
-          {results.length ? <div className={"listings " + (search.prikaz === "lista" ? "list-view" : "grid-view")}>{results.map((vehicle, index) => (
+          {results.length ? <div className={"listings " + (search.prikaz === "lista" ? "list-view" : "grid-view")}>{results.slice(0, visibleCount).map((vehicle, index) => (
             <Fragment key={vehicle.id}>
-              <VehicleCard vehicle={vehicle} saved={savedIds.includes(vehicle.id)} eager={index < 3}
+              <VehicleCard vehicle={vehicle} saved={savedIds.includes(vehicle.id)} eager={false}
                 horizontal={search.prikaz === "lista"} onOpen={event => openListing(event, vehicle.id)} onSave={() => toggleSaved(vehicle.id)} />
               {(index + 1) % 6 === 0 && (
                 <div className="col-span-full">
@@ -1347,9 +1347,12 @@ export default function Marketplace({
               )}
             </Fragment>
           ))}</div> : <div className="empty-state"><h2>{savedOnly && !savedCount ? "Nemate spremljenih vozila" : "Nema vozila za odabrane filtre"}</h2><button type="button" className="btn secondary" onClick={() => { if (savedOnly && !savedCount) setSavedOnly(false); update({ ...initialSearch, prikaz: search.prikaz }); }}>{savedOnly && !savedCount ? "Pogledaj ponudu" : "Poništi filtere"}</button></div>}
+          {results.length > visibleCount && <button className="btn secondary mt-3 min-h-11" type="button" onClick={() => setVisibleCount(count => count + 24)}>
+            Prikaži još vozila
+          </button>}
           <section id="autokuce" className="dealership">
             <h2>Za autokuće i uvoznike</h2>
-            <button className="btn secondary" type="button" onClick={() => {setDealerRegistration(true);navigate(account ? "/racun" : "/registracija");}}>Registriraj autokuću</button>
+            <button className="btn secondary" type="button" onClick={() => {setDealerRegistration(true);navigate(account ? "/racun" : "/registracija?tip=dealer");}}>Registriraj autokuću</button>
           </section>
         </section>
       </main>
@@ -1371,7 +1374,7 @@ export default function Marketplace({
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <strong className="text-[var(--spec)] !m-0">Gradovi:</strong>
               {SEO_CITIES.slice(0, 12).map(city => (
-                <a key={city.slug} href={`/rabljena-vozila/grad/${city.slug}`} className="footer-link">
+                <a key={city.slug} href={`/grad/${city.slug}`} className="footer-link">
                   Rabljena vozila {city.city}
                 </a>
               ))}
@@ -1394,7 +1397,7 @@ export default function Marketplace({
             <a className="footer-link" href="/ppmv-kalkulator">PPMV kalkulator 2026</a>
             <a className="footer-link" href="/autokuce">Verificirane autokuće</a>
             <a className="footer-link" href="/rabljena-vozila/bmw">Rabljena vozila po markama</a>
-            <a className="footer-link" href="/rabljena-vozila/grad/zagreb">Rabljena vozila po gradovima</a>
+            <a className="footer-link" href="/grad/zagreb">Rabljena vozila po gradovima</a>
           </section>
 
           <section className="footer-col" aria-label="B2B povelja za autokuće">
