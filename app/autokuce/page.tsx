@@ -16,6 +16,7 @@ export const metadata: Metadata = {
     url: `${SITE_URL}/autokuce`,
     locale: "hr_HR",
     type: "website",
+    images: ["/hero-twilight.webp"],
   },
 };
 

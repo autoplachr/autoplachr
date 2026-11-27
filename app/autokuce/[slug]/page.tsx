@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const title = vehicle.seller;
     const description = `Aktivni oglasi i kontakt autokuće ${vehicle.seller} u gradu ${vehicle.city}.`;
     const canonical = `/autokuce/${slug}`;
-    return { title, description, alternates: { canonical }, openGraph: { title, description, url: canonical } };
+    return { title, description, alternates: { canonical }, openGraph: { title, description, url: canonical, images: ["/hero-twilight.webp"] } };
   }
 
   const title = `${dealer.name} (${dealer.city}) — Ponuda vozila i kontakt`;
@@ -36,6 +36,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url: `${SITE_URL}/autokuce/${dealer.slug}`,
       locale: "hr_HR",
       type: "website",
+      images: ["/hero-twilight.webp"],
     },
   };
 }

@@ -84,6 +84,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url: `${SITE_URL}/${section}`,
       locale: "hr_HR",
       type: "website",
+      images: ["/hero-twilight.webp"],
     },
     robots: meta.noindex ? { index: false, follow: false } : { index: true, follow: true },
   };

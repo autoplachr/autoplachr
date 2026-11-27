@@ -39,6 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url: `${SITE_URL}/grad/${city.slug}`,
       locale: "hr_HR",
       type: "website",
+      images: ["/hero-twilight.webp"],
     },
   };
 }
