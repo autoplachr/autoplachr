@@ -1,6 +1,10 @@
--- 011: B2B charter UX support — seller-controlled price badge and new boost tiers.
+-- 011: B2B charter UX support — seller-controlled price badge, new boost tiers.
 alter table public.listings
   add column if not exists show_price_badge boolean not null default false;
+
+alter table public.listings drop constraint if exists listings_boost_tier_check;
+alter table public.listings add constraint listings_boost_tier_check
+  check (boost_tier = any (array['none','boost_72h','top_7d','bump','fast_sale']));
 
 create or replace function public.activate_listing_boost(listing_id uuid, tier text)
 returns timestamp with time zone language plpgsql security definer set search_path to ''
