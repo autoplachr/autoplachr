@@ -147,18 +147,26 @@ const ratingStyles = {
   barEmpty: "bg-[var(--border)]",
 };
 
+/** Tier tones: emerald for Top prilika, neutral blue for market price, slate/amber for the higher range. */
+const ratingTones: Record<number, string> = {
+  0: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30",
+  1: "bg-[var(--hover)] text-[var(--text)] border border-[var(--border)]",
+  2: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25",
+  3: "bg-[var(--hover)] text-[var(--muted)] border border-[var(--border)]",
+};
+
 export function ratingSavingsLabel(val: MarketValuationResult): string {
   const absEur = Math.abs(val.deltaEur);
-  if (val.rating.rank === 0) {
-    return val.deltaEur < -50 ? `↓ ${euro(absEur)} ispod prosjeka RH` : "Odlična prilika na tržištu";
+  if (val.deltaPercent <= -5) {
+    return val.deltaEur < -50 ? `↓ ${euro(absEur)} ispod prosjeka RH` : "Top prilika na tržištu";
   }
-  if (val.rating.rank === 1) {
-    return val.deltaEur < -50 ? `↓ ${euro(absEur)} ispod prosjeka RH` : "Ispod prosjeka tržišta RH";
+  if (val.deltaPercent <= 8) {
+    return "U okviru tržišnog prosjeka RH";
   }
-  if (val.rating.rank === 2) {
-    return "U okviru prosjeka RH";
+  if (val.deltaPercent <= 18) {
+    return val.deltaEur > 50 ? `↑ ${euro(absEur)} iznad tržišnog raspona` : "Iznad tržišnog raspona RH";
   }
-  return val.deltaEur > 50 ? `↑ ${euro(absEur)} iznad prosjeka RH` : "Iznad prosjeka RH";
+  return "Iznad tržišnog raspona RH";
 }
 
 export function Rating({
@@ -168,6 +176,7 @@ export function Rating({
   showSavings = false,
   interactive = true,
   align = "right",
+  privateContext = false,
 }: {
   vehicle?: Vehicle;
   tier?: PriceRatingTier;
@@ -175,6 +184,8 @@ export function Rating({
   showSavings?: boolean;
   interactive?: boolean;
   align?: "left" | "right";
+  /** True in /racun, Step 3 and the calculator: the hidden tier shows a private pill instead of vanishing. */
+  privateContext?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -205,7 +216,11 @@ export function Rating({
   }, [open]);
 
   if (!result) return null;
-  const style = ratingStyles;
+  // Above +18% over median the public badge is hidden so the portal never
+  // harms the seller; only private surfaces (dashboard, Step 3) show it.
+  if (result.hidden && !privateContext) return null;
+  const tone = result.hidden ? ratingTones[3] : ratingTones[result.rank] ?? ratingStyles.pill;
+  const style = { ...ratingStyles, pill: tone };
   const canPopover = Boolean(interactive && resolvedVal);
 
   const absPct = resolvedVal
@@ -229,7 +244,7 @@ export function Rating({
           />
         ))}
       </span>
-      <span className="whitespace-nowrap">{result.label}</span>
+      <span className="whitespace-nowrap">{result.hidden ? "Bez javne oznake (privatno)" : result.label}</span>
     </>
   );
 

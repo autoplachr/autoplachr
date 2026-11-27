@@ -6,9 +6,11 @@ import { calculateCo2 } from "./spec-resolver";
 
 export type PriceRatingTier = {
   bars: 1 | 2 | 3 | 4 | 5;
-  label: "Odlična cijena" | "Dobra cijena" | "Fer cijena" | "Viša cijena" | "Visoka cijena";
+  label: "Top prilika" | "Tržišna cijena" | "Viši cjenovni rang" | "";
   type: "good" | "fair" | "high";
-  rank: 0 | 1 | 2 | 3 | 4;
+  rank: 0 | 1 | 2 | 3;
+  /** Above +18% over median the public badge is hidden; only the seller sees a private advisory. */
+  hidden?: boolean;
 };
 
 export type ValuationFactor = {
@@ -16,6 +18,14 @@ export type ValuationFactor = {
   label: string;
   impactEur: number;
 };
+
+/** Seller-checkable value proofs (Step 3): each raises the live fair valuation by a fixed amount. */
+export const VALUE_PROOFS: readonly { id: string; label: string; bonusEur: number }[] = [
+  { id: "service-major", label: "Upravo napravljen veliki servis", bonusEur: 450 },
+  { id: "tyres-new", label: "Novi set ljetnih/zimskih guma", bonusEur: 400 },
+  { id: "warranty-12m", label: "Pisano jamstvo 12 mjeseci", bonusEur: 600 },
+  { id: "kasko-reg", label: "Full kasko / Registracija 12 mj.", bonusEur: 500 },
+];
 
 export type AuditCategory =
   | "Vozilo i starost"
@@ -63,6 +73,8 @@ export type MarketValuationInput = {
   verified?: boolean;
   firstOwner?: boolean;
   serviceBook?: boolean;
+  /** Checked Step 3 value proofs (ids from VALUE_PROOFS) that lift the live fair range. */
+  valueProofs?: string[];
   referenceDate?: Date;
 };
 
@@ -577,28 +589,34 @@ function collectTokens(input: MarketValuationInput): string {
 
 type EquipRule = { slot: string; label: string; value: number; pattern: RegExp };
 
+/** Factory sport packages: a single +9.0% multiplier on the base value (best package counts once). */
+const SPORT_PACKAGES: Array<{ label: string; pattern: RegExp }> = [
+  { label: "M Sport paket", pattern: /m[\s-]*sport|bmw-m-sport/i },
+  { label: "AMG Line", pattern: /amg[\s-]*line|mercedes-amg-line/i },
+  { label: "S-Line", pattern: /s[\s-]*line|audi-s-line/i },
+  { label: "R-Line", pattern: /r[\s-]*line|vw-r-line/i },
+  { label: "RS / GTI / GTD / VRS", pattern: /(?:^|[|\s·•-])(rs|gti|gtd|vrs|skoda-rs|rs paket|cupra vz)(?=$|[|\s·•-])/i },
+  { label: "Laurin & Klement", pattern: /laurin|l&k/i },
+  { label: "Sport Chrono", pattern: /sport[\s-]*chrono|porsche-sport-chrono/i },
+  { label: "Sport / GT / ST-Line paket", pattern: /r-design|gt[\s-]*line|st[\s-]*line|n[\s-]*line|fr paket|sportline|veloce|f sport|gs line|monte carlo/i },
+];
+
+/** High-value tech/comfort options valued proportionally (+2.5% … +3.5% each, combined cap +22%). */
+const TECH_OPTIONS: Array<{ slot: string; label: string; pct: number; pattern: RegExp }> = [
+  { slot: "roof-pano", label: "Panoramski krov", pct: 0.03, pattern: /panoram|stakleni krov|porsche-panorama/i },
+  { slot: "lights-top", label: "LED Matrix / Adaptivna LED svjetla", pct: 0.03, pattern: /laserlight|hd matrix|matrix led|multibeam|digital light|iq\.?light|pdls|intellilux|audi-matrix-led|vw-iq-light|skoda-matrix-led/i },
+  { slot: "hud", label: "Head-Up Display", pct: 0.03, pattern: /head-up|\bhud\b|projekcijski zaslon/i },
+  { slot: "cam-360", label: "360° kamera", pct: 0.03, pattern: /360\s*°?\s*kamere?|area[\s-]*view|parking assistant plus|around view/i },
+  { slot: "cockpit", label: "Virtual / Live Cockpit Pro", pct: 0.025, pattern: /virtual[\s-]*cockpit|live[\s-]*cockpit|digital[\s-]*cockpit|digitalni kokpit|mbux|widescreen|openr/i },
+  { slot: "audio-top", label: "Harman Kardon / Burmester / Canton", pct: 0.025, pattern: /harman[\s-]*kardon|burmester|bang\s*&\s*olufsen|bowers\s*&\s*wilkins|canton|dynaudio|meridian|mark levinson|focal/i },
+  { slot: "seats-memory", label: "Kožna sjedala s memorijom", pct: 0.025, pattern: /(?:kožna|kozna)\s+sjedal\w*\s+s\s*memorijom|memorija sjedala/i },
+];
+
 const EQUIPMENT_RULES: EquipRule[] = [
-  { slot: "pkg-msport", label: "M Sport paket", value: 1450, pattern: /m[\s-]*sport|bmw-m-sport/i },
-  { slot: "pkg-sline", label: "S-Line", value: 1350, pattern: /s[\s-]*line|audi-s-line/i },
-  { slot: "pkg-amg", label: "AMG Line", value: 1500, pattern: /amg[\s-]*line|mercedes-amg-line/i },
-  { slot: "pkg-rline", label: "R-Line", value: 1150, pattern: /r[\s-]*line|vw-r-line/i },
-  { slot: "pkg-perf", label: "RS / GTI / GTD", value: 1800, pattern: /(?:^|[|\s·•-])(rs|gti|gtd|gti\s*\/\s*gtd|skoda-rs|rs paket|cupra vz)(?=$|[|\s·•-])/i },
-  { slot: "pkg-lk", label: "Laurin & Klement", value: 1400, pattern: /laurin|l&k/i },
-  { slot: "pkg-chrono", label: "Sport Chrono", value: 1600, pattern: /sport[\s-]*chrono|porsche-sport-chrono/i },
-  { slot: "pkg-trim-mid", label: "Sport / GT / ST-Line paket", value: 750, pattern: /r-design|gt[\s-]*line|st[\s-]*line|n[\s-]*line|fr paket|sportline|veloce|f sport|gs line|monte carlo/i },
-
-  { slot: "lights-top", label: "Matrix / Laser / MULTIBEAM LED", value: 750, pattern: /laserlight|hd matrix|matrix led|multibeam|digital light|iq\.?light|pdls|intellilux|audi-matrix-led|vw-iq-light|skoda-matrix-led/i },
-  { slot: "lights-led", label: "LED / Adaptivna LED svjetla", value: 300, pattern: /led svjetla|adaptivna led|bmw-adaptive-led/i },
-
-  { slot: "roof-pano", label: "Panorama stakleni krov", value: 650, pattern: /panoram|stakleni krov|porsche-panorama/i },
   { slot: "webasto", label: "Webasto grijanje", value: 550, pattern: /webasto|neovisno grijanje/i },
-  { slot: "audio-top", label: "Harman Kardon / Burmester / B&O", value: 500, pattern: /harman[\s-]*kardon|burmester|bang\s*&\s*olufsen|bowers\s*&\s*wilkins|canton|dynaudio|bose|meridian|mark levinson|focal|beats|sennheiser|jbl/i },
-  { slot: "cockpit", label: "Virtual / Live Cockpit Pro", value: 450, pattern: /virtual[\s-]*cockpit|live[\s-]*cockpit|digital[\s-]*cockpit|digitalni kokpit|mbux|widescreen|openr/i },
   { slot: "susp-air", label: "Zračni ovjes / DCC / PASM", value: 800, pattern: /zračni ovjes|airmatic|adaptive air|pasm|\bdcc\b|adaptivni ovjes/i },
-  { slot: "cam-360", label: "360° kamera", value: 350, pattern: /360\s*°?\s*kamere?|area[\s-]*view|parking assistant plus|around view/i },
   { slot: "parking", label: "Prednji i stražnji parking senzori", value: 220, pattern: /parkirni senzori|parking senzori|parkirni senzor/i },
-  { slot: "hud", label: "Head-Up Display", value: 350, pattern: /head-up|\bhud\b|projekcijski zaslon/i },
-  { slot: "seats-memory", label: "Kožna sjedala s memorijom", value: 260, pattern: /(?:kožna|kozna)\s+sjedal\w*\s+s\s*memorijom|memorija sjedala/i },
+  { slot: "lights-led", label: "LED svjetla", value: 300, pattern: /led svjetla|adaptivna led|bmw-adaptive-led/i },
   { slot: "seats-msport", label: "M Sport sjedala", value: 260, pattern: /m[\s-]*sport\s+sjedal\w*|m-sport-sjedala/i },
   { slot: "m-wheel", label: "M Sport upravljač", value: 180, pattern: /m[\s-]*volan|m[\s-]*sport[\s-]*upravljač|m[\s-]*sport[\s-]*volan/i },
   { slot: "paddles", label: "F1 ručice na volanu", value: 220, pattern: /f1\s*(?:saltarice|ručice)|polugice za promjenu stupnja/i },
@@ -810,7 +828,16 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
   }
   mileagePct = Math.max(-0.26, Math.min(0.145, mileagePct));
 
-  const mileageImpactEur = Math.round((baseModelValueEur * mileagePct) / 50) * 50;
+  // Croatian psychological round-mileage step-penalties: buyers re-price a car
+  // the moment it crosses 100k / 150k / 200k, beyond the smooth curve.
+  let stepPenaltyPct = 0;
+  const crossedSteps: number[] = [];
+  if (km > 100000) { stepPenaltyPct += 0.045; crossedSteps.push(100); }
+  if (km > 150000) { stepPenaltyPct += 0.04; crossedSteps.push(150); }
+  if (km > 200000) { stepPenaltyPct += 0.055; crossedSteps.push(200); }
+  const stepPenaltyEur = -Math.round((baseModelValueEur * stepPenaltyPct) / 50) * 50;
+
+  const mileageImpactEur = Math.round((baseModelValueEur * mileagePct) / 50) * 50 + stepPenaltyEur;
   const postMileageValue = Math.max(500, baseModelValueEur + mileageImpactEur);
   if (Math.abs(mileageImpactEur) >= 150) {
     factors.push({
@@ -820,8 +847,8 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
           ? km < 70000
             ? "Niska kilometraža (< 70.000 km)"
             : "Kilometraža ispod prosjeka za godište"
-          : km > 250000
-          ? "Kilometraža iznad 250.000 km"
+          : crossedSteps.length
+          ? `Psihološki prag kilometraže (preko ${crossedSteps.map(step => step + ".000").join(" / ")})`
           : km > 180000
           ? "Kilometraža iznad 180.000 km"
           : "Kilometraža iznad prosjeka za godište",
@@ -842,8 +869,8 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
           ? `Kilometraža ispod 70.000 km i ${Math.abs(kmDiff).toLocaleString("hr-HR")} km ispod godišnjeg prosjeka daje premiju očuvanosti.`
           : `Vozilo ima ${Math.abs(kmDiff).toLocaleString("hr-HR")} km manje od hrvatskog prosjeka za ovu starost i gorivo.`
         : mileageImpactEur < 0
-        ? km > 250000
-          ? `Visoka kilometraža (>250.000 km) nosi ubrzanu korekciju zbog troškova održavanja vitalnih sklopova.`
+        ? crossedSteps.length
+          ? `Prelazak psiholoških pragova (${crossedSteps.map(step => step.toLocaleString("hr-HR") + ".000 km").join(" / ")}) dodatno snižava cijenu jer kupci u RH preusmjeravaju pregled na vozila ispod praga.`
           : km > 180000
           ? `Kilometraža iznad praga od 180.000 km aktivira dodatni faktor amortizacije za velike servise.`
           : `Vozilo ima ${Math.abs(kmDiff).toLocaleString("hr-HR")} km više od prosjeka za godište (${kmPerYear.toLocaleString("hr-HR")} km/god).`
@@ -857,16 +884,33 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
   const matchedSlots = new Set<string>();
   const rawMatchedItems: Array<{ id: string; category: AuditCategory; label: string; rawEur: number; explanation: string }> = [];
 
+  // 3a. Proportional trim & transmission multipliers — real Croatian market
+  // percentages on the base value instead of flat € bonuses.
   const isAuto = /automat/i.test(input.gear) || /\b(dsg|pdk|steptronic|tiptronic|s tronic|multitronic|7g|9g|8hp)\b/i.test(tokens);
+  const sportPackage = SPORT_PACKAGES.find(option => option.pattern.test(tokens));
+  let techUpliftPct = 0;
+  const techItems: Array<{ slot: string; label: string; pct: number }> = [];
+  for (const option of TECH_OPTIONS) {
+    if (option.pattern.test(tokens)) {
+      matchedSlots.add(option.slot);
+      techUpliftPct += option.pct;
+      techItems.push(option);
+    }
+  }
+  techUpliftPct = Math.min(0.22, techUpliftPct); // realistic combined equipment uplift cap (+22%)
+  const proportionalMult = (isAuto ? 1.065 : 1) * (sportPackage ? 1.09 : 1) * (1 + techUpliftPct);
+  const proportionalUpliftEur = Math.round((postMileageValue * (proportionalMult - 1)) / 50) * 50;
+
   if (isAuto) {
-    rawEquipmentValue += 1250;
     matchedLabels.push("Automatski mjenjač");
-    rawMatchedItems.push({
-      id: "gear-auto",
+    auditFactors.push({
+      id: "audit-gear-auto",
       category: "Pogon i snaga",
-      label: "Automatski mjenjač",
-      rawEur: 1250,
-      explanation: `Automatski mjenjač na tržištu rabljenih vozila u RH zadržava ${Math.round(eqWeight * 100)}% vrijednosti doplate za starost vozila.`,
+      parameterLabel: "Automatski mjenjač",
+      userValue: "Automatik / DSG / S-Tronic",
+      benchmarkValue: "Ručni mjenjač (baza)",
+      impactEur: Math.round(postMileageValue * 0.065),
+      explanation: "Automatski mjenjač na tržištu rabljenih vozila u RH donosi +6,5% na osnovnu vrijednost — standardna doplata koja ostaje u cijeni.",
     });
   } else {
     auditFactors.push({
@@ -877,6 +921,30 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
       benchmarkValue: "Bazni mjenjač",
       impactEur: 0,
       explanation: "Ručni mjenjač čini osnovnu referencu modela bez doplate za automatik.",
+    });
+  }
+  if (sportPackage) {
+    matchedLabels.push(sportPackage.label);
+    auditFactors.push({
+      id: "audit-pkg-sport",
+      category: "Oprema",
+      parameterLabel: sportPackage.label,
+      userValue: "Tvornički sportski paket",
+      benchmarkValue: "Standardna linija",
+      impactEur: Math.round(postMileageValue * 0.09),
+      explanation: `${sportPackage.label} donosi +9,0% na osnovnu vrijednost — sportski ovjes, estetika i pomoćnici ostaju u cijeni pri preprodaji.`,
+    });
+  }
+  for (const option of techItems) {
+    matchedLabels.push(option.label);
+    auditFactors.push({
+      id: `audit-tech-${option.slot}`,
+      category: "Oprema",
+      parameterLabel: option.label,
+      userValue: "Ugrađeno",
+      benchmarkValue: `+${Math.round(option.pct * 1000) / 10}% osnovne vrijednosti`,
+      impactEur: Math.round(postMileageValue * option.pct),
+      explanation: `${option.label}: proporcionalna tržišna doplata (ukupni tehnološki paket ograničen na +22%).`,
     });
   }
 
@@ -917,7 +985,7 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
     }
   }
 
-  const equipmentValueEur = Math.round((rawEquipmentValue * eqWeight) / 50) * 50;
+  const equipmentValueEur = Math.round((rawEquipmentValue * eqWeight) / 50) * 50 + proportionalUpliftEur;
   for (const item of rawMatchedItems) {
     const weightedItemEur = Math.round(item.rawEur * eqWeight);
     auditFactors.push({
@@ -967,6 +1035,7 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
   const isArriving = flagSet.has("dolazak");
   const hasPdv = flagSet.has("pdv");
   const hasKupac = flagSet.has("kupac");
+  const hasWarranty = flagSet.has("jamstvo");
   const remRegMonths = parseRemainingRegMonths(input.registrationUntil, refDate);
   const regional = regionalDemandMeta(input.city, input.county);
 
@@ -993,13 +1062,18 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
   if (hasCvh) addTrustFactor("cvh", "Potvrđeni kilometri (CVH)", 0.035, "CVH", "Potvrda CVH", "Bez potvrde", "Službena potvrda stanja brojila kilometara u RH povećava povjerenje kupaca (+3,5%).");
   if (isFirstOwner) addTrustFactor("owner", "1. vlasnik", 0.03, "1. vlasnik", "Prvi vlasnik", "Više vlasnika", "Vozilo od prvog vlasnika s jasnim podrijetlom ostvaruje veću prodajnu cijenu (+3,0%).");
   if (hasServiceBook) addTrustFactor("service", "Servisna knjiga", 0.025, "Servisna", "Priložena", "Nepoznata", "Dokumentirano redovno održavanje smanjuje rizik skrivenih troškova (+2,5%).");
-  if (isVerifiedDealer) addTrustFactor("dealer", "Verificirana autokuća (jamstvo)", 0.025, "Autokuća", "Verificirani salon", "Privatna prodaja", "Poslovni prodavač osigurava pravnu sigurnost i zakonsko jamstvo (+2,5%).");
+  if (isVerifiedDealer) addTrustFactor("dealer", "Verificirana autokuća (pregled + jamstvo)", 0.06, "Autokuća", "Verificirani salon", "Privatna prodaja", "Poslovni prodavač pokriva prethodni pregled, detaliranje i zakonsko jamstvo uz maržu (+6,0%).");
   if (isArriving) addTrustFactor("arriving", "Vozilo u dolasku (čekanje isporuke)", -0.04, "U dolasku", "U dolasku", "Odmah dostupno", "Čekanje na isporuku i nemogućnost neposrednog pregleda snižavaju traženu cijenu (-4,0%).");
-  if (hasPdv) addTrustFactor("pdv", "Sustav PDV-a (R1 račun)", 0.02, "PDV (R1)", "R1 račun", "Bez R1", "Mogućnost odbitka pretporeza za pravne osobe i obrtnike (+2,0%).");
+  if (hasPdv) addTrustFactor("pdv", "Sustav PDV-a (R1 račun)", 0.035, "PDV (R1)", "R1 račun", "Bez R1", "Mogućnost odbitka pretporeza za pravne osobe i obrtnike (+3,5%).");
   else if (hasKupac) addTrustFactor("kupac", "Na ime kupca (bez pristojbe)", 0.015, "Na ime kupca", "Oslobođeno pristojbe", "Upravna pristojba", "Kupac ne plaća upravnu pristojbu na prijenos vlasništva (+1,5%).");
+  if (hasWarranty) addTrustFactor("jamstvo", "Pisano jamstvo 12 mjeseci", 0.035, "Jamstvo 12 mj.", "Pisano jamstvo", "Bez jamstva", "Pisano jamstvo od 12 mjeseci značajno smanjuje rizik kupca i podiže fer raspon (+3,5%).");
 
   if (remRegMonths > 2) {
-    const regBonus = Math.min(350, Math.round(((remRegMonths - 1) * 32) / 50) * 50);
+    // Croatian registration reality: tehnički pregled + osiguranje stoje novcu, pa
+    // 8+ preostalih mjeseci nose ~450 € vrijednosti (45 €/mj., najviše 540 € za 12 mj.).
+    const regBonus = remRegMonths >= 8
+      ? Math.min(540, 450 + Math.max(0, remRegMonths - 10) * 45)
+      : Math.min(350, Math.round(((remRegMonths - 1) * 32) / 50) * 50);
     if (regBonus >= 50) {
       trustImpactSum += regBonus;
       trustTags.push(`Reg. ${input.registrationUntil}`);
@@ -1009,9 +1083,11 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
         category: "Povijest, porez i tržište",
         parameterLabel: "Preostala registracija u RH",
         userValue: `Do ${input.registrationUntil} (${remRegMonths} mj.)`,
-        benchmarkValue: "Neregistrirano / pred istek",
+        benchmarkValue: remRegMonths >= 8 ? "Neregistrirano / pred istek" : "Kratki preostali rok",
         impactEur: regBonus,
-        explanation: "Važeći tehnički pregled i polica AO štede kupcu neposredne troškove registracije.",
+        explanation: remRegMonths >= 8
+          ? `Registracija s ${remRegMonths} mjeseci pokriva tehnički pregled i policu osiguranja: ~45 €/mjesec vrijednosti za kupca (do 540 €).`
+          : "Važeći tehnički pregled i polica AO štede kupcu neposredne troškove registracije.",
       });
     }
   }
@@ -1032,20 +1108,44 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
     }
   }
 
-  const clampedTrust = Math.max(-preTrustValue * 0.08, Math.min(preTrustValue * 0.095, trustImpactSum));
+  const clampedTrust = Math.max(-preTrustValue * 0.08, Math.min(preTrustValue * 0.18, trustImpactSum));
   const historyBonusEur = Math.round(clampedTrust / 50) * 50;
-  const medianMarketPrice = Math.max(500, preTrustValue + historyBonusEur);
-  const excellentMax = round50(medianMarketPrice * 0.935);
-  const goodMax = round50(medianMarketPrice * 0.965);
-  const fairMin = round50(medianMarketPrice * 0.965);
-  const fairMax = round50(medianMarketPrice * 1.035);
-  const highMax = round50(medianMarketPrice * 1.13);
+
+  // Step 3 value proofs: each checked proof lifts the live fair range by a fixed amount.
+  const proofSet = new Set(input.valueProofs ?? []);
+  const proofBonusEur = VALUE_PROOFS.reduce((sum, proof) => proofSet.has(proof.id) ? sum + proof.bonusEur : sum, 0);
+  const matchedProofs = VALUE_PROOFS.filter(proof => proofSet.has(proof.id));
+  if (matchedProofs.length) {
+    factors.push({
+      id: "value-proofs",
+      label: `Dokazi vrijednosti (${matchedProofs.map(proof => proof.label).join(", ")})`,
+      impactEur: proofBonusEur,
+    });
+    auditFactors.push({
+      id: "audit-value-proofs",
+      category: "Povijest, porez i tržište",
+      parameterLabel: "Dokazi vrijednosti",
+      userValue: matchedProofs.map(proof => proof.label).join(" · "),
+      benchmarkValue: "Nepotvrđeno stanje",
+      impactEur: proofBonusEur,
+      explanation: "Prodavateljevi dokazi vrijednosti (servis, gume, jamstvo, kasko) direktno podižu fer tržišni raspon oglasa.",
+    });
+  }
+
+  const medianMarketPrice = Math.max(500, preTrustValue + historyBonusEur + proofBonusEur);
+  // Seller-friendly tiers: Top prilika ≤ -5%, Tržišna cijena do +8% (HR negotiation
+  // buffer), Viši cjenovni rang do +18%, iznad toga javna značka se skriva.
+  const excellentMax = round50(medianMarketPrice * 0.95);
+  const goodMax = round50(medianMarketPrice);
+  const fairMin = round50(medianMarketPrice * 0.95);
+  const fairMax = round50(medianMarketPrice * 1.08);
+  const highMax = round50(medianMarketPrice * 1.18);
 
   const asking = input.askingPrice && input.askingPrice > 0 ? input.askingPrice : medianMarketPrice;
   const deltaEur = Math.round(asking - medianMarketPrice);
   const deltaPercent = Math.round(((asking - medianMarketPrice) / medianMarketPrice) * 1000) / 10;
 
-  const rating = classifyRating(asking, excellentMax, goodMax, fairMax, highMax);
+  const rating = classifyRating(asking, medianMarketPrice);
 
   // Top 3-5 human-readable factors sorted by absolute EUR impact
   const topFactors = factors
@@ -1118,6 +1218,12 @@ export function evaluateMarketPrice(input: MarketValuationInput): MarketValuatio
       detail: trustTags.length ? trustTags.join(" · ") : "Standardni uvjeti prodaje",
       amountEur: historyBonusEur,
     },
+    ...(matchedProofs.length ? [{
+      id: "proofs",
+      label: "Dokazi vrijednosti",
+      detail: matchedProofs.map(proof => proof.label).join(" · "),
+      amountEur: proofBonusEur,
+    }] : []),
     {
       id: "total",
       label: "Realna tržišna vrijednost u RH",
@@ -1168,18 +1274,31 @@ function estimateSampleCount(make: string, model: string, segment: Segment, ageY
   return Math.max(12, Math.min(168, base + hash));
 }
 
-function classifyRating(
-  asking: number,
-  excellentMax: number,
-  goodMax: number,
-  fairMax: number,
-  highMax: number,
-): PriceRatingTier {
-  if (asking <= excellentMax) return { bars: 5, label: "Odlična cijena", type: "good", rank: 0 };
-  if (asking <= goodMax) return { bars: 4, label: "Dobra cijena", type: "good", rank: 1 };
-  if (asking <= fairMax) return { bars: 3, label: "Fer cijena", type: "fair", rank: 2 };
-  if (asking <= highMax) return { bars: 2, label: "Viša cijena", type: "high", rank: 3 };
-  return { bars: 1, label: "Visoka cijena", type: "high", rank: 4 };
+function classifyRating(asking: number, medianMarketPrice: number): PriceRatingTier {
+  const pct = (asking - medianMarketPrice) / Math.max(1, medianMarketPrice);
+  if (pct <= -0.05) return { bars: 5, label: "Top prilika", type: "good", rank: 0 };
+  if (pct <= 0.08) return { bars: 4, label: "Tržišna cijena", type: "fair", rank: 1 };
+  if (pct <= 0.18) return { bars: 2, label: "Viši cjenovni rang", type: "high", rank: 2 };
+  // Above +18% the public badge is hidden so the portal never harms the seller;
+  // the seller sees a private advisory in /racun and in the Step 3 preview.
+  return { bars: 1, label: "", type: "high", rank: 3, hidden: true };
+}
+
+/** Private advisory shown only to the seller (dashboard / Step 3) when the public badge is hidden. */
+export function sellerAdvisoryText(deltaPercent: number, upperFairPrice: number): string | null {
+  if (deltaPercent <= 18) return null;
+  return `Oglasi u tržišnom rasponu dobivaju 3,4× više poziva — preporučujemo cijenu do ${Math.round(upperFairPrice).toLocaleString("hr-HR")} €.`;
+}
+
+/** Estimated time-to-sell line below the Step 3 price slider. */
+export function timeToSellLine(deltaPercent: number, upperFairPrice: number, formatEuro: (value: number) => string): string {
+  if (deltaPercent <= 8) {
+    return 'Procijenjeno vrijeme prodaje: ~14 dana · Dobivate značku "Tržišna cijena" i +40% više pregleda';
+  }
+  if (deltaPercent <= 18) {
+    return 'Procijenjeno vrijeme prodaje: ~30–45 dana · Oznaka "Viši cjenovni rang"';
+  }
+  return `Procijenjeno vrijeme prodaje: 65+ dana · Javna značka cijene bit će skrivena (privatna preporuka: do ${formatEuro(upperFairPrice)})`;
 }
 
 export function valuationInputFromVehicle(vehicle: Partial<Vehicle> & Pick<Vehicle, "make" | "model" | "km" | "kw" | "fuel" | "gear">): MarketValuationInput {
@@ -1225,11 +1344,14 @@ export function describeMarketDelta(
   deltaPercent: number,
   formatEuro: (value: number) => string,
 ): { text: string; tone: "good" | "neutral" | "high" } {
-  if (Math.abs(deltaPercent) <= 3) {
+  if (deltaPercent <= -5) {
+    return { text: `${formatEuro(Math.abs(deltaEur))} ispod prosjeka RH`, tone: "good" };
+  }
+  if (deltaPercent <= 8) {
     return { text: "U okviru tržišnog raspona", tone: "neutral" };
   }
-  if (deltaEur < 0) {
-    return { text: `${formatEuro(Math.abs(deltaEur))} ispod prosjeka HR`, tone: "good" };
+  if (deltaPercent <= 18) {
+    return { text: `+${formatEuro(deltaEur)} iznad tržišnog raspona`, tone: "neutral" };
   }
-  return { text: `+${formatEuro(deltaEur)} iznad prosjeka HR`, tone: "high" };
+  return { text: `+${formatEuro(deltaEur)} iznad tržišnog raspona`, tone: "high" };
 }

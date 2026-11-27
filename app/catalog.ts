@@ -63,6 +63,7 @@ export const quick = {
   pdv: "Sustav PDV-a (R1)",
   dolazak: "Vozilo u dolasku",
   cvh: "Potvrđeni km (CVH)",
+  jamstvo: "Pisano jamstvo 12 mj.",
 } as const;
 export type Flag = keyof typeof quick;
 export const flags = Object.keys(quick) as Flag[];

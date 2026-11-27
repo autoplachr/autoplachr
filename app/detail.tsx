@@ -151,16 +151,20 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
     : vinAffiliateUrl;
 
   const isSavings = valuation.deltaEur < -50;
-  const isNeutral = Math.abs(valuation.deltaPercent) <= 3.5 || Math.abs(valuation.deltaEur) <= 50;
+  const isNeutral = Math.abs(valuation.deltaPercent) <= 8 || Math.abs(valuation.deltaEur) <= 50;
   const comparisonRowLabel = isSavings
     ? "Ušteda u odnosu na prosjek:"
     : "Odstupanje od prosjeka:";
   const comparisonRowValue = isNeutral
-    ? "U okviru prosjeka RH"
+    ? "U okviru tržišnog raspona"
     : isSavings
     ? `${euro(Math.abs(valuation.deltaEur))} ispod prosjeka`
-    : `+${euro(Math.abs(valuation.deltaEur))} iznad prosjeka`;
+    : valuation.rating.hidden
+    ? `${euro(Math.abs(valuation.deltaEur))} iznad tržišnog raspona`
+    : `+${euro(Math.abs(valuation.deltaEur))} iznad raspona`;
   const comparisonRowTone = isNeutral
+    ? "text-[var(--muted)]"
+    : valuation.rating.hidden
     ? "text-[var(--muted)]"
     : isSavings
     ? "text-emerald-600 dark:text-emerald-400"
@@ -431,16 +435,18 @@ export default function Detail({ vehicle, inventory, saved, onSave, onBack, onOp
           <div className="pt-2 border-t border-[var(--border)] flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2">
               <Rating valuation={valuation} align="left" />
-              <span className="text-[11px] font-medium text-[var(--muted)]">Ocjena tržišta RH</span>
+              <span className="text-[11px] font-medium text-[var(--muted)]">
+                {valuation.rating.hidden ? "Usporedba dostupna prodavatelju" : "Ocjena tržišta RH"}
+              </span>
             </div>
 
             <div className="price-scale price-scale-5 !my-0.5" role="img" aria-label={`Tražena cijena ${euro(vehicle.price)} u odnosu na tržišni raspon u RH (${euro(valuation.fairMin)} – ${euro(valuation.fairMax)})`}>
               <div/><div/><div/><div/><div/><span style={{ left: pinLeft + "%" }}/>
             </div>
             <div className="scale-labels !mb-0 text-[11px]">
-              <span>Odlična</span>
-              <span>Fer</span>
-              <span>Visoka</span>
+              <span>Top prilika</span>
+              <span>Tržišna</span>
+              <span>Viši rang</span>
             </div>
 
             <div className="flex flex-col gap-1 text-[12.5px] pt-1">

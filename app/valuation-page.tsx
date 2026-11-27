@@ -229,13 +229,12 @@ export function ValuationPage({
     return Math.min(97, 80 + (20 * (p - result.highMax)) / Math.max(1, priceScaleMax - result.highMax));
   })();
   const priceTiers = [
-    { rank: 0, label: "Odlična cijena", range: `≤ ${euro(result.excellentMax)}`, tone: "good-5" },
-    { rank: 1, label: "Dobra cijena", range: `${euro(result.excellentMax + 1)} – ${euro(result.goodMax)}`, tone: "good-4" },
-    { rank: 2, label: "Fer cijena", range: `${euro(result.goodMax + 1)} – ${euro(result.fairMax)}`, tone: "fair-3" },
-    { rank: 3, label: "Viša cijena", range: `${euro(result.fairMax + 1)} – ${euro(result.highMax)}`, tone: "high-2" },
-    { rank: 4, label: "Visoka cijena", range: `> ${euro(result.highMax)}`, tone: "high-1" },
+    { rank: 0, label: "Top prilika", range: `≤ ${euro(result.excellentMax)}`, tone: "good-5" },
+    { rank: 1, label: "Tržišna cijena", range: `${euro(result.excellentMax + 1)} – ${euro(result.fairMax)}`, tone: "fair-3" },
+    { rank: 2, label: "Viši cjenovni rang", range: `${euro(result.fairMax + 1)} – ${euro(result.highMax)}`, tone: "high-2" },
+    { rank: 3, label: "Bez javne oznake", range: `> ${euro(result.highMax)}`, tone: "high-1" },
   ] as const;
-  const activeTierRank = parsedAsking > 0 ? result.rating.rank : 2;
+  const activeTierRank = parsedAsking > 0 ? result.rating.rank : 1;
   const deltaInfo = parsedAsking > 0 ? describeMarketDelta(result.deltaEur, result.deltaPercent, euro) : null;
 
   const importDiff = result.medianMarketPrice - result.estimatedImportTotalEur;
@@ -424,7 +423,7 @@ export function ValuationPage({
                 <span className="eyebrow">{[make || "Odabrano vozilo", effectiveModel, generation, activeVariant].filter(Boolean).join(" · ")}</span>
                 <h2>Realna tržišna cijena u RH</h2>
               </div>
-              {parsedAsking > 0 && <Rating valuation={result} align="right" />}
+              {parsedAsking > 0 && <Rating valuation={result} align="right" privateContext />}
             </div>
 
             <div className="valuation-median">

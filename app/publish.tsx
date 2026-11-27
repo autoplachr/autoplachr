@@ -23,7 +23,7 @@ import { EquipmentSelector } from "./equipment-selector";
 import { equipmentFor, equipmentId } from "../src/data/equipment-catalog";
 import { Dialog, ListingOptions, Rating, Select, VehiclePhoto } from "./ui";
 import { selectedMakeOptions } from "./make-equipment";
-import { describeMarketDelta, evaluateMarketPrice } from "../src/lib/price-engine";
+import { describeMarketDelta, evaluateMarketPrice, sellerAdvisoryText, timeToSellLine, VALUE_PROOFS } from "../src/lib/price-engine";
 import { calculateCo2, ksToKw, kwToKs, resolveVehicleSpecs, toCatalogFuel, type SpecFuel } from "../src/lib/spec-resolver";
 import { analyzeListingPhotos, orderImportedPhotos, prepareListingPhoto, type ListingAnalysis } from "./listing-analysis";
 import { canonicalEquipmentLabels, equipmentCategoryFor, inferStandardEquipment, parseListingText } from "./search";
@@ -108,6 +108,7 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [valueProofs, setValueProofs] = useState<string[]>([]);
 
   const set = <K extends keyof Publish>(key: K, value: Publish[K]) => setValues(old => ({ ...old, [key]: value }));
 
@@ -398,6 +399,12 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
     const action = submitter?.value === "draft" ? "draft" : existing?.status === "sold" ? "sold" : "active";
     try {
       const title = sanitizeText(values.title, 100);
+      // Checked Step 3 value proofs are appended to the seller notes as highlights.
+      const proofLabels = VALUE_PROOFS.filter(proof => valueProofs.includes(proof.id))
+        .map(proof => `${proof.label} (+${proof.bonusEur} €)`);
+      const proofSuffix = proofLabels.length
+        ? `${values.sellerNote?.trim() ? "\n" : ""}Dokazi vrijednosti: ${proofLabels.join(", ")}.`
+        : "";
       const location = Object.fromEntries(new FormData(event.currentTarget));
       const finalModel = sanitizeText(values.model === OTHER_MODEL ? customModel : values.model, 80);
       const finalVariant = sanitizeText(values.variant === customVariant ? customVersion : values.variant, 100);
@@ -438,7 +445,7 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
         county: sanitizeText(location.county, 100),
         title: !values.generation || titleContainsChassis(title, values.generation) ? title : sanitizeText(title + " (" + values.generation + ")", 100),
         trim: sanitizeText(values.trim, 100),
-        sellerNote: sanitizeText(values.sellerNote, 12000, true),
+        sellerNote: sanitizeText((values.sellerNote ?? "") + proofSuffix, 12000, true),
         variant: finalVariant,
         seller: sanitizeText(values.seller, 100),
         email: sanitizeText(values.email, 254),
@@ -460,9 +467,9 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
     }} placeholder={min ? undefined : "0"} /></label>;
   }
 
-  const valuation = useMemo(() => {
-    if (!values.make || !effectiveModel) return null;
-    return evaluateMarketPrice({
+  const { valuation, baseMedianPrice } = useMemo(() => {
+    if (!values.make || !effectiveModel) return { valuation: null as ReturnType<typeof evaluateMarketPrice> | null, baseMedianPrice: 0 };
+    const input = {
       make: values.make,
       model: effectiveModel,
       generation: values.generation,
@@ -485,8 +492,12 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
       history: values.history,
       dealer: contact.type === "dealer",
       verified: contact.type === "dealer",
-    });
-  }, [values, effectiveModel, activeVariant, contact.type]);
+    };
+    const base = evaluateMarketPrice(input);
+    // Checked value proofs lift the live fair range in real time.
+    const withProofs = valueProofs.length ? evaluateMarketPrice({ ...input, valueProofs }) : base;
+    return { valuation: withProofs, baseMedianPrice: base.medianMarketPrice };
+  }, [values, effectiveModel, activeVariant, contact.type, valueProofs]);
   const liveDelta = valuation && values.price > 0 ? describeMarketDelta(valuation.deltaEur, valuation.deltaPercent, euro) : null;
   const now = new Date();
   const maxMonth = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
@@ -828,10 +839,10 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
                 <Sparkles size={15}/> Postavi preporučenu cijenu
               </button>
             </div>
-            {values.price > 0 && liveDelta && <div className="advisor-preview flex-col !items-stretch">
+            {values.price > 0 && liveDelta && valuation && <div className="advisor-preview flex-col !items-stretch">
               <div className="flex flex-wrap items-center gap-2">
                 <span>Vaš oglas će imati oznaku:</span>
-                <Rating valuation={valuation} align="left" />
+                <Rating valuation={valuation} align="left" privateContext />
                 <span className={"price-delta tabular " + liveDelta.tone}>— {liveDelta.text}</span>
               </div>
               <div className="price-scale price-scale-5 !my-1.5" role="img" aria-label="Pozicija vaše cijene na hrvatskom tržištu">
@@ -851,10 +862,38 @@ export default function PublishForm({ onClose, onPublish, existing, contact }: {
                 />
               </div>
               <div className="scale-labels !mb-0 text-[11px]">
-                <span>Odlična</span>
-                <span>Fer raspon ({euro(valuation.fairMin)} – {euro(valuation.fairMax)})</span>
-                <span>Visoka</span>
+                <span>Top prilika</span>
+                <span>Tržišni raspon ({euro(valuation.fairMin)} – {euro(valuation.fairMax)})</span>
+                <span>Viši rang</span>
               </div>
+              {baseMedianPrice > 0 && values.price > baseMedianPrice && (
+                <div className="value-proofs flex flex-col gap-2 pt-1.5">
+                  <p className="!m-0 text-[12.5px] text-[var(--muted)]">
+                    Tražite <strong className="tabular-nums text-[var(--text)]">{euro(values.price - baseMedianPrice)}</strong> iznad prosjeka.
+                    Povećajte procjenu vozila dodavanjem dokaza vrijednosti:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {VALUE_PROOFS.map(proof => {
+                      const active = valueProofs.includes(proof.id);
+                      return (
+                        <label key={proof.id} className={"publish-boost-option tabular" + (active ? " active" : "")}>
+                          <input
+                            type="checkbox"
+                            checked={active}
+                            onChange={event => setValueProofs(old =>
+                              event.target.checked ? [...old, proof.id] : old.filter(id => id !== proof.id))}
+                          />
+                          <span>{proof.label} (+{euro(proof.bonusEur, true)})</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <p className="!m-0 text-[12.5px] text-[var(--muted)]" role="status">{timeToSellLine(valuation.deltaPercent, valuation.fairMax, euro)}</p>
+              {valuation.rating.hidden && sellerAdvisoryText(valuation.deltaPercent, valuation.fairMax) && (
+                <p className="!m-0 seller-advisory" role="status">{sellerAdvisoryText(valuation.deltaPercent, valuation.fairMax)}</p>
+              )}
             </div>}
           </section>}
           <div className="form-grid">

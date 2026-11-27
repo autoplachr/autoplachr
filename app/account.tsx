@@ -43,6 +43,7 @@ import { importClassifieds, importedDealerVehicle } from "./classifieds-import";
 import { demoCredentials, localDemo } from "./local-demo";
 import { profileErrors, type FieldErrors } from "../src/data/profile-validation";
 import { euro, marketValuation, number, registered, type Vehicle } from "./catalog";
+import { sellerAdvisoryText } from "../src/lib/price-engine";
 import { boostPlans, hasActiveBoost, type PaidBoostTier } from "./listing-boost";
 import { LocationFields, HoursFields } from "./dealership-fields";
 import { AnalyticsOverview, emptyAnalytics, LeadInbox, TrialReport } from "./seller-analytics";
@@ -1177,6 +1178,15 @@ export function AccountPage({
                           </span>
                         )}
                       </div>
+
+                      {listing.status === "active" && (() => {
+                        // Private pricing advisory — never shown on the public listing page.
+                        const listingValuation = marketValuation(listing);
+                        const advisory = sellerAdvisoryText(listingValuation.deltaPercent, listingValuation.fairMax);
+                        return advisory ? (
+                          <p className="!m-0 seller-advisory" role="status">{advisory}</p>
+                        ) : null;
+                      })()}
                     </div>
 
                     <div className="flex flex-wrap gap-1.5 shrink-0">
@@ -1668,7 +1678,7 @@ export function AccountPage({
                 {feedPreview.vehicles.map(vehicle => <li key={vehicle.id}>
                   <span>{vehicle.title} <small className="tabular">{registered(vehicle.date)} · {number(vehicle.km)} km</small></span>
                   <strong className="tabular">{euro(vehicle.price)}</strong>
-                  <Rating valuation={marketValuation(vehicle)} />
+                  <Rating valuation={marketValuation(vehicle)} privateContext />
                 </li>)}
               </ul>
               {feedPreview.sample && !canPublishSample ? <p>Za objavu učitajte stvarnu zalihu svoje autokuće.</p> :

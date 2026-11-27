@@ -23,7 +23,7 @@ export function getTopFeaturedListings(vehicles: readonly Vehicle[], now = Date.
     const photos = vehicle.photos.length;
     if (!boost && photos < 4) return [];
     const valuation = marketValuation(vehicle);
-    const fair = valuation.rating.label === "Odlična cijena" || valuation.rating.label === "Fer cijena";
+    const fair = valuation.rating.rank === 0 || valuation.rating.rank === 1;
     return boost || fair ? [{
       vehicle, valuation, boost, photos,
       bucket: boost ? (fair ? 0 : 1) : 2,

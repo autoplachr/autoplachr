@@ -391,7 +391,8 @@ export function matchesCollection(v: Vehicle, collection: CollectionId): boolean
   if (!collection) return true;
   switch (collection) {
     case "prilike":
-      return marketValuation(v).rating.rank <= 1 || Boolean(v.previousPriceEur && v.previousPriceEur > v.price);
+      // "Top prilika" (≤ -5% ispod prosjeka) plus every listing with a visible price drop.
+      return marketValuation(v).rating.rank === 0 || Boolean(v.previousPriceEur && v.previousPriceEur > v.price);
     case "sport-paketi":
       return /\b(m[\s-]?sport|s[\s-]?line|amg|r[\s-]?line|gt[\s-]?line|st[\s-]?line|rs|gtd|gti|cupra|trophy|cooper s|sport line|vz)\b/i.test(
         `${v.title} ${v.trim} ${v.variant ?? ""}`,
@@ -465,7 +466,14 @@ export function matchVehicles(vehicles: Vehicle[], s: Search, now = Date.now()) 
         return va.rating.rank - vb.rating.rank || va.deltaPercent - vb.deltaPercent;
       });
     default: {
-      const featuredRank = (v: Vehicle) => boostPriority(v, now) || Number(Boolean(v.isFeatured)) * 0.5;
+      // "Top prilika" listings get a subtle search-priority boost next to boosts/featured.
+      const rankCache = new Map<Vehicle, number>();
+      const priceRank = (v: Vehicle) => {
+        if (!rankCache.has(v)) rankCache.set(v, marketValuation(v).rating.rank);
+        return rankCache.get(v)!;
+      };
+      const featuredRank = (v: Vehicle) =>
+        (boostPriority(v, now) || Number(Boolean(v.isFeatured)) * 0.5) + (priceRank(v) === 0 ? 0.25 : 0);
       return matching.sort((a, b) => featuredRank(b) - featuredRank(a));
     }
   }

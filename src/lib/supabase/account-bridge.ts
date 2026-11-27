@@ -84,6 +84,7 @@ function mapListingRow(row: Record<string, unknown>, profileRow?: Record<string,
   if (row.on_buyer_name) flags.push("kupac");
   if (row.cvh_verified) flags.push("cvh");
   if (row.in_transit) flags.push("dolazak");
+  if (row.warranty_12m) flags.push("jamstvo");
   const history: string[] = [];
   if (row.first_owner) history.push("1. vlasnik");
   if (row.service_book) history.push("Servisna knjiga");
@@ -558,6 +559,7 @@ export async function supabaseApi(endpoint: string, input: object = {}): Promise
       first_owner: vehicle.history?.some(h => /1\.\s*vlasnik/i.test(h)) ?? false,
       service_book: vehicle.history?.some(h => /servisn/i.test(h)) ?? false,
       in_transit: vehicle.flags?.includes("dolazak") ?? false,
+      warranty_12m: vehicle.flags?.includes("jamstvo") ?? false,
       city: vehicle.city,
       county: vehicle.county ?? null,
       description: vehicle.sellerNote ?? null,
