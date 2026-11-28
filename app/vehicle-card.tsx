@@ -1,6 +1,6 @@
 import { Check, Heart } from "lucide-react";
 import type { MouseEvent } from "react";
-import { BrandLogo } from "../src/components/BrandLogo";
+import { BrandMark } from "../src/components/BrandMark";
 import { CarImage } from "../src/components/CarImage";
 import { ListingPhoto } from "../src/components/ListingPhoto";
 import { vehicleListingPath } from "../src/lib/seo";
@@ -62,9 +62,9 @@ export function CatalogCard({ vehicle, saved, onOpen, onSave, eager }: {
           + (saved ? "text-[#1D4ED8]" : "text-[#111318]")}>
         <Heart size={15} strokeWidth={2} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
       </button>
-      <span className="ap-medallion absolute -bottom-4 right-3.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-(--ap-divider) bg-white"
+      <span className="ap-medallion absolute -bottom-4 right-3.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-[#F1F3F5] bg-white text-[#111318]"
         title={vehicle.make}>
-        <BrandLogo make={vehicle.make} size="xs" />
+        <BrandMark make={vehicle.make} size={18} />
       </span>
     </div>
     <div className="flex flex-1 flex-col p-4 pt-3.5">

@@ -304,61 +304,63 @@ export function AuthPage({
   }
 
 
+  const switchMode = (next: "login" | "register") => {
+    setMode(next);
+    setResetMode(false);
+    setError("");
+    setErrors({});
+  };
+  const pillars = [
+    ["Besplatna objava za privatne prodavače", "Oglas za privatnu osobu stoji 0 €, bez skrivenih naknada."],
+    ["Tržišna procjena cijene temeljena na stvarnim podacima", "Raspon cijene s prikazanim čimbenicima: model, godište, kilometraža i oprema."],
+    ["6 mjeseci besplatno za prvih 50 autokuća", "Partner osnivač do 31. 5. 2027. Pružatelj usluge: INO-TEH d.o.o., Orahovica."],
+  ] as const;
+
   return (
-    <main className="shell account-shell">
-      <section className="detail-panel auth-card flex flex-col gap-4 rounded-xl">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div>
-            <span className="eyebrow">AUTOPLAC.HR račun</span>
-            <h1 className="!m-0 mt-0.5 text-[24px] font-bold tracking-tight text-[var(--text)]">
-              {mode === "register" ? "Otvorite korisnički račun" : "Prijava na račun"}
-            </h1>
-          </div>
-          <div className="inline-flex rounded-lg border border-[var(--border)] bg-[var(--hover)] p-0.5" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "login"}
-              className={`px-3 py-1.5 rounded-md text-[13px] font-semibold transition-colors ${
-                mode === "login"
-                  ? "bg-[#2563EB] text-white"
-                  : "text-[var(--spec)] hover:text-[var(--text)]"
-              }`}
-              onClick={() => {
-                setMode("login");
-                setResetMode(false);
-                setError("");
-                setErrors({});
-              }}
-            >
-              Prijava
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "register"}
-              className={`px-3 py-1.5 rounded-md text-[13px] font-semibold transition-colors ${
-                mode === "register"
-                  ? "bg-[#2563EB] text-white"
-                  : "text-[var(--spec)] hover:text-[var(--text)]"
-              }`}
-              onClick={() => {
-                setMode("register");
-                setResetMode(false);
-                setError("");
-                setErrors({});
-              }}
-            >
-              Registracija
-            </button>
-          </div>
+    <main className="ap-auth flex min-h-[calc(100dvh-64px)] bg-(--ap-canvas)">
+      <aside className="hidden flex-col justify-between bg-[#111318] p-12 text-white lg:flex lg:w-[46%]" aria-label="O AUTOPLAC.HR">
+        <div className="flex items-center gap-2.5">
+          <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white text-[15px] font-extrabold leading-none text-[#111318]">A</span>
+          <span className="text-[15px] font-extrabold tracking-[0.04em]">AUTOPLAC<span className="text-white/50">.HR</span></span>
+        </div>
+        <div className="max-w-[460px]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/45">Rabljena vozila · Hrvatska</p>
+          <h2 className="mt-4 text-[34px] font-bold leading-[1.15] tracking-[-0.025em]">„Transparentna kupnja i prodaja vozila u Hrvatskoj.“</h2>
+          <ol className="mt-10 grid gap-6">
+            {pillars.map(([title, text], index) => <li key={title} className="flex gap-4">
+              <span aria-hidden="true" className="flex h-7 w-7 flex-none items-center justify-center rounded-full border border-white/20 text-[12px] font-semibold tabular-nums text-white/80">{index + 1}</span>
+              <span>
+                <span className="block text-[15px] font-semibold leading-snug">{title}</span>
+                <span className="mt-1 block text-[13px] leading-relaxed text-white/55">{text}</span>
+              </span>
+            </li>)}
+          </ol>
+        </div>
+        <p className="text-[12px] text-white/40">© 2026 INO-TEH d.o.o. · Orahovica · info@autoplac.hr</p>
+      </aside>
+      <div className="flex flex-1 items-start justify-center p-4 pt-8 sm:p-6 lg:items-center lg:p-12">
+      <section className="flex w-full max-w-[420px] flex-col gap-4 rounded-2xl border border-(--ap-line) bg-(--ap-card) p-6 shadow-[0_8px_30px_rgba(15,23,42,0.05)] sm:p-8">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-(--ap-mute)">AUTOPLAC.HR račun</p>
+          <h1 className="!m-0 mt-1.5 text-[24px] font-bold tracking-[-0.02em] text-(--ap-ink)">
+            {resetMode ? "Nova lozinka" : mode === "register" ? "Otvorite račun" : "Dobro došli natrag"}
+          </h1>
+        </div>
+        <div className="ap-segment relative grid grid-cols-2 rounded-[12px] bg-(--ap-fill) p-1" role="tablist" aria-label="Prijava ili registracija">
+          <span aria-hidden="true" className={"ap-segment-thumb absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-[9px] bg-(--ap-card) shadow-[0_1px_3px_rgba(16,24,40,0.12)] "
+            + (mode === "register" ? "translate-x-full" : "translate-x-0")} />
+          {(["login", "register"] as const).map(item => <button key={item} type="button" role="tab" aria-selected={mode === item}
+            onClick={() => switchMode(item)}
+            className={"relative z-[1] h-9 rounded-[9px] text-[13.5px] font-semibold " + (mode === item ? "text-(--ap-ink)" : "text-(--ap-text-2) hover:text-(--ap-ink)")}>
+            {item === "login" ? "Prijava" : "Registracija"}
+          </button>)}
         </div>
 
         <button
           type="button"
           disabled={busy}
           onClick={() => void googleSignIn()}
-          className="w-full min-h-[42px] inline-flex items-center justify-center gap-2.5 rounded-lg border border-[var(--border-hover)] bg-[var(--surface)] hover:bg-[var(--hover)] px-4 text-[14px] font-semibold text-[var(--text)] transition-colors"
+          className="ap-press inline-flex h-11 w-full items-center justify-center gap-2.5 rounded-[10px] border border-[#D1D5DB] bg-(--ap-card) px-4 text-[14px] font-semibold text-(--ap-ink) hover:bg-(--ap-fill)"
         >
           <GoogleIcon />
           <span>Nastavi putem Googlea</span>
@@ -437,7 +439,7 @@ export function AuthPage({
           <form key={`${mode}-${sample?.email ?? "empty"}`} className="form-stack" onSubmit={submit} noValidate>
             {mode === "register" && (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5" role="radiogroup" aria-label="Vrsta računa">
+                <div className="grid grid-cols-2 gap-2" role="group" aria-label="Vrsta računa">
                   <button
                     type="button"
                     aria-pressed={type === "private"}
@@ -446,17 +448,17 @@ export function AuthPage({
                       setSample(undefined);
                       setErrors({});
                     }}
-                    className={`text-left p-3 rounded-lg border transition-colors ${
+                    className={`ap-press rounded-[12px] border p-3 text-left transition-colors ${
                       type === "private"
-                        ? "border-[#2563EB] bg-blue-500/10"
-                        : "border-[var(--border)] bg-[var(--hover)] hover:border-[var(--border-hover)]"
+                        ? "border-(--ap-accent) bg-(--ap-accent-soft)"
+                        : "border-(--ap-line) bg-(--ap-card) hover:bg-(--ap-fill)"
                     }`}
                   >
-                    <div className="flex items-center gap-2 font-bold text-[13.5px] text-[var(--text)]">
-                      <UserRound size={16} className="text-[#2563EB]" />
-                      <span>Privatna osoba</span>
+                    <div className="flex items-center gap-2 text-[13.5px] font-semibold text-(--ap-ink)">
+                      <UserRound size={16} className="text-(--ap-accent)" />
+                      <span>Privatni kupac / prodavač</span>
                     </div>
-                    <p className="text-[12px] text-[var(--muted)] mt-1 !m-0">Besplatni oglasi, favoriti i chat s kupcima</p>
+                    <p className="text-[12px] text-(--ap-text-2) mt-1 !m-0">Besplatni oglasi, favoriti i poruke</p>
                   </button>
                   <button
                     type="button"
@@ -466,17 +468,17 @@ export function AuthPage({
                       setSample(undefined);
                       setErrors({});
                     }}
-                    className={`text-left p-3 rounded-lg border transition-colors ${
+                    className={`ap-press rounded-[12px] border p-3 text-left transition-colors ${
                       type === "dealer"
-                        ? "border-[#2563EB] bg-blue-500/10"
-                        : "border-[var(--border)] bg-[var(--hover)] hover:border-[var(--border-hover)]"
+                        ? "border-(--ap-accent) bg-(--ap-accent-soft)"
+                        : "border-(--ap-line) bg-(--ap-card) hover:bg-(--ap-fill)"
                     }`}
                   >
-                    <div className="flex items-center gap-2 font-bold text-[13.5px] text-[var(--text)]">
-                      <Building2 size={16} className="text-[#2563EB]" />
-                      <span>Autokuća / Trgovac (B2B)</span>
+                    <div className="flex items-center gap-2 text-[13.5px] font-semibold text-(--ap-ink)">
+                      <Building2 size={16} className="text-(--ap-accent)" />
+                      <span>Autokuća / Salon</span>
                     </div>
-                    <p className="text-[12px] text-[var(--muted)] mt-1 !m-0">R1 račun, javna poddomena i značka salona</p>
+                    <p className="text-[12px] text-(--ap-text-2) mt-1 !m-0">R1 račun, javna poddomena i značka salona</p>
                   </button>
                 </div>
                 <ProfileFields key={type} type={type} profile={sample} errors={errors} registration />
@@ -504,7 +506,7 @@ export function AuthPage({
                 {mode === "login" && (
                   <button
                     type="button"
-                    className="text-[12px] font-semibold text-[#2563EB] hover:underline"
+                    className="text-[12px] font-semibold text-(--ap-accent) hover:underline"
                     onClick={() => {
                       setResetMode(true);
                       setError("");
@@ -575,12 +577,19 @@ export function AuthPage({
               </p>
             )}
 
-            <button className="btn primary min-h-[42px]" disabled={busy}>
-              {mode === "register" ? "Otvori račun" : "Prijavi se"}
+            <button className="ap-press mt-1 h-11 w-full rounded-[10px] bg-(--ap-ink) text-[14.5px] font-semibold text-(--ap-on-ink) hover:bg-(--ap-ink-hover) disabled:opacity-60" disabled={busy}>
+              {busy ? "Pričekajte…" : mode === "register" ? "Otvori račun" : "Prijavi se"}
             </button>
+            <p className="text-center text-[12.5px] text-(--ap-text-2)">
+              {mode === "register" ? "Već imate račun? " : "Nemate račun? "}
+              <button type="button" className="font-semibold text-(--ap-accent) hover:underline" onClick={() => switchMode(mode === "register" ? "login" : "register")}>
+                {mode === "register" ? "Prijavite se" : "Registrirajte se besplatno"}
+              </button>
+            </p>
           </form>
         )}
       </section>
+      </div>
     </main>
   );
 }

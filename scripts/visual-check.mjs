@@ -13,7 +13,7 @@ const { chromium } = require("playwright-core");
 const watchdog = setTimeout(() => { console.error("visual-check: watchdog timeout"); process.exit(2); }, 90_000);
 const base = process.env.VISUAL_BASE ?? "http://localhost:4323";
 const executablePath = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
-const routes = (process.env.VISUAL_ROUTES ?? "home=/,detail=/oglas/skoda-octavia-rs-2-0-tsi-2022-varazdin-octavia,autokuce=/autokuce,racun=/racun")
+const routes = (process.env.VISUAL_ROUTES ?? "home=/,detail=/oglas/skoda-octavia-rs-2-0-tsi-2022-varazdin-octavia,prijava=/prijava,autokuce=/autokuce,racun=/racun")
   .split(",").map(entry => entry.split("="));
 const viewports = [["desktop", 1440, 900], ["mobile", 390, 844]];
 const fullPage = process.env.VISUAL_FULL !== "0";

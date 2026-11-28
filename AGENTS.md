@@ -12,8 +12,9 @@ The Light-First Editorial theme is non-negotiable on every screen and in every f
 prompt: light `#F5F6F8` canvas, white `#FFFFFF` rounded cards, `#111318` ink, the
 three-colour palette (ink + Adriatic Cobalt `#1D4ED8` + warm `#D97706`), Apple iOS
 motion (`--ease-ios`, `.ap-press`, transform/opacity only, reduced-motion respected),
-left filter rail on the homepage with only the compact editorial banner strip above it.
-Dark mode is an opt-in toggle only, never the default. Keep extra gradients,
+left filter rail on the homepage with no banner of any kind above the grid, crisp
+`BrandMark` vector marks at small sizes, and the split-screen auth layout.
+Dark mode is an opt-in toggle only, never the default. Keep gradients,
 violet/indigo/teal accents, glows, emoji icons, fake ratings, fake leasing estimates and
 hand-drawn car wireframes out of the UI. Detail, account, `/autokuce`,
 `/ppmv-kalkulator` and `/procjena-cijene` follow the same system (DESIGN.md §4b).
@@ -22,6 +23,7 @@ hand-drawn car wireframes out of the UI. Detail, account, `/autokuce`,
 
 | File | Responsibility |
 | --- | --- |
+| `src/components/BrandMark.tsx` | Crisp single-colour SVG brand marks + monogram fallback for small sizes |
 | `src/components/Navbar.tsx` | Sticky white top bar, location trigger, saved, theme toggle, `Predaj oglas`, avatar |
 | `app/page.tsx` | Homepage server entry (catalogue snapshot + JSON-LD) |
 | `app/marketplace.tsx` | Client shell, routing, two-column catalogue, sort, mobile filter sheet, footer |

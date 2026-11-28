@@ -1,8 +1,8 @@
 "use client";
 
-import { ChevronDown, Search as SearchIcon, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Search as SearchIcon, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
-import { BrandLogo } from "../src/components/BrandLogo";
+import { BrandMark } from "../src/components/BrandMark";
 import { modelsFor } from "../src/data/car-catalog";
 import { euro, fuelLabel, fuels, gears, number, type Vehicle } from "./catalog";
 import { initialSearch, matchVehicles, validEquipmentFilters, years, type Search } from "./search";
@@ -248,6 +248,9 @@ function MoreFilters({ search, update, brand, onAdvanced }: { search: Search; up
   const [open, setOpen] = useState(Boolean(search.godiste || search.gorivo || search.mjenjac || search.model));
   const models = brand ? modelsFor(brand, false) : [];
   const select = "ap-select " + fieldClass + " appearance-none pr-8";
+  // Filters that only exist in the full dialog (equipment, seats, doors, engine, finish, tax flags).
+  const advancedCount = search.oprema.length + search.opcije.filter(flag => flag !== "cvh").length
+    + [search.sjedalaOd, search.sjedalaDo, search.vrata, search.cilindri, search.zavrsnica, search.generacija, search.varijanta.trim()].filter(Boolean).length;
   const panel = useId();
   return <section className="mt-5 border-t border-(--ap-divider) pt-4">
     <button type="button" aria-expanded={open} aria-controls={panel} onClick={() => setOpen(value => !value)}
@@ -286,8 +289,15 @@ function MoreFilters({ search, update, brand, onAdvanced }: { search: Search; up
         </span>
       </label>)}
       {onAdvanced && <button type="button" onClick={onAdvanced}
-        className="ap-press mt-1 inline-flex h-9 items-center justify-center gap-2 rounded-full bg-(--ap-fill) text-[12.5px] font-semibold text-(--ap-ink) hover:bg-(--ap-fill-hover)">
-        <SlidersHorizontal size={14} aria-hidden="true" /> Svi filtri (oprema, sjedala, vrata…)
+        aria-label={"Dodatni filtri: oprema, sjedala, vrata" + (advancedCount ? ", aktivno " + advancedCount : "")}
+        className="ap-press mt-1 flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-[10px] bg-(--ap-fill) px-3.5 text-[13px] font-medium text-(--ap-ink) transition-colors hover:bg-(--ap-fill-hover)">
+        <span className="flex min-w-0 items-center gap-2">
+          <SlidersHorizontal size={15} aria-hidden="true" className="flex-none text-(--ap-text-2)" />
+          <span className="truncate">Dodatni filtri</span>
+        </span>
+        {advancedCount > 0
+          ? <span className="inline-flex h-5 min-w-5 flex-none items-center justify-center rounded-full bg-(--ap-accent) px-1.5 text-[11px] font-bold text-(--ap-on-accent) tabular-nums">{advancedCount}</span>
+          : <ChevronRight size={15} aria-hidden="true" className="flex-none text-(--ap-faint)" />}
       </button>}
     </div>}
   </section>;
@@ -323,8 +333,8 @@ function BrandFilter({ search, update, domainPool, pool }: { search: Search; upd
       {visible.map(([make, count]) => <li key={make}>
         <label className="flex cursor-pointer items-center justify-between py-1.5">
           <span className="flex min-w-0 items-center gap-2.5">
-            <span className="ap-brand-badge flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full border border-(--ap-divider) bg-white">
-              <BrandLogo make={make} size="xs" />
+            <span className="flex h-6 w-6 flex-none items-center justify-center rounded-full border border-[#EEF0F3] bg-white text-[#374151]">
+              <BrandMark make={make} size={16} />
             </span>
             <span className="truncate text-[13px] font-medium text-(--ap-ink)">{make}</span>
           </span>
@@ -342,7 +352,13 @@ function BrandFilter({ search, update, domainPool, pool }: { search: Search; upd
   </Section>;
 }
 
-function QuickSearch({ search, update }: { search: Search; update: UpdateSearch }) {
+/** Header pill search next to the sort control. Shares `upit` with the rail search. */
+export function CatalogSearch({ search, update }: { search: Search; update: UpdateSearch }) {
+  return <QuickSearch search={search} update={update} variant="header" />;
+}
+
+function QuickSearch({ search, update, variant = "rail" }: { search: Search; update: UpdateSearch; variant?: "rail" | "header" }) {
+  const header = variant === "header";
   const [draft, setDraft] = useState(search.upit);
   const latest = useRef(search);
   latest.current = search;
@@ -352,11 +368,15 @@ function QuickSearch({ search, update }: { search: Search; update: UpdateSearch 
     const timer = window.setTimeout(() => update({ ...latest.current, upit: draft.slice(0, 200) }, true), 220);
     return () => window.clearTimeout(timer);
   }, [draft]);
-  return <form role="search" className="relative mt-4" onSubmit={event => { event.preventDefault(); update({ ...search, upit: draft.trim() }); }}>
+  const label = header ? "Pretraži marku, model ili opremu..." : "Pretraži marku ili model";
+  return <form role="search" className={header ? "relative w-[300px]" : "relative mt-4"}
+    onSubmit={event => { event.preventDefault(); update({ ...search, upit: draft.trim() }); }}>
     <SearchIcon size={14} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-(--ap-faint)" />
     <input type="text" enterKeyHint="search" maxLength={200} value={draft} onChange={event => setDraft(event.target.value)}
-      aria-label="Pretraži marku ili model" placeholder="Pretraži marku ili model"
-      className={"ap-search " + fieldClass + " pl-8 pr-8 placeholder:text-(--ap-faint)"} />
+      aria-label={label} placeholder={label}
+      className={"ap-search placeholder:text-(--ap-faint) " + (header
+        ? "h-9 w-full rounded-full border border-[#E5E7EB] bg-(--ap-card) pl-8 pr-8 text-[13px] text-(--ap-ink) shadow-[0_1px_2px_rgba(16,24,40,0.05)] outline-none focus-visible:border-(--ap-accent) focus-visible:ring-2 focus-visible:ring-(--ap-accent)/15"
+        : fieldClass + " pl-8 pr-8")} />
     {draft && <button type="button" aria-label="Obriši pretragu" onClick={() => { setDraft(""); update({ ...search, upit: "" }); }}
       className="absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-(--ap-faint) hover:text-(--ap-ink)">
       <X size={13} aria-hidden="true" />
@@ -368,8 +388,14 @@ export function FilterRail({ search, update, inventory, onAdvanced, className = 
   search: Search; update: UpdateSearch; inventory: Vehicle[]; onAdvanced?: () => void; className?: string; showTitle?: boolean;
 }) {
   const domainPool = useMemo(() => inventory.filter(vehicle => vehicleCategory(vehicle) === search.kategorija), [inventory, search.kategorija]);
-  const pricePool = useMemo(() => matchVehicles(inventory, { ...search, cijena: "", cijenaOd: "", sortiranje: "lowest" }), [inventory, search]);
-  const brandPool = useMemo(() => matchVehicles(inventory, { ...search, marka: "", model: "", generacija: "", marke: [], sortiranje: "lowest" }), [inventory, search]);
+  // Keyed on everything except the facet itself, so dragging the price slider never
+  // recomputes the histogram and ticking a brand never recomputes brand counts.
+  const priceSearch: Search = { ...search, cijena: "", cijenaOd: "", sortiranje: "lowest" };
+  const brandSearch: Search = { ...search, marka: "", model: "", generacija: "", marke: [], sortiranje: "lowest" };
+  const priceKey = JSON.stringify(priceSearch);
+  const brandKey = JSON.stringify(brandSearch);
+  const pricePool = useMemo(() => matchVehicles(inventory, priceSearch), [inventory, priceKey]);
+  const brandPool = useMemo(() => matchVehicles(inventory, brandSearch), [inventory, brandKey]);
   const km = search.km ? clamp(Number(search.km), KM_STEP, KM_MAX) : KM_MAX;
   const bodies = search.karoserija;
   const effectiveBrands = [...new Set([...search.marke, ...(search.marka ? [search.marka] : [])])];

@@ -51,6 +51,11 @@ export const metadata: Metadata = {
   },
 };
 
+const supabaseOrigin = (() => {
+  try { return process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin : ""; }
+  catch { return ""; }
+})();
+
 const themeScript = `try{if(localStorage.getItem("autoplac.theme")==="dark"){var d=document.documentElement;d.classList.add("dark");d.style.colorScheme="dark"}}catch(e){}`;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -59,6 +64,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <head>
         {/* Light is the default (DESIGN.md §2). Apply an explicit dark opt-in before first paint. */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* Open the Supabase connection early: inventory, auth and listing photos come from there. */}
+        {supabaseOrigin && <>
+          <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
+          <link rel="dns-prefetch" href={supabaseOrigin} />
+        </>}
       </head>
       <body>
         {children}

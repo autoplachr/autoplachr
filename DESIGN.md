@@ -67,13 +67,19 @@ overrides under `html.dark`). Light values are fixed:
 
 Never tint whole sections cobalt or warm. Never use either accent for fake urgency.
 
-### Editorial banner strip (the only gradient)
+### No banners above the marketplace (revoked in v1.1.0-rc3)
 
-The homepage may show one low-profile banner strip above the two-column split
-(`rounded-2xl`, `px-6 py-5`, ≤ ~120 px tall on desktop): eyebrow, headline, live count,
-brand shortcuts and an inline search. Its background is the single permitted gradient
-(`from-[#0F172A] via-[#162033] to-[#1E3A8A]`). It must never push the first card row
-below the fold on a `1440×900` desktop, and it is not a hero (no photo, no carousel).
+The blue gradient banner strip (`Provjerena ponuda rabljenih vozila na jednom mjestu`)
+was removed because it read as a generic SaaS ad. **Gradient banners, promo strips and
+hero cards above the two-column marketplace grid are forbidden.** The page opens straight
+into the calm catalogue header (eyebrow, H1, pill search, sort). The only dark surface in
+the product is the obsidian `#111318` auth panel (§4c). No gradients anywhere.
+
+### Audience and tone
+
+Buyers and dealership owners aged 30–50. The reference feel is Porsche Approved, BMW
+Premium Selection and Polestar: calm, factual, generous whitespace, few colours, no
+exclamation marks, no urgency badges, no stock-photo people.
 
 ### Geometry
 
@@ -126,7 +132,26 @@ below the fold on a `1440×900` desktop, and it is not a hero (no photo, no caro
    overflow at `390px`, and nothing floats over card content.
 6. **Photos**: `CarImage` renders `quality={90}` with
    `sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"` in an `aspect-[16/10]`
-   frame. Never upscale a `preview` thumbnail into a card or gallery.
+   frame. Never upscale a `preview` thumbnail into a card or gallery. The first 3 cards are
+   `priority` (preloaded, `fetchpriority="high"`); every other card is `loading="lazy"`
+   + `decoding="async"`.
+7. **Brand marks** (`src/components/BrandMark.tsx`): single-colour inline SVG on a 24-unit
+   grid, rendered at integer sizes (`16` rail, `18` medallion) with
+   `shapeRendering="geometricPrecision"` in `#111318` / `#374151` on white. Covers BMW,
+   Volkswagen, Audi, Mercedes-Benz, Škoda, Porsche, Alfa Romeo, Ford, Volvo, Toyota,
+   Renault, Peugeot, Hyundai, Kia, Mazda, Cupra, Tesla; every other make and every dealer
+   gets a geometric two-letter monogram. These are simplified identification marks, not
+   official artwork. The detailed `BrandLogo` emblems are only for ≥ 24 px surfaces.
+
+**Catalogue header**: eyebrow `AUTOPLAC.HR · RABLJENA VOZILA` (`11px`, `0.1em`, `#8C93A0`),
+H1 `{n} vozila u ponudi` (`26px` / `lg:30px`, bold, `-0.025em`, tabular), and on the right a
+`w-64 h-9` pill search (`Pretraži marku, model ili opremu...`) next to `Sortiraj`. Layout
+container: `max-w-[1400px] mx-auto px-4 lg:px-8 pt-6 pb-16`; the rail is a sticky white
+`rounded-2xl` card inside it.
+
+**Performance**: preconnect + dns-prefetch the Supabase origin in `app/layout.tsx`;
+memoise the histogram and brand counts on keys that exclude their own facet; debounce
+`replaceState` URL writes to `120 ms` while dragging or typing.
 
 ## 4b. Sub-page anatomy (same system everywhere)
 
@@ -141,15 +166,35 @@ below the fold on a `1440×900` desktop, and it is not a hero (no photo, no caro
   (cobalt verified badge, `+ Predaj novi oglas` pill), underline tabs with an animated
   cobalt indicator, a 4-column KPI card with cobalt icon tiles, single-line table/list
   rows whose pill actions (`Istakni`, `A4 cjenik`, `Uredi`, `Pauziraj`, `Obriši`) never wrap.
+- **Detail dossier details**: title `28px` / `lg:32px` bold `-0.025em`; subtitle
+  `{km} km · MM/YYYY · {city}`; pills `Spremi`, `Podijeli`, `Ispiši A4 cjenik` (seller) or
+  `Ispiši A4` (buyer), `Prijavi`; seller notes `15px leading-relaxed #374151 max-w-[68ch]`;
+  sticky card `top-24`, `shadow-[0_6px_24px_rgba(15,23,42,0.05)]`, seller monogram mark,
+  cobalt `h-11 rounded-xl` phone button, matching `rounded-xl` outline buttons.
 - **`/autokuce`, `/ppmv-kalkulator`, `/procjena-cijene`**: `#F5F6F8` canvas, white
   `rounded-2xl` cards (`.detail-panel`), cobalt active controls, `.ap-press` feedback,
   vehicles rendered with `CatalogCard`.
 
+## 4c. Auth (`/prijava`, `/registracija`, `AuthPage` in `app/account.tsx`)
+
+- Split screen. Left (`lg:w-[46%]`, hidden on mobile): obsidian `#111318` panel, `p-12`,
+  AUTOPLAC.HR emblem, headline „Transparentna kupnja i prodaja vozila u Hrvatskoj.“ and
+  three factual pillars (free private listings · market valuation with shown factors ·
+  6 months free for the first 50 dealerships, INO-TEH d.o.o.). No testimonials, no
+  user counts, no inflated claims.
+- Right: `#F5F6F8`, centred white card `max-w-[420px] rounded-2xl p-8
+  shadow-[0_8px_30px_rgba(15,23,42,0.05)]`; segmented `Prijava | Registracija` switch with
+  a sliding thumb; account type `Privatni kupac / prodavač` vs `Autokuća / Salon`;
+  `h-11 rounded-[10px]` inputs (`#D1D5DB`, cobalt focus ring at 15 %), Croatian field
+  errors, password show/hide, `#111318` submit, cobalt text links.
+
 ## 5. Hard bans (never do)
 
 - Never revert to a dark-first default (`#0B0D11` page background as default).
-- Never place a photo hero, carousel or promo block above the homepage marketplace. The
-  only allowed element is the compact editorial banner strip from §3.
+- Never place a gradient banner, photo hero, carousel or promo block above the homepage
+  marketplace grid.
+- Never render detailed full-colour emblems below 24 px; use `BrandMark` (§4.7).
+- Never let button text clip; long labels get a shorter label plus an `aria-label`.
 - Never float a filter button over content on mobile; use the full-width sticky sub-bar.
 - Never render star ratings, review scores, monthly leasing/financing estimates
   (`Est. 437 €/mj`), "N-point inspection" claims, unsponsored insurance or finance
@@ -158,7 +203,7 @@ below the fold on a `1440×900` desktop, and it is not a hero (no photo, no caro
   (`showPriceBadge === true`).
 - Never stack bordered boxes inside bordered boxes. Inside a card use `--ap-divider`
   hairlines, not nested bordered panels.
-- No gradients except the banner strip, no violet/indigo/teal accents, glows, emoji
+- No gradients, no violet/indigo/teal accents, glows, emoji
   icons, generic SaaS badge clutter, or hand-drawn car wireframes. Use Lucide icons and
   real brand emblems (`BrandLogo`).
 - No decorative static controls. Every visible filter control changes results.

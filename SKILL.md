@@ -66,7 +66,12 @@ Load this file and `DESIGN.md` before touching UI, styling, copy or marketplace 
 
 ### Mobile homepage
 - Full-width sticky sub-bar (`Filteri` + sort) under the navbar. Never a floating pill.
-- Compact editorial banner strip above the split is allowed (DESIGN.md §3), nothing else.
+- No banner of any kind above the split (revoked in rc3, DESIGN.md §3). Open into the
+  catalogue header: eyebrow, H1, pill search, sort.
+
+### Brand marks
+- Small sizes (< 24 px) always use `BrandMark` (inline single-colour SVG, integer size,
+  `geometricPrecision`). Unknown makes and dealers fall back to a two-letter monogram.
 
 ## 2. Truthfulness and Croatian localisation
 
@@ -114,7 +119,7 @@ Listings are de-duplicated (`dedupeListings` in `app/listing-boost.ts`) before r
 4. Restart `node scripts/preview-site.mjs` on port `4323` and confirm HTTP 200.
 5. `node scripts/visual-check.mjs` (standalone, watchdog + `await browser.close(); process.exit(0);`)
    capturing desktop `1440×900` and mobile `390×844` of `/`, `/oglas/<live-slug>`,
-   `/autokuce` and `/racun`, plus the open mobile filter sheet (`VISUAL_SHEET=1`) into
+   `/prijava`, `/autokuce` and `/racun`, plus the open mobile filter sheet (`VISUAL_SHEET=1`) into
    `.tmp-visual-check/`. Inspect every PNG for overlapping mobile buttons, broken or blurry
    images and visual drift between pages, fix defects, then delete `.tmp-visual-check/`.
 
